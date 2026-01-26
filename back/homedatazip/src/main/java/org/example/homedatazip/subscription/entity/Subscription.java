@@ -1,14 +1,22 @@
 package org.example.homedatazip.subscription.entity;
 
-import jakarta.persistence.*;
-import lombok.Builder;
-import lombok.Getter;
-import org.example.homedatazip.user.entity.User;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.OneToOne;
 
+import lombok.*;
+
+import org.example.homedatazip.subscription.type.SubscriptionStatus;
+import org.example.homedatazip.user.entity.User;
 import java.time.LocalDate;
 
 @Entity
 @Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class Subscription {
 
     @Id
@@ -18,12 +26,13 @@ public class Subscription {
     @OneToOne
     private User subscriber;
 
-//    @Builder.Default
-//    private Long price = 9900;
+    @Builder.Default
+    private Long price = 9900L;
 
+    @Builder.Default
     private String name = "기본 요금제";
 
-    private SubscriptionStatus status;   // Enum 타입 Active, Canceled, Pause, Expired
+    private SubscriptionStatus status;   // Enum 타입 Active, Canceled, Expired
 
     private String customerKey;   // 유저 쪽에서 생성
     private String billingKey;
@@ -31,6 +40,5 @@ public class Subscription {
     private LocalDate startDate;
     private LocalDate endDate;
 
-    private boolean isActive;
+    private boolean isActive ;   //만료시 false로
 }
-
