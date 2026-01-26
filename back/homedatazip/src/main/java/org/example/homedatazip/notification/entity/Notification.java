@@ -1,13 +1,16 @@
 package org.example.homedatazip.notification.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.example.homedatazip.common.BaseTimeEntity;
 
 @Entity
 @Getter
 @Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "notifications")
 public class Notification extends BaseTimeEntity {
 
     @Id

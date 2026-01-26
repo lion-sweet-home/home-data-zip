@@ -1,7 +1,7 @@
 package org.example.homedatazip.notification.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
+import lombok.*;
 import org.example.homedatazip.common.BaseTimeEntity;
 import org.example.homedatazip.user.entity.User;
 
@@ -9,6 +9,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "user_notifications",
         indexes = {
                 @Index(name = "idx_user_created", columnList = "user_id, createdAt"), // 알림 목록
