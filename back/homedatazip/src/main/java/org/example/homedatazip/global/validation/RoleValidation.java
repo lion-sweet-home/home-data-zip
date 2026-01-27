@@ -1,7 +1,7 @@
 package org.example.homedatazip.global.validation;
 
 import lombok.RequiredArgsConstructor;
-import org.example.homedatazip.global.exception.common.BusinessException;
+import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.role.RoleType;
 import org.example.homedatazip.user.entity.User;
