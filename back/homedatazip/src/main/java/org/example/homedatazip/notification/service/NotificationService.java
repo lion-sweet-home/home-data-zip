@@ -53,6 +53,14 @@ public class NotificationService {
         notification.setMessage(request.message());
 
         Notification updatedNotification = notificationRepository.save(notification);
+
+        // 기존 UserNotification 삭제 후 재전송
+        List<UserNotification> existingUserNotifications = userNotificationRepository.findByNotificationId(notificationId);
+        userNotificationRepository.deleteAll(existingUserNotifications);
+
+        // 알림 수신 설정이 true인 사용자에게 재전송
+        userNotificationService.sendNotificationToUsers(updatedNotification);
+
         return NotificationResponse.from(updatedNotification);
     }
 
