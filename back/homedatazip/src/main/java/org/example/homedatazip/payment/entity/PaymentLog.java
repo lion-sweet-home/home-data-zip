@@ -37,10 +37,10 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name = "payment_key", unique = true, length = 200)
     private String paymentKey;
 
-    @Column(name = "orderName", nullable = false, length = 100)
+    @Column(name = "order_name", nullable = false, length = 100)
     private String orderName;
 
-    @Column(name = "fail_reason")
+    @Column(name = "fail_reason", length = 300)
     private String failReason;
 
     @Column(nullable = false)
@@ -51,9 +51,11 @@ public class PaymentLog extends BaseTimeEntity {
     private PaymentStatus paymentStatus;
 
     // 토스 승인 시간
+    @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
     // 결제 완료 처리 시간
+    @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
     // ----- 메서드 -----

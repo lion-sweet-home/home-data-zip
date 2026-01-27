@@ -1,11 +1,11 @@
 package org.example.homedatazip.payment.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.homedatazip.global.exception.BusinessException;
-import org.example.homedatazip.global.exception.domain.PaymentErrorCode;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.payment.client.TossPaymentClient;
-import org.example.homedatazip.payment.dto.PaymentApproveRequest;
-import org.example.homedatazip.payment.dto.PaymentApproveResponse;
+import org.example.homedatazip.payment.dto.BillingConfirmRequest;
+import org.example.homedatazip.payment.dto.BillingRecurringResultResponse;
+import org.example.homedatazip.payment.dto.TossConfirmResponse;
 import org.example.homedatazip.payment.entity.PaymentLog;
 import org.example.homedatazip.payment.repository.PaymentLogRepository;
 import org.example.homedatazip.payment.type.PaymentStatus;
@@ -17,134 +17,134 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class PaymentService {
 
-    private final PaymentLogRepository paymentLogRepository;
     private final SubscriptionRepository subscriptionRepository;
+    private final PaymentLogRepository paymentLogRepository;
     private final TossPaymentClient tossPaymentClient;
 
     /**
-     * 프론트가 결제 성공 후 호출하는 "승인 처리"
-     * - Toss approve 호출
-     * - PaymentLog 저장(APPROVED)
-     * - Subscription ACTIVE + 기간 세팅 (첫결제/재구독용)
+     * 정기결제 배치(오늘 endDate == today인 ACTIVE만 처리)
+     * - 성공: 결제로그(APPROVED) + 구독 1개월 연장
+     * - 실패: 결제로그(FAILED) + 구독 자동결제 OFF(CANCELED)
      */
     @Transactional
-    public PaymentApproveResponse approvePayment(Long subscriberId, PaymentApproveRequest request) {
+    public BillingRecurringResultResponse processRecurringPayments(LocalDate today) {
 
-        Subscription subscription = subscriptionRepository.findBySubscriber_Id(subscriberId)
-                .orElseThrow(() -> new BusinessException(PaymentErrorCode.SUBSCRIPTION_NOT_FOUND));
-
-        // 중복 방지
-        if (paymentLogRepository.existsByOrderId(request.orderId())) {
-            throw new BusinessException(PaymentErrorCode.DUPLICATE_ORDER_ID);
-        }
-        if (paymentLogRepository.existsByPaymentKey(request.paymentKey())) {
-            throw new BusinessException(PaymentErrorCode.DUPLICATE_PAYMENT_KEY);
-        }
-
-        // (선택) 금액 검증: 기본요금제면 subscription.price 또는 고정값과 비교
-        // 지금 subscription에 price가 있으니 비교 가능
-        if (subscription.getPrice() != null && !subscription.getPrice().equals(request.amount())) {
-            throw new BusinessException(PaymentErrorCode.INVALID_AMOUNT);
-        }
-
-        // 1) 토스 승인
-        var result = tossPaymentClient.approve(request.paymentKey(), request.orderId(), request.amount());
-
-        // 2) 로그 저장
-        PaymentLog log = PaymentLog.builder()
-                .subscription(subscription)
-                .orderId(result.orderId())
-                .paymentKey(result.paymentKey())
-                .orderName("구독 결제") // 필요하면 request로 받거나 subscription.name 사용
-                .amount(result.amount())
-                .paymentStatus(PaymentStatus.APPROVED)
-                .approvedAt(result.approvedAt())
-                .paidAt(LocalDateTime.now())
-                .build();
-
-        paymentLogRepository.save(log);
-
-        // 3) 구독 반영: 첫결제/재구독이면 기간 새로 세팅
-        // 정책: 승인되면 오늘부터 1개월
-        activateOrRenewSubscription(subscription);
-
-        return new PaymentApproveResponse(
-                log.getId(),
-                log.getOrderId(),
-                log.getAmount(),
-                log.getPaymentStatus().name(),
-                log.getApprovedAt()
+        // 정기결제 대상: ACTIVE + isActive=true + endDate == today
+        List<Subscription> targets = subscriptionRepository.findAllByIsActiveTrueAndStatusAndEndDateEqual(
+                SubscriptionStatus.ACTIVE,
+                today
         );
+
+        int targetCount = targets.size();
+        int successCount = 0;
+        int failCount = 0;
+
+        for (Subscription s : targets) {
+            boolean ok = processOneRecurringPayment(s);
+            if (ok) successCount++;
+            else failCount++;
+        }
+
+        return new BillingRecurringResultResponse(targetCount, successCount, failCount);
     }
 
     /**
-     * 정기결제 성공 시 호출: 결제 로그 남기고 + 구독 연장(+1개월)
+     * 구독 1건 정기결제 처리(핵심)
      */
     @Transactional
-    public void recordRecurringSuccess(Subscription subscription, String orderId, String orderName, Long amount, LocalDateTime approvedAt) {
+    public boolean processOneRecurringPayment(Subscription subscription) {
+        LocalDateTime now = LocalDateTime.now();
 
-        PaymentLog log = PaymentLog.builder()
-                .subscription(subscription)
-                .orderId(orderId)
-                .paymentKey(null) // 빌링 결제도 paymentKey가 나오면 넣고, 아니면 null
-                .orderName(orderName)
-                .amount(amount)
-                .paymentStatus(PaymentStatus.APPROVED)
-                .approvedAt(approvedAt)
-                .paidAt(LocalDateTime.now())
-                .build();
+        // billingKey 없으면 결제 불가 -> 자동결제 중단
+        if (subscription.getBillingKey() == null || subscription.getBillingKey().isBlank()) {
+            createFailLog(subscription, generateOrderId(), subscription.getName(), subscription.getPrice(),
+                    "billingKey가 없어 정기결제를 진행할 수 없습니다.");
+            subscription.cancelAutoPay(); // CANCELED
+            return false;
+        }
 
-        paymentLogRepository.save(log);
+        String orderId = generateOrderId();
+        String orderName = subscription.getName();
+        Long amount = subscription.getPrice();
 
-        subscription.extendOneMonth();
+        try {
+            BillingConfirmRequest req = new BillingConfirmRequest(
+                    subscription.getId(),
+                    orderId,
+                    orderName,
+                    amount
+            );
+
+            // ✅ TossPaymentClient 메서드에 맞춤: chargeBilling()
+            TossConfirmResponse tossRes = tossPaymentClient.chargeBilling(
+                    subscription.getSubscriber().getCustomerKey(), // User.getCustomerKey()
+                    subscription.getBillingKey(),
+                    req.orderId(),
+                    req.orderName(),
+                    req.amount()
+            );
+
+            // 성공 로그 저장
+            PaymentLog logEntity = PaymentLog.builder()
+                    .subscription(subscription)
+                    .orderId(orderId)
+                    .paymentKey(tossRes.paymentKey()) // billing 결제는 null일 수도 있음 (괜찮음)
+                    .orderName(orderName)
+                    .amount(amount)
+                    .paymentStatus(PaymentStatus.APPROVED)
+                    .approvedAt(tossRes.approvedAt() != null ? tossRes.approvedAt() : now)
+                    .paidAt(now)
+                    .build();
+
+            paymentLogRepository.save(logEntity);
+
+            // 성공: 기간 연장
+            subscription.extendOneMonth();
+
+            return true;
+
+        } catch (Exception e) {
+            log.warn("[PaymentService] recurring payment failed. subscriptionId={}, reason={}",
+                    subscription.getId(), e.getMessage());
+
+            createFailLog(subscription, orderId, orderName, amount, safeMsg(e));
+
+            // 실패: 다음 결제 OFF
+            subscription.cancelAutoPay();
+
+            return false;
+        }
     }
 
-    /**
-     * 정기결제 실패 시 호출: 실패 로그 남기고 + 구독 자동결제 끊기(CANCELED)
-     */
-    @Transactional
-    public void recordRecurringFailure(Subscription subscription, String orderId, String orderName, Long amount, String reason) {
-
-        PaymentLog log = PaymentLog.builder()
+    private void createFailLog(Subscription subscription, String orderId, String orderName, Long amount, String reason) {
+        PaymentLog logEntity = PaymentLog.builder()
                 .subscription(subscription)
                 .orderId(orderId)
-                .paymentKey(null)
                 .orderName(orderName)
                 .amount(amount)
                 .paymentStatus(PaymentStatus.FAILED)
                 .failReason(reason)
-                .approvedAt(null)
-                .paidAt(null)
+                .paidAt(LocalDateTime.now())
                 .build();
 
-        paymentLogRepository.save(log);
-
-        // 정책: 실패하면 자동결제 끊기(상태 CANCELED)
-        subscription.cancelAutoPay();
+        paymentLogRepository.save(logEntity);
     }
 
-    /**
-     * 승인 성공 시 구독 상태를 ACTIVE로 맞추고 기간 세팅
-     * - 기본 정책: 오늘 ~ +1개월
-     * - 이미 ACTIVE인데 기간 남아있으면 막을지/연장할지 정책에 따라 변경 가능
-     */
-    private void activateOrRenewSubscription(Subscription subscription) {
-        LocalDate today = LocalDate.now();
+    private String generateOrderId() {
+        return "ORD_" + UUID.randomUUID().toString().replace("-", "").substring(0, 20);
+    }
 
-        // 만료면 정리 후 새로 시작
-        if (subscription.getEndDate() != null && subscription.getEndDate().isBefore(today)) {
-            subscription.expire();
-        }
-
-        // 승인 성공 = 무조건 ACTIVE로 전환하고 기간 리셋(단순 정책)
-        subscription.activate();
-        subscription.resetPeriod(today, today.plusMonths(1));
-        subscription.updatePlan("기본 요금제", subscription.getPrice() == null ? 9900L : subscription.getPrice());
+    private String safeMsg(Exception e) {
+        String msg = e.getMessage();
+        return (msg == null || msg.isBlank()) ? "결제 실패(원인 미상)" : msg;
     }
 }

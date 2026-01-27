@@ -2,11 +2,9 @@ package org.example.homedatazip.payment.dto;
 
 import java.time.LocalDateTime;
 
-public record PaymentApproveResponse(
-
-        Long paymentLogId,
+public record TossConfirmResponse(
+        String paymentKey,
         String orderId,
         Long amount,
-        String paymentStatus,
         LocalDateTime approvedAt
 ) {}

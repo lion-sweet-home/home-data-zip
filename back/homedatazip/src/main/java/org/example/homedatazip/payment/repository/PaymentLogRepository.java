@@ -22,15 +22,25 @@ public interface PaymentLogRepository extends JpaRepository<PaymentLog, Long> {
             @Param("status") PaymentStatus status
     );
 
+    // orderId로 단건 조회(중복 방지/확인용)
     Optional<PaymentLog> findByOrderId(String orderId);
-
-    Optional<PaymentLog> findByPaymentKey(String paymentKey);
 
     boolean existsByOrderId(String orderId);
 
+    // 토스 paymentKey로 조회(승인/취소/조회 대응용)
+    Optional<PaymentLog> findByPaymentKey(String paymentKey);
+
     boolean existsByPaymentKey(String paymentKey);
 
-    List<PaymentLog> findAllBySubscription_IdOrderByCreatedAtDesc(Long subscriptionId);
+    // 내 구독 결제로그 전체 조회(최신순)
+    List<PaymentLog> findAllBySubscription_IdOrderByPaidAtDesc(Long subscriptionId);
 
-    List<PaymentLog> findAllByPaymentStatusOrderByCreatedAtDesc(PaymentStatus paymentStatus);
+    // 특정 상태만 조회(예: FAILED만)
+    List<PaymentLog> findAllBySubscription_IdAndPaymentStatusOrderByPaidAtDesc(
+            Long subscriptionId,
+            PaymentStatus paymentStatus
+    );
+
+    // 구독의 최근 결제 1건(중복 결제 방지/화면용)
+    Optional<PaymentLog> findTop1BySubscription_IdOrderByPaidAtDesc(Long subscriptionId);
 }
