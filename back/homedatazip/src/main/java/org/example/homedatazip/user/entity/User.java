@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.example.homedatazip.common.BaseTimeEntity;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.UserRole;
@@ -29,6 +30,9 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false)
     private String password;
 
+    @Setter
+    @Column(nullable = false)
+    private boolean notificationEnabled = true; // 알림 수신 설정
 
     @OneToMany(
             mappedBy = "user",

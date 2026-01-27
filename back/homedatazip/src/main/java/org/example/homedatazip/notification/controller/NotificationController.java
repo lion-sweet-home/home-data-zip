@@ -16,8 +16,7 @@ import java.util.List;
 @RequestMapping("/api/admin/notifications")
 public class NotificationController {
 
-    // TODO: ADMIN만 가능하게 수정해야함
-    // TODO: UserDetails로 변경 예정
+    // TODO: UserDetails로 인증된 사용자 확인 및 ADMIN 역할 체크
 
     private final NotificationService notificationService;
 

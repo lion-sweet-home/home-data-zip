@@ -18,7 +18,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // 회원가입
-                        .requestMatchers("/api/users/**").permitAll()
+                        .requestMatchers("/api/users/**", "/api/admin/**").permitAll()
 
                         .anyRequest().authenticated()
                 );

@@ -4,7 +4,9 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.notification.dto.NotificationRequest;
 import org.example.homedatazip.notification.dto.NotificationResponse;
 import org.example.homedatazip.notification.entity.Notification;
+import org.example.homedatazip.notification.entity.UserNotification;
 import org.example.homedatazip.notification.repository.NotificationRepository;
+import org.example.homedatazip.notification.repository.UserNotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,8 @@ public class NotificationService {
     // TODO: UserDetails로 변경 예정
 
     private final NotificationRepository notificationRepository;
+    private final UserNotificationService userNotificationService;
+    private final UserNotificationRepository userNotificationRepository;
 
     @Transactional
     public NotificationResponse createNotification(NotificationRequest request) {
@@ -26,6 +30,9 @@ public class NotificationService {
                 .build();
 
         Notification savedNotification = notificationRepository.save(notification);
+
+        userNotificationService.sendNotificationToUsers(savedNotification);
+
         return NotificationResponse.from(savedNotification);
     }
 
@@ -53,6 +60,9 @@ public class NotificationService {
     public void deleteNotification(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new IllegalArgumentException("공지사항을 찾을 수 없음"));
+
+        List<UserNotification> userNotifications = userNotificationRepository.findByNotificationId(notificationId);
+        userNotificationRepository.deleteAll(userNotifications);
 
         notificationRepository.delete(notification);
     }

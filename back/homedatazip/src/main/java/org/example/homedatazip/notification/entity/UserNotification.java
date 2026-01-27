@@ -33,6 +33,7 @@ public class UserNotification extends BaseTimeEntity {
 
     private LocalDateTime readAt;
 
+    @Builder.Default
     @Column(nullable = false)
     private boolean isDeleted = false;
 }
