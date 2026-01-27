@@ -1,4 +1,4 @@
-package org.example.homedatazip.Auth.entity;
+package org.example.homedatazip.auth.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;

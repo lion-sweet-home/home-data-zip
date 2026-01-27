@@ -1,11 +1,11 @@
-package org.example.homedatazip.Auth.controller;
+package org.example.homedatazip.auth.controller;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.Auth.service.AuthService;
-import org.example.homedatazip.Auth.dto.LoginRequest;
-import org.example.homedatazip.Auth.dto.LoginResponse;
+import org.example.homedatazip.auth.service.AuthService;
+import org.example.homedatazip.auth.dto.LoginRequest;
+import org.example.homedatazip.auth.dto.LoginResponse;
 import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.global.jwt.util.CookieProvider;
 import org.springframework.http.HttpStatus;
