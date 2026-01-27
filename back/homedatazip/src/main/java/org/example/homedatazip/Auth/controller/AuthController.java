@@ -1,0 +1,48 @@
+package org.example.homedatazip.Auth.controller;
+
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.example.homedatazip.Auth.service.AuthService;
+import org.example.homedatazip.Auth.dto.LoginRequest;
+import org.example.homedatazip.Auth.dto.LoginResponse;
+import org.example.homedatazip.global.config.CustomUserDetails;
+import org.example.homedatazip.global.jwt.util.CookieProvider;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@Slf4j
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
+public class AuthController {
+    private final AuthService authService;
+    private final CookieProvider cookieProvider;
+
+    @PostMapping("/login")
+    public ResponseEntity<LoginResponse> login(@RequestBody LoginRequest loginRequest,
+                                               HttpServletResponse response) {
+        LoginResponse dto = authService.login(loginRequest,response);
+
+        return ResponseEntity.status(HttpStatus.OK).body(dto);
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<LoginResponse> reissue(@CookieValue(value = "refreshToken", required = false) String refreshToken,
+                                                 HttpServletResponse response,
+                                                 CustomUserDetails customUserDetails) {
+
+        LoginResponse dto = authService.reissue(refreshToken,response);
+        return  ResponseEntity.status(HttpStatus.OK).body(dto);
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response,
+                                       @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        log.info("CustomUser Id :::" + customUserDetails.getUserId());
+        authService.logout(customUserDetails.getUserId(), response);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+}
