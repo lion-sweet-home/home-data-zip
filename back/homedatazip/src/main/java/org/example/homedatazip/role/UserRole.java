@@ -1,7 +1,9 @@
 package org.example.homedatazip.role;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import org.example.homedatazip.user.entity.User;
 
 @Entity
@@ -11,6 +13,7 @@ import org.example.homedatazip.user.entity.User;
                 @UniqueConstraint(columnNames = {"user_id", "role_id"})
         }
 )
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class UserRole {
 
     @Id
@@ -24,5 +27,13 @@ public class UserRole {
     @ManyToOne
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
+
+    public static UserRole create(User user, Role role) {
+        UserRole userRole = new UserRole();
+        userRole.user = user;
+        userRole.role = role;
+
+        return userRole;
+    }
 
 }
