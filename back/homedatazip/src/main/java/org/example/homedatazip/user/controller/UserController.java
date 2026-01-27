@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.dto.EmailRequest;
 import org.example.homedatazip.email.service.EmailAuthService;
 import org.example.homedatazip.user.dto.NicknameCheckRequest;
+import org.example.homedatazip.user.dto.NotificationSettingRequest;
 import org.example.homedatazip.user.dto.RegisterRequest;
 import org.example.homedatazip.user.service.UserService;
 import org.springframework.http.HttpStatus;
@@ -38,6 +39,16 @@ public class UserController {
     @PostMapping("/email-verification")
     public ResponseEntity<Void> sendEmailCode(@RequestBody EmailRequest request) {
         emailAuthService.sendAuthCode(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    // 알림 수신 설정 변경
+    // TODO: UserDetails로 변경 예정 (인증된 사용자의 userId 사용)
+    @PutMapping("/{userId}/notification-setting")
+    public ResponseEntity<Void> updateNotificationSetting(
+            @PathVariable Long userId,
+            @Valid @RequestBody NotificationSettingRequest request) {
+        userService.updateNotificationSetting(userId, request);
         return ResponseEntity.ok().build();
     }
 }

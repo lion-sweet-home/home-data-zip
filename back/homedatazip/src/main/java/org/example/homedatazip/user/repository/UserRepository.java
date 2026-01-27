@@ -7,12 +7,16 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
+
 public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByEmail(String email);
 
     boolean existsByNickname(String nickname);
 
+    // 알림 수신 설정한 사용자 조회
+    List<User> findByNotificationEnabledTrue();
     // 닉네임, 이메일 포함해서 검색
     @Query("""
         select u from User u
