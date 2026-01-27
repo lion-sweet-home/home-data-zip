@@ -34,11 +34,28 @@ public class Subscription {
 
     private SubscriptionStatus status;   // Enum 타입 Active, Canceled, Expired
 
-    private String customerKey;   // 유저 쪽에서 생성
+    private String customerKey;   // 유저 쪽에서 생성, "cust_" + UUID.randomUUID()
     private String billingKey;
 
     private LocalDate startDate;
     private LocalDate endDate;
 
+    @Builder.Default
     private boolean isActive ;   //만료시 false로
+
+    //----메서드----
+    public void expire() {
+        this.status = SubscriptionStatus.EXPIRED;
+        this.isActive = false;
+    }
+
+    public void cancelAutoPay() {
+        this.status = SubscriptionStatus.CANCELED;
+        this.isActive = true;
+    }
+
+    public void activate() {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.isActive = true;
+    }
 }
