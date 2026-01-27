@@ -41,7 +41,7 @@ public class SubscriptionBatchService {
     public int processRecurringPayment(LocalDate today) {
 
         List<Subscription> targets =
-                subscriptionRepository.findAllByIsActiveTrueAndStatusAndEndDateEqual(
+                subscriptionRepository.findAllByIsActiveTrueAndStatusAndEndDate(
                         SubscriptionStatus.ACTIVE,
                         today
                 );

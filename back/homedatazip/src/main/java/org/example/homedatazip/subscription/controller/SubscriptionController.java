@@ -1,6 +1,7 @@
 package org.example.homedatazip.subscription.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.subscription.dto.StartSubscriptionRequest;
 import org.example.homedatazip.subscription.dto.SubscriptionStartResponse;
 import org.example.homedatazip.subscription.service.SubscriptionService;
 import org.springframework.http.ResponseEntity;
@@ -50,13 +51,4 @@ public class SubscriptionController {
         return ResponseEntity.ok(subscriptionService.getMySubscription(subscriberId));
     }
 
-    /**
-     * Request DTO (startSubscription)
-     */
-    public record StartSubscriptionRequest(
-            Long subscriberId,
-            String name,
-            Long price,
-            int periodDays
-    ) {}
 }
