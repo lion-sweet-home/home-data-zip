@@ -1,4 +1,4 @@
-package org.example.homedatazip.Auth.dto;
+package org.example.homedatazip.auth.dto;
 
 public record LoginResponse (
         String AccessToken

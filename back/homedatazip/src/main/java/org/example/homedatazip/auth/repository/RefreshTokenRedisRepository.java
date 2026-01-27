@@ -1,4 +1,4 @@
-package org.example.homedatazip.Auth.repository;
+package org.example.homedatazip.auth.repository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.StringRedisTemplate;

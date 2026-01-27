@@ -1,11 +1,11 @@
-package org.example.homedatazip.Auth.service;
+package org.example.homedatazip.auth.service;
 
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.Auth.dto.LoginRequest;
-import org.example.homedatazip.Auth.dto.LoginResponse;
-import org.example.homedatazip.Auth.repository.RefreshTokenRedisRepository;
+import org.example.homedatazip.auth.dto.LoginRequest;
+import org.example.homedatazip.auth.dto.LoginResponse;
+import org.example.homedatazip.auth.repository.RefreshTokenRedisRepository;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.AuthErrorCode;
 import org.example.homedatazip.global.jwt.property.JwtProperties;

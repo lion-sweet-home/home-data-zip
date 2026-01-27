@@ -43,12 +43,11 @@ public class UserController {
     }
 
     // 알림 수신 설정 변경
-    // TODO: UserDetails로 변경 예정 (인증된 사용자의 userId 사용)
-    @PutMapping("/{userId}/notification-setting")
+    @PutMapping("/notification-setting")
     public ResponseEntity<Void> updateNotificationSetting(
-            @PathVariable Long userId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody NotificationSettingRequest request) {
-        userService.updateNotificationSetting(userId, request);
+        userService.updateNotificationSetting(userDetails.getUserId(), request);
         return ResponseEntity.ok().build();
     }
 
