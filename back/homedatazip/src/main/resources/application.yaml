@@ -37,3 +37,21 @@ spring:
     redis:
       host: localhost
       port: 6379
+
+
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - https://www.yourdomain.com
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+  max-age: 3600
+
+jwt:
+  access-secret-key: ${JWT_ACCESS_SECRET}
+  refresh-secret-key: ${JWT_REFRESH_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXP_SEC}
+  refresh-token-expiration: ${JWT_REFRESH_EXP_SEC}
