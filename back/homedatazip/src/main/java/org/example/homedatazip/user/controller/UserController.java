@@ -44,9 +44,7 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 알림 수신 설정 변경
-     */
+    // 알림 수신 설정 변경
     @PutMapping("/notification-setting")
     public ResponseEntity<Void> updateNotificationSetting(
             @AuthenticationPrincipal CustomUserDetails userDetails,
