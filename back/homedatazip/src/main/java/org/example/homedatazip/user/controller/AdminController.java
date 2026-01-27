@@ -1,6 +1,7 @@
 package org.example.homedatazip.user.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.settlement.dto.SettlementResponse;
 import org.example.homedatazip.user.dto.UserResponse;
 import org.example.homedatazip.user.service.AdminService;
@@ -30,11 +31,8 @@ public class AdminController {
     public ResponseEntity<Long> getMonthlyIncome(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         Long monthlyIncome
-                = adminService.getMonthlyIncome(userId);
+                = adminService.getMonthlyIncome(userDetails.getUserId());
 
         return ResponseEntity.ok().body(monthlyIncome);
     }
@@ -47,11 +45,8 @@ public class AdminController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @RequestParam(defaultValue = "#{T(java.time.Year).now().getValue()}") int year
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         List<SettlementResponse> yearlyIncome
-                = adminService.getYearlyIncome(userId, year);
+                = adminService.getYearlyIncome(userDetails.getUserId(), year);
 
         return ResponseEntity.ok().body(yearlyIncome);
     }
@@ -63,11 +58,8 @@ public class AdminController {
     public ResponseEntity<Long> getUsersCount(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         Long userCount
-                = adminService.getUserCount(userId);
+                = adminService.getUserCount(userDetails.getUserId());
 
         return ResponseEntity.ok().body(userCount);
     }
@@ -80,11 +72,8 @@ public class AdminController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PageableDefault Pageable pageable
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         Page<UserResponse> usersList
-                = adminService.getUserList(userId, pageable);
+                = adminService.getUserList(userDetails.getUserId(), pageable);
 
         return ResponseEntity.ok().body(usersList);
     }
@@ -96,11 +85,8 @@ public class AdminController {
     public ResponseEntity<Long> getSubscribersCount(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         Long subscriberCount
-                = adminService.getSubscribersCount(userId);
+                = adminService.getSubscribersCount(userDetails.getUserId());
 
         return ResponseEntity.ok().body(subscriberCount);
     }
@@ -112,11 +98,8 @@ public class AdminController {
     public ResponseEntity<Long> getListingsCount(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
-        // FIXME: CustomUserDetails 필드 확인 후 수정
-        Long userId = userDetails.getUserId();
-
         Long listingCount
-                = adminService.getListingsCount(userId);
+                = adminService.getListingsCount(userDetails.getUserId());
 
         return ResponseEntity.ok().body(listingCount);
     }
