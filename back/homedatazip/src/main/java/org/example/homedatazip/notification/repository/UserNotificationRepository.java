@@ -24,7 +24,7 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     @Query("SELECT un FROM UserNotification un WHERE un.user.id = :userId AND un.readAt IS NULL ORDER BY un.createdAt DESC")
     List<UserNotification> findUnreadByUserId(@Param("userId") Long userId);
 
-    // 사용자 알림 조회 (읽음 처리 시 사용)
+    // 사용자 알림 조회 (읽음 처리, 삭제 시 사용)
     @Query("SELECT un FROM UserNotification un WHERE un.user.id = :userId AND un.id = :userNotificationId")
     java.util.Optional<UserNotification> findByUserIdAndId(@Param("userId") Long userId, @Param("userNotificationId") Long userNotificationId);
 }

@@ -84,4 +84,33 @@ public class UserNotificationService {
             userNotification.setReadAt(LocalDateTime.now());
         }
     }
+
+    // 전체 읽음 처리
+    @Transactional
+    public void markAllAsRead(Long userId) {
+        List<UserNotification> unreadNotifications = userNotificationRepository.findUnreadByUserId(userId);
+        LocalDateTime now = LocalDateTime.now();
+        
+        unreadNotifications.forEach(notification -> {
+            if (notification.getReadAt() == null) {
+                notification.setReadAt(now);
+            }
+        });
+    }
+
+    // 알림 삭제
+    @Transactional
+    public void deleteUserNotification(Long userId, Long userNotificationId) {
+        UserNotification userNotification = userNotificationRepository.findByUserIdAndId(userId, userNotificationId)
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.USER_NOTIFICATION_NOT_FOUND));
+
+        userNotificationRepository.delete(userNotification);
+    }
+
+    // 읽은 알림 전체 삭제
+    @Transactional
+    public void deleteAllReadNotifications(Long userId) {
+        List<UserNotification> readNotifications = userNotificationRepository.findReadByUserId(userId);
+        userNotificationRepository.deleteAll(readNotifications);
+    }
 }

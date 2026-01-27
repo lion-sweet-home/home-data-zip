@@ -15,6 +15,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -84,6 +85,34 @@ public class UserNotificationController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("user_notification_id") Long userNotificationId) {
         userNotificationService.markAsRead(userDetails.getUserId(), userNotificationId);
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // 전체 읽음 처리
+    @PutMapping("/read-all")
+    public ResponseEntity<Void> markAllAsRead(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        userNotificationService.markAllAsRead(userDetails.getUserId());
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // 해당 알림 삭제
+    @DeleteMapping("/{user_notification_id}")
+    public ResponseEntity<Void> deleteUserNotification(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable("user_notification_id") Long userNotificationId) {
+        userNotificationService.deleteUserNotification(userDetails.getUserId(), userNotificationId);
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    // 읽은 알림 전체 삭제
+    @DeleteMapping("/read-all")
+    public ResponseEntity<Void> deleteAllReadNotifications(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        userNotificationService.deleteAllReadNotifications(userDetails.getUserId());
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
