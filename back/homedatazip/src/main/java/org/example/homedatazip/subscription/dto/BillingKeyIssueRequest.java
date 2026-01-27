@@ -4,5 +4,6 @@ package org.example.homedatazip.subscription.dto;
 // POST /api/payments/billing-keys
 
 public record BillingKeyIssueRequest(
-        String authKey
+        String orderName,
+        Long amount
 ) {}
