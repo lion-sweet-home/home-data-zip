@@ -52,4 +52,25 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailWithRoles(@Param("email") String email);
 
     Optional<User> findByEmail(String email);
+
+    // 닉네임, 이메일 포함 검색
+    @Query("""
+            select u from User u
+            where u.nickname like %:keyword% or u.email like %:keyword%
+            """)
+    Page<User> searchAll(@Param("keyword") String keyword, Pageable pageable);
+
+    // 닉네임 검색
+    @Query("""
+            select u from User u
+            where u.nickname like %:keyword%
+            """)
+    Page<User> searchByNickname(@Param("keyword") String keyword, Pageable pageable);
+
+    // 이메일 검색
+    @Query("""
+            select u from User u
+            where u.email like %:keyword%
+            """)
+    Page<User> searchByEmail(@Param("keyword") String keyword, Pageable pageable);
 }
