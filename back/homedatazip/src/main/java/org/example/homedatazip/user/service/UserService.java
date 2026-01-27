@@ -8,15 +8,18 @@ import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.role.Role;
+import org.example.homedatazip.role.UserRole;
 import org.example.homedatazip.role.repository.RoleRepository;
 import org.example.homedatazip.role.type.RoleType;
-import org.example.homedatazip.user.dto.NotificationSettingRequest;
-import org.example.homedatazip.user.dto.RegisterRequest;
+import org.example.homedatazip.user.dto.*;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -88,4 +91,67 @@ public class UserService {
             sseEmitterService.removeEmitter(userId);
         }
     }
+
+    //FIXME: 관리자가 임의로 사용자의 정보를 수정할 수 있다면 관리자 검증로직이 추가되어야함
+    @Transactional(readOnly = true)
+    public MyPageResponse getMyPageInfo(Long userId, String email){
+        validUser(email, userId);
+
+        User targetUser = findUserById(userId);
+
+        return MyPageResponse.from(targetUser);
+    }
+
+    @Transactional
+    public MyPageResponse editMyPage(MyPageEditRequest request, String email, Long userId){
+
+        //수정 마이페이지 주인인 타켓유저(userId)와 실제 요청한 유저(email) 검증
+        validUser(email, userId);
+
+        //수정 페이지의 주인 값을 바꿔야함으로 userId로 찾은 user의 정보를 수정
+        User targetUser = findUserById(userId);
+
+        //수정하려는 닉네임의 존재여부 확인은 프론트에서 확인으로 따로 api호출함으로 생략
+
+        //닉네임수정
+        targetUser.changeNickname(request.nickname());
+
+        return MyPageResponse.from(targetUser);
+    }
+
+    private User findUserByEmail(String email){
+        return userRepository.findByEmail(email)
+                .orElseThrow(()-> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    private User findUserById(Long userId){
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+    }
+
+    private void validUser(String email, Long userId) {
+        User user = findUserByEmail(email);
+
+        if(!user.getId().equals(userId))
+            throw new BusinessException(UserErrorCode.ACCESS_DENIED);
+    }
+
+    private boolean isAdmin(String email){
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        List<String> roles = stringFromUserRole(user);
+
+        return roles.contains("ADMIN");
+    }
+
+    private List<String> stringFromUserRole(User user){
+        return user.getRoles().stream()
+                .map(UserRole::getRole)
+                .map(Role::getRoleType)
+                .distinct()
+                .map(Enum::name)
+                .collect(Collectors.toList());
+    }
 }
+
