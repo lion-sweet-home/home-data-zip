@@ -1,6 +1,8 @@
 package org.example.homedatazip.subscription.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.SubscriptionErrorCode;
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.subscription.repository.SubscriptionRepository;
 import org.example.homedatazip.subscription.type.SubscriptionStatus;
@@ -19,9 +21,12 @@ public class SubscriptionBatchService {
 
     @Transactional
     public int expire(LocalDate today) {
+        if (today == null) {
+            throw new BusinessException(SubscriptionErrorCode.BATCH_DATE_REQUIRED);
+        }
 
         List<Subscription> targets =
-                subscriptionRepository.findAllByIsActiveTrueAndStatusInAndEndDateLessThan(
+                subscriptionRepository.findAllByIsActiveTrueAndEndDateIsNotNullAndStatusInAndEndDateLessThan(
                         List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED),
                         today
                 );

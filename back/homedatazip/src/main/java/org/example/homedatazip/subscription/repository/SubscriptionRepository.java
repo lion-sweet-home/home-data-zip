@@ -28,8 +28,8 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
      * - isActive=true
      * - endDate < today
      */
-    List<Subscription> findAllByIsActiveTrueAndStatusInAndEndDateLessThan(
-            Collection<SubscriptionStatus> statuses,
+    List<Subscription> findAllByIsActiveTrueAndEndDateIsNotNullAndStatusInAndEndDateLessThan(
+            List<SubscriptionStatus> statuses,
             LocalDate today
     );
 
@@ -39,7 +39,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
      * - isActive=true
      * - endDate == today
      */
-    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDateEqual(
+    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDate(
             SubscriptionStatus status,
             LocalDate endDate
     );

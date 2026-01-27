@@ -17,6 +17,7 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
+// 쓰기전용
 public class PaymentQueryService {
 
     private final SubscriptionRepository subscriptionRepository;

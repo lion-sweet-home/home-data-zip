@@ -108,4 +108,12 @@ public class Subscription {
     public boolean hasBillingKey() {
         return this.billingKey != null && !this.billingKey.isBlank();
     }
+
+    // 결제 승인 성공(첫 결제) -> ACTIVE로 전환 + 기간 세팅
+    public void activateAfterFirstPayment(LocalDate startDate, LocalDate endDate) {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.isActive = true;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
 }

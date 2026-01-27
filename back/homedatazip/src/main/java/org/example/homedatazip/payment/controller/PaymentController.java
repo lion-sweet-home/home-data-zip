@@ -2,9 +2,9 @@ package org.example.homedatazip.payment.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
-import org.example.homedatazip.payment.dto.PaymentListResponse;
-import org.example.homedatazip.payment.dto.PaymentLogResponse;
+import org.example.homedatazip.payment.dto.*;
 import org.example.homedatazip.payment.service.PaymentQueryService;
+import org.example.homedatazip.payment.service.PaymentService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -14,29 +14,43 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/payments")
 public class PaymentController {
 
+    private final PaymentService paymentService;
     private final PaymentQueryService paymentQueryService;
 
-    /**
-     * ✅ 내 결제 로그 전체 조회
-     * GET /api/payments/me
-     */
-    @GetMapping("/me")
-    public ResponseEntity<PaymentListResponse> myPayments(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+    @PostMapping("/prepare")
+    public ResponseEntity<PaymentPrepareResponse> prepare(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody(required = false) PaymentPrepareRequest request
     ) {
-        Long userId = userDetails.getUserId();
-        return ResponseEntity.ok(paymentQueryService.getMyPayments(userId));
+        return ResponseEntity.ok(
+                paymentService.prepareOneTimePayment(principal.getUserId(), request)
+        );
     }
 
-    /**
-     * ✅ 내 최근 결제 1건 조회
-     * GET /api/payments/me/latest
-     */
+    @PostMapping("/confirm")
+    public ResponseEntity<?> confirm(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody TossPaymentConfirmRequest request
+    ) {
+        // ✅ confirm이 컨트롤러까지 들어오는지 확인용
+        return ResponseEntity.ok(request);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<PaymentListResponse> myPayments(
+            @AuthenticationPrincipal CustomUserDetails principal
+    ) {
+        return ResponseEntity.ok(
+                paymentQueryService.getMyPayments(principal.getUserId())
+        );
+    }
+
     @GetMapping("/me/latest")
     public ResponseEntity<PaymentLogResponse> myLatestPayment(
-            @AuthenticationPrincipal CustomUserDetails userDetails
+            @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        Long userId = userDetails.getUserId();
-        return ResponseEntity.ok(paymentQueryService.getMyLatestPayment(userId));
+        return ResponseEntity.ok(
+                paymentQueryService.getMyLatestPayment(principal.getUserId())
+        );
     }
 }

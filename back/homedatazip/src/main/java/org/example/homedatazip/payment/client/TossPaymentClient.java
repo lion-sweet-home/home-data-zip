@@ -1,53 +1,59 @@
 package org.example.homedatazip.payment.client;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.PaymentErrorCode;
-import org.example.homedatazip.payment.dto.TossConfirmResponse;
+import org.example.homedatazip.payment.dto.TossPaymentConfirmResponse;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.Base64;
 
-@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TossPaymentClient {
 
-    /**
-     * 단건 결제 승인 (지금은 샘플)
-     */
-    public TossConfirmResponse approve(String paymentKey, String orderId, Long amount) {
+    @Value("${payment.toss.secret-key}")
+    private String secretKey;
+
+    private final WebClient webClient = WebClient.builder()
+            .baseUrl("https://api.tosspayments.com")
+            .build();
+
+    public TossPaymentConfirmResponse approve(String paymentKey, String orderId, Long amount) {
+
+        String authHeader = "Basic " + Base64.getEncoder()
+                .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
+
         try {
-            // TODO: 실제 토스 승인 API 호출
-            return new TossConfirmResponse(paymentKey, orderId, amount, LocalDateTime.now());
+            return webClient.post()
+                    .uri("/v1/payments/confirm")
+                    .header(HttpHeaders.AUTHORIZATION, authHeader)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(new TossConfirmRequest(paymentKey, orderId, amount))
+                    .retrieve()
+                    .onStatus(
+                            HttpStatusCode::isError,
+                            resp -> resp.bodyToMono(String.class)
+                                    .map(body -> new BusinessException(PaymentErrorCode.TOSS_APPROVE_FAILED))
+                    )
+                    .bodyToMono(TossPaymentConfirmResponse.class)
+                    .block();
+
         } catch (Exception e) {
-            log.error("[TossPaymentClient] approve failed. orderId={}, amount={}, msg={}",
-                    orderId, amount, e.getMessage(), e);
             throw new BusinessException(PaymentErrorCode.TOSS_APPROVE_FAILED);
         }
     }
 
-    /**
-     * 정기결제(빌링키 결제) (지금은 샘플)
-     */
-    public TossConfirmResponse chargeBilling(
-            String customerKey,
-            String billingKey,
+    private record TossConfirmRequest(
+            String paymentKey,
             String orderId,
-            String orderName,
             Long amount
-    ) {
-        try {
-            // TODO: 실제 토스 빌링 결제 API 호출
-            // billing 결제의 응답 paymentKey가 있으면 여기서 세팅
-            String paymentKey = null;
-
-            return new TossConfirmResponse(paymentKey, orderId, amount, LocalDateTime.now());
-        } catch (Exception e) {
-            log.error("[TossPaymentClient] chargeBilling failed. orderId={}, amount={}, msg={}",
-                    orderId, amount, e.getMessage(), e);
-            throw new BusinessException(PaymentErrorCode.TOSS_BILLING_FAILED);
-        }
-    }
+    ) {}
 }

@@ -1,31 +1,30 @@
 package org.example.homedatazip.subscription.dto;
 
-// 구독 시작 (최초 결제)
-// POST /api/subscriptions
-
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.subscription.type.SubscriptionStatus;
 
 import java.time.LocalDate;
 
-public record SubscriptionStartResponse(
+public record SubscriptionMeResponse(
         Long subscriptionId,
+        String planName,
+        Long price,
         SubscriptionStatus status,
         boolean isActive,
-        String name,
-        Long price,
         LocalDate startDate,
-        LocalDate endDate
+        LocalDate endDate,
+        boolean hasBillingKey
 ) {
-    public static SubscriptionStartResponse from(Subscription s) {
-        return new SubscriptionStartResponse(
+    public static SubscriptionMeResponse from(Subscription s) {
+        return new SubscriptionMeResponse(
                 s.getId(),
-                s.getStatus(),
-                s.isActive(),
                 s.getName(),
                 s.getPrice(),
+                s.getStatus(),
+                s.isActive(),
                 s.getStartDate(),
-                s.getEndDate()
+                s.getEndDate(),
+                s.getBillingKey() != null && !s.getBillingKey().isBlank()
         );
     }
 }

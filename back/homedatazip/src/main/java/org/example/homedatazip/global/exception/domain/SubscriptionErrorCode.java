@@ -15,6 +15,7 @@ public enum SubscriptionErrorCode implements ErrorCode {
     ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "SUB_400_1", "이미 구독 중입니다."),
     CANNOT_REACTIVATE_EXPIRED(HttpStatus.BAD_REQUEST, "SUB_400_2", "만료된 구독은 재등록할 수 없습니다. 새로 구독을 시작하세요."),
     INVALID_SUBSCRIPTION_STATUS(HttpStatus.BAD_REQUEST, "SUB_400_3", "구독 상태가 올바르지 않습니다."),
+    BATCH_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "SUB_400_4", "배치 실행 날짜(date)가 필요합니다."),
 
     INVALID_CUSTOMER_KEY(HttpStatus.BAD_REQUEST, "SUB_400_x", "customerKey가 올바르지 않습니다."),
     BILLING_KEY_REQUIRED(HttpStatus.BAD_REQUEST, "SUB_400_y", "billingKey(authKey)가 필요합니다.");
