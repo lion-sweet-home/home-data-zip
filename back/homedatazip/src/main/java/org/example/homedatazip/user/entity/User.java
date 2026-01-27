@@ -6,8 +6,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.example.homedatazip.common.BaseTimeEntity;
+import org.example.homedatazip.role.RoleType;
+import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.UserRole;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,6 +44,13 @@ public class User extends BaseTimeEntity {
     )
     private List<UserRole> roles = new ArrayList<>();
 
+    @OneToOne(mappedBy = "subscriber")
+    private Subscription subscription;
+
+    public boolean hasRole(RoleType roleType) {
+        return roles.stream()
+                .anyMatch(role -> role.getRole().equals(roleType));
+    }
     public static User create(String email, String nickname, String password, Role role) {
         User user = new User();
         user.email = email;
