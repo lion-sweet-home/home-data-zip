@@ -5,6 +5,7 @@ import org.example.homedatazip.subscription.type.SubscriptionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -28,7 +29,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
      * - endDate < today
      */
     List<Subscription> findAllByIsActiveTrueAndStatusInAndEndDateLessThan(
-            List<SubscriptionStatus> statuses,
+            Collection<SubscriptionStatus> statuses,
             LocalDate today
     );
 
@@ -38,7 +39,7 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, Long
      * - isActive=true
      * - endDate == today
      */
-    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDate(
+    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDateEqual(
             SubscriptionStatus status,
             LocalDate endDate
     );

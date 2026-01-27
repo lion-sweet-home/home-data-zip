@@ -6,6 +6,7 @@ import org.example.homedatazip.subscription.type.SubscriptionStatus;
 import org.example.homedatazip.user.entity.User;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Entity
 @Getter
@@ -39,11 +40,11 @@ public class Subscription {
     @Column(nullable = false, length = 20)
     private SubscriptionStatus status;
 
-    @Column(length = 100)
-    private String customerKey;
-
-    @Column(length = 200)
+    @Column(name = "billing_key", length = 200)
     private String billingKey;
+
+    @Column(name = "billing_key_issued_at")
+    private LocalDateTime billingKeyIssuedAt;
 
     @Column(nullable = false)
     private LocalDate startDate;
@@ -66,13 +67,13 @@ public class Subscription {
         this.isActive = false;
     }
 
-    /** 자동결제 OFF (권한은 유지) */
+    // 자동결제 OFF (권한은 유지)
     public void cancelAutoPay() {
         this.status = SubscriptionStatus.CANCELED;
         this.isActive = true;
     }
 
-    /** 자동결제 ON */
+    // 자동결제 ON
     public void activateAutoPay() {
         this.status = SubscriptionStatus.ACTIVE;
         this.isActive = true;
@@ -90,5 +91,21 @@ public class Subscription {
     public void resetPeriod(LocalDate startDate, LocalDate endDate) {
         this.startDate = startDate;
         this.endDate = endDate;
+    }
+
+    // 카드 등록 성공(빌링키 발급) 시 저장
+    public void registerBillingKey(String billingKey) {
+        this.billingKey = billingKey;
+        this.billingKeyIssuedAt = LocalDateTime.now();
+    }
+
+    // 카드 등록 해지/초기화가 필요하면 사용
+    public void clearBillingKey() {
+        this.billingKey = null;
+        this.billingKeyIssuedAt = null;
+    }
+
+    public boolean hasBillingKey() {
+        return this.billingKey != null && !this.billingKey.isBlank();
     }
 }

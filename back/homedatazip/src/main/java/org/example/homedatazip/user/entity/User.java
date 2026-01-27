@@ -66,6 +66,6 @@ public class User extends BaseTimeEntity {
     }
 
     public String getCustomerKey() {
-        return "CUTOMER_" + this.id;
+        return "CUSTOMER_" + this.id;
     }
 }

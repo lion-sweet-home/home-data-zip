@@ -22,8 +22,11 @@ public class SubscriptionService {
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
 
-
-    // 첫구독 / 재구독
+    /**
+     * 첫구독 / 재구독(만료 후 다시 시작)
+     * - 이미 기간 남은 ACTIVE면 막기
+     * - 기간 남은 CANCELED면 "자동결제 재개"로 처리(기간 리셋 X)
+     */
     @Transactional
     public SubscriptionStartResponse startSubscription(Long subscriberId, String name, Long price, int periodDays) {
         LocalDate today = LocalDate.now();
@@ -33,7 +36,9 @@ public class SubscriptionService {
 
         Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId).orElse(null);
 
-        // 1) 레코드 없으면 생성(바로 ACTIVE)
+        LocalDate newEndDate = today.plusDays(periodDays);
+
+        // 1) 레코드 없으면 생성
         if (s == null) {
             Subscription created = Subscription.builder()
                     .subscriber(subscriber)
@@ -42,36 +47,47 @@ public class SubscriptionService {
                     .status(SubscriptionStatus.ACTIVE)
                     .isActive(true)
                     .startDate(today)
-                    .endDate(today.plusDays(periodDays))
+                    .endDate(newEndDate)
                     .build();
 
-            Subscription saved = subscriptionRepository.save(created);
-            return SubscriptionStartResponse.from(saved);
+            return SubscriptionStartResponse.from(subscriptionRepository.save(created));
         }
 
-        // 만료면 EXPIRED로 정리 후 재구독 처리
-        if (s.getEndDate() != null && s.getEndDate().isBefore(today)) {
-            s.expire(); // status=EXPIRED, isActive=false
+        // 2) 만료 여부 계산 (endDate < today)
+        boolean isExpiredByDate = s.getEndDate() != null && s.getEndDate().isBefore(today);
+        boolean hasRemainingPeriod = s.getEndDate() != null && !s.getEndDate().isBefore(today);
+
+        // 2-1) 날짜상 만료면 정리
+        if (isExpiredByDate) {
+            s.expire(); // EXPIRED + isActive=false
         }
 
-        boolean hasRemainingPeriod =
-                s.getEndDate() != null && !s.getEndDate().isBefore(today);
-
-        // 기간 남아있는 ACTIVE면 막기(이미 자동결제 ON 상태)
+        // 3) 상태별 처리
+        // 3-1) 기간 남은 ACTIVE면 막기
         if (s.getStatus() == SubscriptionStatus.ACTIVE && s.isActive() && hasRemainingPeriod) {
             throw new BusinessException(SubscriptionErrorCode.ALREADY_SUBSCRIBED);
         }
 
-        // 기간 남아있는 CANCELED면 허용 -> 자동결제 다시 ON (ACTIVE로 전환)
+        // 3-2) 기간 남은 CANCELED면: 재구독이 아니라 자동결제만 다시 ON (기간 리셋 X)
+        if (s.getStatus() == SubscriptionStatus.CANCELED && hasRemainingPeriod) {
+            s.activateAutoPay();
+            return SubscriptionStartResponse.from(s);
+        }
+
+        // 3-3) 그 외(EXPIRED이거나, 기간이 끝났던 케이스) => 새로 시작(기간 리셋)
         s.activateAutoPay();
         s.updatePlan(name, price);
-        s.resetPeriod(today, today.plusDays(periodDays));
+        s.resetPeriod(today, newEndDate);
 
         return SubscriptionStartResponse.from(s);
     }
 
-
-    //자동결제 취소(다음 결제부터 끊기)
+    /**
+     * 자동결제 취소(다음 결제부터 끊기)
+     * - 기간 남아있으면 CANCELED로 변경(권한 유지)
+     * - 만료면 EXPIRED로 정리
+     * - 이미 CANCELED면 멱등 처리
+     */
     @Transactional
     public void cancelAutoPay(Long subscriberId) {
         Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
@@ -79,28 +95,28 @@ public class SubscriptionService {
 
         LocalDate today = LocalDate.now();
 
-        // 만료면 그냥 만료로 정리
         if (s.getEndDate() != null && s.getEndDate().isBefore(today)) {
             s.expire();
             return;
         }
 
-        // ACTIVE 또는 CANCELED 모두 허용(멱등)
         if (s.getStatus() == SubscriptionStatus.CANCELED) {
-            return;
+            return; // 멱등
         }
 
         if (s.getStatus() != SubscriptionStatus.ACTIVE) {
             throw new BusinessException(SubscriptionErrorCode.INVALID_SUBSCRIPTION_STATUS);
         }
 
-        s.cancelAutoPay(); // status=CANCELED (권한은 유지)
+        s.cancelAutoPay();
     }
 
-
-     // 자동결제 재등록
-     //- CANCELED -> ACTIVE (기간 남아있을 때만)
-     //- 만료면 재등록 불가(새 구독 startSubscription 필요)
+    /**
+     * 자동결제 재등록(다시 ON)
+     * - 기간 남아있는 CANCELED만 ACTIVE로
+     * - 만료면 불가
+     * - 이미 ACTIVE면 멱등
+     */
     @Transactional
     public void reactivateAutoPay(Long subscriberId) {
         Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
@@ -108,20 +124,17 @@ public class SubscriptionService {
 
         LocalDate today = LocalDate.now();
 
-        // 만료면 재등록 불가
+        // 만료면 불가
         if (s.getEndDate() != null && s.getEndDate().isBefore(today)) {
             throw new BusinessException(SubscriptionErrorCode.CANNOT_REACTIVATE_EXPIRED);
         }
 
-        // 기간 남아있는 상태에서만 의미 있음
-        if (s.getEndDate() == null || s.getEndDate().isBefore(today)) {
-            throw new BusinessException(SubscriptionErrorCode.CANNOT_REACTIVATE_EXPIRED);
-        }
-
+        // 이미 ACTIVE면 OK
         if (s.getStatus() == SubscriptionStatus.ACTIVE) {
             return;
         }
 
+        // CANCELED만 재등록 가능
         if (s.getStatus() != SubscriptionStatus.CANCELED) {
             throw new BusinessException(SubscriptionErrorCode.INVALID_SUBSCRIPTION_STATUS);
         }
@@ -129,6 +142,7 @@ public class SubscriptionService {
         s.activateAutoPay();
     }
 
+    @Transactional(readOnly = true)
     public SubscriptionStartResponse getMySubscription(Long subscriberId) {
         Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
