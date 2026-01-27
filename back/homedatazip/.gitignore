@@ -45,4 +45,5 @@ out/
 
 ### application-dev.yml
 **/application-dev.yml
+src/main/resources/application-dev.yaml
 

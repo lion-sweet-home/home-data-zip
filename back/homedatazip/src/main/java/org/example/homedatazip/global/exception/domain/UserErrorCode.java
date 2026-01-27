@@ -22,6 +22,7 @@ public enum UserErrorCode implements ErrorCode {
 
     // 유저 관련
     USER_NOT_FOUND(HttpStatus.NOT_FOUND,"USER_404_1","존재하지 않는 회원입니다."),
+    INVALID_PASSWORD(HttpStatus.UNAUTHORIZED, "USER_401_01", "비밀번호가 일치하지 않습니다."),
     INVALID_SEARCH_TYPE(HttpStatus.BAD_REQUEST, "USER_400_2", "올바르지 않은 검색 타입입니다.");
 
     private final HttpStatus status;

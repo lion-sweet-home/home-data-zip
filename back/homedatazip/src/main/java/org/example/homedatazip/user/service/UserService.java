@@ -111,6 +111,10 @@ public class UserService {
         //수정 페이지의 주인 값을 바꿔야함으로 userId로 찾은 user의 정보를 수정
         User targetUser = findUserById(userId);
 
+        if (!passwordEncoder.matches(request.password(), targetUser.getPassword())) {
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
+        }
+
         //수정하려는 닉네임의 존재여부 확인은 프론트에서 확인으로 따로 api호출함으로 생략
 
         //닉네임수정
@@ -118,6 +122,7 @@ public class UserService {
 
         return MyPageResponse.from(targetUser);
     }
+
 
     private User findUserByEmail(String email){
         return userRepository.findByEmail(email)
