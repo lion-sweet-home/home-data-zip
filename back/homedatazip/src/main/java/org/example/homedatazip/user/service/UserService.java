@@ -78,7 +78,7 @@ public class UserService {
     @Transactional
     public void updateNotificationSetting(Long userId, NotificationSettingRequest request) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         boolean previousSetting = user.isNotificationEnabled();
         user.setNotificationEnabled(request.notificationEnabled());

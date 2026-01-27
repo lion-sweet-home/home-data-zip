@@ -1,6 +1,8 @@
 package org.example.homedatazip.notification.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.NotificationErrorCode;
 import org.example.homedatazip.notification.dto.NotificationRequest;
 import org.example.homedatazip.notification.dto.NotificationResponse;
 import org.example.homedatazip.notification.entity.Notification;
@@ -15,8 +17,6 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
-
-    // TODO: UserDetails로 변경 예정
 
     private final NotificationRepository notificationRepository;
     private final UserNotificationService userNotificationService;
@@ -47,7 +47,7 @@ public class NotificationService {
     @Transactional
     public NotificationResponse updateNotification(Long notificationId, NotificationRequest request) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("공지사항을 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
 
         notification.setTitle(request.title());
         notification.setMessage(request.message());
@@ -59,7 +59,7 @@ public class NotificationService {
     @Transactional
     public void deleteNotification(Long notificationId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new IllegalArgumentException("공지사항을 찾을 수 없음"));
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.NOTIFICATION_NOT_FOUND));
 
         List<UserNotification> userNotifications = userNotificationRepository.findByNotificationId(notificationId);
         userNotificationRepository.deleteAll(userNotifications);

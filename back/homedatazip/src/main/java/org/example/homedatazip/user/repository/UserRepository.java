@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -73,4 +74,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
             where u.email like %:keyword%
             """)
     Page<User> searchByEmail(@Param("keyword") String keyword, Pageable pageable);
+
+    // 알림 수신 설정한 사용자 조회
+    List<User> findByNotificationEnabledTrue();
 }

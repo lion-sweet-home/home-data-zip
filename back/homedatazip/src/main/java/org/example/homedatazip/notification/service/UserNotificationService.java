@@ -1,6 +1,8 @@
 package org.example.homedatazip.notification.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.NotificationErrorCode;
 import org.example.homedatazip.notification.dto.UserNotificationResponse;
 import org.example.homedatazip.notification.entity.Notification;
 import org.example.homedatazip.notification.entity.UserNotification;
@@ -10,6 +12,7 @@ import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -68,5 +71,17 @@ public class UserNotificationService {
         return notifications.stream()
                 .map(UserNotificationResponse::from)
                 .toList();
+    }
+
+    // 읽음 처리
+    @Transactional
+    public void markAsRead(Long userId, Long userNotificationId) {
+        UserNotification userNotification = userNotificationRepository.findByUserIdAndId(userId, userNotificationId)
+                .orElseThrow(() -> new BusinessException(NotificationErrorCode.USER_NOTIFICATION_NOT_FOUND));
+
+        // 이미 읽은 경우는 그대로 반환
+        if (userNotification.getReadAt() == null) {
+            userNotification.setReadAt(LocalDateTime.now());
+        }
     }
 }
