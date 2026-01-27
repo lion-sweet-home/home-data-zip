@@ -3,8 +3,8 @@ package org.example.homedatazip.user.service;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
+import org.example.homedatazip.email.service.EmailAuthService;
 import org.example.homedatazip.global.exception.BusinessException;
-import org.example.homedatazip.global.exception.domain.EmailErrorCode;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.repository.RoleRepository;
@@ -26,19 +26,13 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final EmailAuthRedisRepository emailAuthRepository;
+    private final EmailAuthService emailAuthService;
 
     // 회원가입
     @Transactional
     public void register(RegisterRequest request) {
 
-// 1. Redis에서 이메일로 데이터 조회
-        EmailAuth auth = emailAuthRepository.findById(request.email())
-                .orElseThrow(() -> new BusinessException(EmailErrorCode.AUTH_EXPIRED_OR_NOT_FOUND));
-
-        // 2. 사용자가 보낸 authCode가 Redis의 코드와 일치하는지 확인
-        if (!auth.getAuthCode().equals(request.authCode())) {
-            throw new BusinessException(EmailErrorCode.INVALID_AUTH_CODE);
-        }
+        EmailAuth auth = emailAuthService.verifyCode(request.email(), request.authCode());
 
         // 중복 확인
         validateDuplicateUser(request);
