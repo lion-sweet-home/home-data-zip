@@ -30,7 +30,7 @@ public class EmailAuthService {
     }
 
     // 2. 인증 코드 검증
-    public void verifyCode(String email, String code) {
+    public EmailAuth verifyCode(String email, String code) {
         // Redis에서 조회, 없으면 만료된 것으로 간주
         EmailAuth auth = emailAuthRepository.findById(email)
                 .orElseThrow(() -> new BusinessException(EmailErrorCode.AUTH_EXPIRED_OR_NOT_FOUND));
@@ -42,6 +42,8 @@ public class EmailAuthService {
         // 인증 완료 처리 (재저장을 통해 상태 업데이트)
         auth.updateVerified(true);
         emailAuthRepository.save(auth);
+
+        return auth;
     }
 
     private void sendEmail(String to, String code) {
