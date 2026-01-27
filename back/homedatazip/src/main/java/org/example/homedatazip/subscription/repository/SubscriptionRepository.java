@@ -10,28 +10,36 @@ import java.util.Optional;
 
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {
 
-    // 구독자 구독 조회
-    Optional<Subscription> findBySubscriberId(Long subscriberId);
+    // 유저당 1개 구독 조회
+    Optional<Subscription> findBySubscriber_Id(Long subscriberId);
 
-    boolean existsBySubscriberId(Long subscriberId);
+    // 유저가 구독 레코드를 가지고 있는지
+    boolean existsBySubscriber_Id(Long subscriberId);
 
-    // 만료 처리 스케줄러용: EXPIRED 변환 대상 리스트 조회
-    // isActive=true인데 endDate < today면 EXPIRED로 전환
-    List<Subscription> findAllByIsActiveTrueAndEndDateBefore(LocalDate today);
+    // (보안용) 본인 구독인지 확인하며 조회
+    Optional<Subscription> findByIdAndSubscriber_Id(Long id, Long subscriberId);
 
-    // 정기결제 대상 리스트 조회
-    // endDate가 오늘인 애들만 뽑고 싶으면 LessThanEqual 사용
-    /*isActive = true
-    status = :status
-    endDate <= :today*/
-    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDateLessThanEqual(
-            SubscriptionStatus status,
+    // ---- 배치/스케줄러용 ----
+
+    /**
+     * 만료 처리 대상:
+     * - 권한이 남아있던 상태(ACTIVE/CANCELED)
+     * - isActive=true
+     * - endDate < today
+     */
+    List<Subscription> findAllByIsActiveTrueAndStatusInAndEndDateLessThan(
+            List<SubscriptionStatus> statuses,
             LocalDate today
     );
 
-    // 취소 API에서 본인 구독인지 확인할 때
-    Optional<Subscription> findByIdAndSubscriberId(Long id, Long subscriberId);
-
-    boolean existsByIsActiveTrueAndStatus(SubscriptionStatus status);
-
+    /**
+     * 정기결제 대상:
+     * - 자동결제 ON 상태(ACTIVE)만
+     * - isActive=true
+     * - endDate == today
+     */
+    List<Subscription> findAllByIsActiveTrueAndStatusAndEndDateEqual(
+            SubscriptionStatus status,
+            LocalDate endDate
+    );
 }

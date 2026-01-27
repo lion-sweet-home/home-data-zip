@@ -64,4 +64,8 @@ public class User extends BaseTimeEntity {
     public void changeNickname(String nickname) {
         this.nickname = nickname;
     }
+
+    public String getCustomerKey() {
+        return "CUTOMER_" + this.id;
+    }
 }
