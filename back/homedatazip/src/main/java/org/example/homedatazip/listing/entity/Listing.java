@@ -5,6 +5,8 @@ import lombok.Getter;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.common.BaseTimeEntity;
 import org.example.homedatazip.user.entity.User;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Getter
@@ -16,6 +18,7 @@ public class Listing extends BaseTimeEntity {
 
     @ManyToOne
     @JoinColumn(name = "seller_id")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User seller;
 
     @ManyToOne
