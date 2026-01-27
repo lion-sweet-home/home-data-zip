@@ -6,9 +6,11 @@ import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.EmailErrorCode;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
+import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.repository.RoleRepository;
 import org.example.homedatazip.role.type.RoleType;
+import org.example.homedatazip.user.dto.NotificationSettingRequest;
 import org.example.homedatazip.user.dto.RegisterRequest;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
@@ -26,6 +28,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
     private final EmailAuthRedisRepository emailAuthRepository;
+    private final SseEmitterService sseEmitterService;
 
     // 회원가입
     @Transactional
@@ -78,5 +81,17 @@ public class UserService {
         }
     }
 
+    @Transactional
+    public void updateNotificationSetting(Long userId, NotificationSettingRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없음"));
 
+        boolean previousSetting = user.isNotificationEnabled();
+        user.setNotificationEnabled(request.notificationEnabled());
+
+        // 알림 수신 설정을 false로 변경한 경우 SSE 연결 종료
+        if (previousSetting && !request.notificationEnabled()) {
+            sseEmitterService.removeEmitter(userId);
+        }
+    }
 }
