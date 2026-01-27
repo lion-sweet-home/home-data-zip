@@ -5,9 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.dto.EmailRequest;
 import org.example.homedatazip.email.service.EmailAuthService;
 import org.example.homedatazip.global.config.CustomUserDetails;
-import org.example.homedatazip.user.dto.NicknameCheckRequest;
-import org.example.homedatazip.user.dto.NotificationSettingRequest;
-import org.example.homedatazip.user.dto.RegisterRequest;
+import org.example.homedatazip.user.dto.*;
 import org.example.homedatazip.user.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -51,5 +49,20 @@ public class UserController {
             @Valid @RequestBody NotificationSettingRequest request) {
         userService.updateNotificationSetting(userDetails.getUserId(), request);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{userId}/my-page")
+    public ResponseEntity<MyPageResponse> getMyPage(@PathVariable Long userId,
+                                                    @AuthenticationPrincipal CustomUserDetails user) {
+
+        return ResponseEntity.status(HttpStatus.OK).body(userService.getMyPageInfo(userId, user.getEmail()));
+    }
+
+    @PatchMapping("/{userId}/my-page/edit")
+    public ResponseEntity<MyPageResponse> editMyPage(@PathVariable Long userId,
+                                                     @AuthenticationPrincipal CustomUserDetails user,
+                                                     @Valid @RequestBody MyPageEditRequest request) {
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(userService.editMyPage(request,user.getEmail(),userId));
     }
 }
