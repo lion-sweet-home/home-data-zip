@@ -2,6 +2,8 @@ package org.example.homedatazip.user.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.user.dto.UserSearchRequest;
 import org.example.homedatazip.user.dto.UserSearchResponse;
 import org.example.homedatazip.user.entity.User;
@@ -29,7 +31,7 @@ public class AdminUserService {
             case "EMAIL" -> users = userRepository.searchByEmail(request.keyword(), pageable);
             default -> {
                 log.error("검색 타입이 올바르지 않습니다. type={}", request.type());
-                throw new RuntimeException("검색 타입이 올바르지 않습니다."); // todo: 나중에 에러코드 변경 예정
+                throw new BusinessException(UserErrorCode.INVALID_SEARCH_TYPE);
             }
         }
         return users.map(UserSearchResponse::create);
@@ -39,8 +41,8 @@ public class AdminUserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("회원을 찾을 수 없습니다. userId={}", userId);
-                    return new RuntimeException("회원을 찾을 수 없습니다.");
-                }); // todo: 나중에 에러코드 변경 예정
+                    return new BusinessException(UserErrorCode.USER_NOT_FOUND);
+                });
 
         // 유저 삭제 - 매물, 관심매물, 토큰도 같이 삭제됨.
         userRepository.delete(user);
