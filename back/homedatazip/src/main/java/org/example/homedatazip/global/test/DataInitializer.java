@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.repository.RoleRepository;
-import org.example.homedatazip.role.type.RoleType;
+import org.example.homedatazip.role.RoleType;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.boot.CommandLineRunner;
