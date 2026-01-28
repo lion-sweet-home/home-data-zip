@@ -55,3 +55,8 @@ jwt:
   refresh-secret-key: ${JWT_REFRESH_SECRET}
   access-token-expiration: ${JWT_ACCESS_EXP_SEC}
   refresh-token-expiration: ${JWT_REFRESH_EXP_SEC}
+
+payment:
+  toss:
+    secret-key: ${TOSS_SECRET_KEY}
+    client-key: ${TOSS_CLIENT_KEY}

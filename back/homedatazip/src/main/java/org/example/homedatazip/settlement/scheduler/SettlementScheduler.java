@@ -1,8 +1,8 @@
 package org.example.homedatazip.settlement.scheduler;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.payment.type.PaymentStatus;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.payment.entity.PaymentStatus;
 import org.example.homedatazip.payment.repository.PaymentLogRepository;
 import org.example.homedatazip.settlement.entity.Settlement;
 import org.example.homedatazip.settlement.repository.SettlementRepository;
