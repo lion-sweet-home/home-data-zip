@@ -38,6 +38,11 @@ spring:
       host: localhost
       port: 6379
 
+  ai:
+    ollama:
+      base-url: http://localhost:11434  # Ollama 기본 주소
+      chat:
+        model: llama3
 
 cors:
   allowed-origins:
