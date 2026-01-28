@@ -25,7 +25,7 @@ repositories {
     maven { url 'https://repo.spring.io/milestone' }
 }
 ext {
-    set('springAiVersion', "1.0.0-M1")//밑에서 사용할 버전 변수
+    set('springAiVersion', "1.0.0-M5")//밑에서 사용할 버전 변수
 }
 
 dependencyManagement {
@@ -66,8 +66,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // ai
-    implementation 'io.github.flashvayne:chatgpt-spring-boot-starter:1.0.4'
-    implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    // implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    // Ollama 스타터 추가
+    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
 }
 
 tasks.named('test') {
