@@ -19,6 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -28,6 +32,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional
 public class PaymentService {
+
+    @PersistenceContext
+    private EntityManager em;
 
     private static final long BASIC_AMOUNT = 9900L;
     private static final String BASIC_ORDER_NAME = "기본 요금제";
@@ -53,6 +60,7 @@ public class PaymentService {
 
     public PaymentConfirmResponse confirmOneTimePayment(Long userId, TossPaymentConfirmRequest request) {
 
+        // 0) 요청 검증
         if (request.paymentKey() == null || request.paymentKey().isBlank()) {
             throw new BusinessException(PaymentErrorCode.PAYMENT_KEY_REQUIRED);
         }
@@ -69,21 +77,31 @@ public class PaymentService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(PaymentErrorCode.USER_NOT_FOUND));
 
+
         Subscription sub = subscriptionRepository.findBySubscriber_Id(userId).orElse(null);
         if (sub == null) {
             LocalDate today = LocalDate.now();
-            sub = subscriptionRepository.save(Subscription.builder()
-                    .subscriber(user)
-                    .name(BASIC_ORDER_NAME)
-                    .price(BASIC_AMOUNT)
-                    .status(SubscriptionStatus.EXPIRED)
-                    .isActive(false)
-                    .startDate(today)
-                    .endDate(today)
-                    .build());
+
+            try {
+                sub = subscriptionRepository.save(Subscription.builder()
+                        .subscriber(user)
+                        .name(BASIC_ORDER_NAME)
+                        .price(BASIC_AMOUNT)
+                        .status(SubscriptionStatus.EXPIRED)
+                        .isActive(false)
+                        .startDate(today)
+                        .endDate(today)
+                        .build());
+                subscriptionRepository.flush();
+            } catch (DataIntegrityViolationException dup) {
+                em.clear();
+                sub = subscriptionRepository.findBySubscriber_Id(userId)
+                        .orElseThrow(() -> dup);
+            }
         }
 
         LocalDateTime now = LocalDateTime.now();
+
 
         PaymentLog processing;
         try {
@@ -92,13 +110,16 @@ public class PaymentService {
                     .orderId(request.orderId())
                     .paymentKey(request.paymentKey())
                     .orderName(BASIC_ORDER_NAME)
-                    .amount(request.amount()) // 일단 요청값 기록(나중에 승인값으로 덮어씀)
+                    .amount(request.amount()) // 요청값 기록(승인 후 승인금액으로 덮음)
                     .paymentStatus(PaymentStatus.PROCESSING)
                     .approvedAt(now)
                     .paidAt(now)
                     .build());
             paymentLogRepository.flush();
+
         } catch (DataIntegrityViolationException dup) {
+
+            em.clear();
 
             PaymentLog existing = paymentLogRepository.findByPaymentKey(request.paymentKey())
                     .orElseGet(() -> paymentLogRepository.findByOrderId(request.orderId())
@@ -109,15 +130,15 @@ public class PaymentService {
                 return toConfirmResponse(existing);
             }
 
-            // PROCESSING이면 "이미 처리중"
-            // 여기서는 그냥 현재 상태 반환(프론트가 재조회/새로고침 하면 됨)
+            // PROCESSING이면 이미 처리중 -> 현재 상태 반환
             if (existing.getPaymentStatus() == PaymentStatus.PROCESSING) {
                 return toConfirmResponse(existing);
             }
 
-            // FAILED면 다시 결제하라고 던지거나, 정책상 새 orderId로 재시도 유도
+            // FAILED면 정책상 재시도 유도
             throw new BusinessException(PaymentErrorCode.TOSS_APPROVE_FAILED);
         }
+
 
         try {
             TossPaymentConfirmResponse tossRes = tossPaymentClient.approve(
@@ -125,6 +146,7 @@ public class PaymentService {
                     request.orderId(),
                     request.amount()
             );
+
 
             Long approvedAmount = tossRes.totalAmount();
             if (approvedAmount == null) {
@@ -134,9 +156,11 @@ public class PaymentService {
                 throw new BusinessException(PaymentErrorCode.INVALID_AMOUNT);
             }
 
+            // PaymentLog 상태 변경(엔티티에 메서드 있어야 함)
             processing.markApproved(tossRes.paymentKey(), tossRes.orderId(), approvedAmount, now);
             paymentLogRepository.flush();
 
+            // 구독 기간: 무조건 1개월 연장
             LocalDate today = LocalDate.now();
             LocalDate start;
             LocalDate end;
@@ -168,6 +192,7 @@ public class PaymentService {
             log.error("[PAYMENT] Toss approve failed. orderId={}, amount={}, paymentKey={}",
                     request.orderId(), request.amount(), request.paymentKey(), e);
 
+            // 실패는 REQUIRES_NEW로 남김 (processing 로그를 FAILED로 변경)
             markFailedNewTx(processing.getId(), safeMsg(e));
 
             sub.expire();
@@ -175,6 +200,7 @@ public class PaymentService {
         }
     }
 
+    // (현재 코드에 남아있길래 유지) - 너는 지금 processing 방식 쓰니까 사실상 안씀.
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     protected void saveFailedLogNewTx(Subscription sub, TossPaymentConfirmRequest request, LocalDateTime now, Exception e) {
         paymentLogRepository.save(PaymentLog.builder()
