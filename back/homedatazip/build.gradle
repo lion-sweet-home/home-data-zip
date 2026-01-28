@@ -22,6 +22,16 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+}
+ext {
+    set('springAiVersion', "1.0.0-M5")//밑에서 사용할 버전 변수
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+    }
 }
 
 dependencies {
@@ -54,6 +64,11 @@ dependencies {
 
     //Redis
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // ai
+    // implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    // Ollama 스타터 추가
+    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
 }
 
 tasks.named('test') {
