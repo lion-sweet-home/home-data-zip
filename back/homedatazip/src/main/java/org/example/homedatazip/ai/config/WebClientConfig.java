@@ -1,4 +1,4 @@
-package org.example.homedatazip.test.ai.config;
+package org.example.homedatazip.ai.config;
 
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;

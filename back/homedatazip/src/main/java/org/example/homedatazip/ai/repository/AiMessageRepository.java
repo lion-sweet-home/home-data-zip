@@ -1,6 +1,6 @@
-package org.example.homedatazip.test.ai.repository;
+package org.example.homedatazip.ai.repository;
 
-import org.example.homedatazip.test.ai.entity.AiMessage;
+import org.example.homedatazip.ai.entity.AiMessage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 

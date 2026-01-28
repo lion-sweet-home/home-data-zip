@@ -1,4 +1,4 @@
-package org.example.homedatazip.test.ai.entity;
+package org.example.homedatazip.ai.entity;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;

@@ -1,4 +1,4 @@
-package org.example.homedatazip.test.ai.dto;
+package org.example.homedatazip.ai.dto;
 
 public record AiMessageRequest(
         String sessionId,

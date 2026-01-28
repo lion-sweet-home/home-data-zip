@@ -1,24 +1,17 @@
-package org.example.homedatazip.test.ai.service;
+package org.example.homedatazip.ai.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.test.ai.entity.AiMessage;
-import org.example.homedatazip.test.ai.repository.AiMessageRepository;
+import org.example.homedatazip.ai.entity.AiMessage;
+import org.example.homedatazip.ai.repository.AiMessageRepository;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.UserMessage;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j

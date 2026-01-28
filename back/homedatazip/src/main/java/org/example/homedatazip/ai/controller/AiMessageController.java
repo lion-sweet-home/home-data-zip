@@ -1,10 +1,10 @@
-package org.example.homedatazip.test.ai.controller;
+package org.example.homedatazip.ai.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
-import org.example.homedatazip.test.ai.dto.AiMessageRequest;
-import org.example.homedatazip.test.ai.entity.AiMessage;
-import org.example.homedatazip.test.ai.service.AiMessageService;
+import org.example.homedatazip.ai.dto.AiMessageRequest;
+import org.example.homedatazip.ai.entity.AiMessage;
+import org.example.homedatazip.ai.service.AiMessageService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
