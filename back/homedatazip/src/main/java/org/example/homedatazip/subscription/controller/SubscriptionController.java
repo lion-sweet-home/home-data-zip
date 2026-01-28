@@ -2,6 +2,8 @@ package org.example.homedatazip.subscription.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.PaymentErrorCode;
 import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.service.SubscriptionService;
 import org.springframework.http.ResponseEntity;
@@ -16,7 +18,7 @@ public class SubscriptionController {
     private final SubscriptionService subscriptionService;
 
     /**
-     * 1.카드 등록 시작 (프론트에서 Toss Billing 인증 시작용)
+     * 1. 카드 등록 시작 (프론트에서 Toss Billing 인증 시작용)
      */
     @PostMapping("/billing/issue")
     public ResponseEntity<BillingKeyIssueResponse> issueBilling(
@@ -29,35 +31,37 @@ public class SubscriptionController {
     }
 
     /**
-     * 2️. 카드 등록 성공(authKey) → billingKey 저장
+     * 2. 카드 등록 성공(authKey) → billingKey 저장 (JWT 없음)
+     * 토스에서 successUrl로 리다이렉트 들어오는 요청이라 Authorization 헤더가 없다.
      */
-    @PostMapping("/billing/success")
+    @GetMapping("/billing/success")
     public ResponseEntity<Void> billingSuccess(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @RequestParam(required = false) String authKey,
-            @RequestParam(required = false) String customerKey,
-            @RequestBody(required = false) BillingAuthSuccessRequest body
+            @RequestParam String customerKey,
+            @RequestParam String authKey
     ) {
-        String finalAuthKey = (authKey != null && !authKey.isBlank())
-                ? authKey
-                : (body != null ? body.authKey() : null);
+        Long userId = parseUserIdFromCustomerKey(customerKey);
 
-        String finalCustomerKey = (customerKey != null && !customerKey.isBlank())
-                ? customerKey
-                : (body != null ? body.customerKey() : null);
+        subscriptionService.registerBillingKey(userId, customerKey, authKey);
 
-        subscriptionService.successBillingAuth(
-                principal.getUserId(),
-                new BillingAuthSuccessRequest(finalCustomerKey, finalAuthKey)
-        );
-
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(302)
+                .header("Location", "http://localhost:5173/billing/success")
+                .build();
     }
 
-
+    /**
+     * 2-1. 카드 등록 실패 (JWT 없음)
+     */
+    @GetMapping("/billing/fail")
+    public ResponseEntity<Void> billingFail(
+            @RequestParam(required = false) String customerKey
+    ) {
+        return ResponseEntity.status(302)
+                .header("Location", "http://localhost:5173/billing/fail")
+                .build();
+    }
 
     /**
-     * 3️. 첫 결제 = 구독 시작 (billingKey 결제 1회)
+     * 3. 첫 결제 = 구독 시작 (billingKey 결제 1회)
      */
     @PostMapping("/start")
     public ResponseEntity<Void> startSubscription(
@@ -89,14 +93,6 @@ public class SubscriptionController {
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping("/billing/fail")
-    public ResponseEntity<Void> billingFail(
-            @AuthenticationPrincipal CustomUserDetails principal,
-            @RequestBody(required = false) Object body
-    ) {
-        return ResponseEntity.noContent().build();
-    }
-
     /**
      * 내 구독 조회
      */
@@ -107,5 +103,18 @@ public class SubscriptionController {
         return ResponseEntity.ok(
                 subscriptionService.getMySubscription(principal.getUserId())
         );
+    }
+
+    // ===== private =====
+
+    private Long parseUserIdFromCustomerKey(String customerKey) {
+        if (customerKey == null || customerKey.isBlank() || !customerKey.startsWith("CUSTOMER_")) {
+            throw new BusinessException(PaymentErrorCode.INVALID_CUSTOMER_KEY);
+        }
+        try {
+            return Long.parseLong(customerKey.substring("CUSTOMER_".length()));
+        } catch (NumberFormatException e) {
+            throw new BusinessException(PaymentErrorCode.INVALID_CUSTOMER_KEY);
+        }
     }
 }

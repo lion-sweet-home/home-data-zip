@@ -15,6 +15,7 @@ public enum PaymentErrorCode implements ErrorCode {
     INVALID_AMOUNT(HttpStatus.BAD_REQUEST, "PAY_400_3", "결제 금액이 올바르지 않습니다."),
     ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "PAY_400_4", "이미 구독 중입니다."),
     BATCH_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "PAY_400_5", "배치 실행 날짜가 필요합니다."),
+    INVALID_CUSTOMER_KEY(HttpStatus.BAD_REQUEST, "PAY_400_6", "customerKey 형식이 올바르지 않습니다."),
 
     // 404
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_404_1", "구독 정보를 찾을 수 없습니다."),

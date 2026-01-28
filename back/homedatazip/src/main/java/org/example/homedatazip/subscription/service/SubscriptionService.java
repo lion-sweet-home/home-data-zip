@@ -9,7 +9,6 @@ import org.example.homedatazip.payment.client.TossPaymentClient;
 import org.example.homedatazip.payment.client.dto.TossBillingPaymentResponse;
 import org.example.homedatazip.payment.entity.PaymentLog;
 import org.example.homedatazip.payment.repository.PaymentLogRepository;
-import org.example.homedatazip.payment.type.PaymentStatus;
 import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.subscription.repository.SubscriptionRepository;
@@ -45,7 +44,56 @@ public class SubscriptionService {
     private String failUrl;
 
     /**
-     * 카드 등록 시작
+     * 토스 successUrl 콜백용 (JWT 없음)
+     * - customerKey=CUSTOMER_{userId}에서 userId 파싱
+     * - authKey가 bln_ 이면 billingKey로 간주
+     * - 아니면 issueBillingKey(authKey)로 billingKey 발급 받아 저장
+     */
+    @Transactional
+    public void successBillingAuthByCustomerKey(BillingAuthSuccessRequest req) {
+        String customerKey = req.customerKey();
+        String authKey = req.authKey();
+
+        Long userId = parseUserIdFromCustomerKey(customerKey);
+
+        // 공통 로직으로 위임
+        registerBillingKey(userId, customerKey, authKey);
+    }
+
+    /**
+     * (콜백/테스트용) customerKey 규칙으로 userId를 알고 있을 때 billingKey 등록 처리
+     * 컨트롤러에서 subscriptionService.registerBillingKey(userId, customerKey, authKey)로 호출 가능
+     */
+    @Transactional
+    public void registerBillingKey(Long userId, String customerKey, String authKey) {
+        if (customerKey == null || customerKey.isBlank()) {
+            throw new BusinessException(PaymentErrorCode.INVALID_CUSTOMER_KEY);
+        }
+        if (authKey == null || authKey.isBlank()) {
+            throw new BusinessException(SubscriptionErrorCode.BILLING_AUTH_KEY_REQUIRED);
+        }
+
+        User user = getUser(userId);
+
+        // 구독 없으면 생성해서 저장
+        Subscription sub = subscriptionRepository.findBySubscriber_Id(user.getId())
+                .orElseGet(() ->
+                        subscriptionRepository.save(
+                                Subscription.createInitial(user)
+                        )
+                );
+
+        // authKey가 bln_이면 이미 billingKey
+        String billingKey = authKey.startsWith("bln_")
+                ? authKey
+                : tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey()).billingKey();
+
+        // billingKey 저장
+        sub.registerBillingKey(billingKey);
+    }
+
+    /**
+     * 카드 등록 시작 (프론트에 customerKey/successUrl/failUrl 내려줌)
      */
     public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
         User user = getUser(userId);
@@ -60,19 +108,21 @@ public class SubscriptionService {
     }
 
     /**
-     * authKey → billingKey 저장
+     * 로그인 상태 API용 (JWT 있음)
+     * authKey → billingKey 발급받아 저장
      */
     @Transactional
     public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
         User user = getUser(userId);
 
-        var res = tossPaymentClient.issueBillingKey(
-                request.authKey(),
-                user.getCustomerKey()
-        );
+        String authKey = request.authKey();
+        if (authKey == null || authKey.isBlank()) {
+            throw new BusinessException(SubscriptionErrorCode.BILLING_AUTH_KEY_REQUIRED);
+        }
 
-        Subscription sub = subscriptionRepository
-                .findBySubscriber_Id(userId)
+        var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
+
+        Subscription sub = subscriptionRepository.findBySubscriber_Id(userId)
                 .orElseGet(() ->
                         subscriptionRepository.save(
                                 Subscription.createInitial(user)
@@ -83,7 +133,7 @@ public class SubscriptionService {
     }
 
     /**
-     * 첫 결제 = 구독 시작 (billingKey 결제)
+     * 첫 결제 = 구독 시작 (billingKey 결제 1회)
      */
     @Transactional
     public void startSubscription(Long userId) {
@@ -99,19 +149,17 @@ public class SubscriptionService {
 
         String orderId = "SUB_START_" + UUID.randomUUID();
 
-        // 결제 로그 선생성
         PaymentLog log = paymentLogRepository.save(
                 PaymentLog.createProcessing(sub, orderId, PLAN_NAME, PRICE)
         );
 
-        TossBillingPaymentResponse res =
-                tossPaymentClient.payWithBillingKey(
-                        sub.getBillingKey(),
-                        sub.getSubscriber().getCustomerKey(),
-                        orderId,
-                        PLAN_NAME,
-                        PRICE
-                );
+        TossBillingPaymentResponse res = tossPaymentClient.payWithBillingKey(
+                sub.getBillingKey(),
+                sub.getSubscriber().getCustomerKey(),
+                orderId,
+                PLAN_NAME,
+                PRICE
+        );
 
         if (!PRICE.equals(res.totalAmount())) {
             throw new BusinessException(PaymentErrorCode.INVALID_AMOUNT);
@@ -149,15 +197,24 @@ public class SubscriptionService {
 
     // ===== private =====
 
+    private Long parseUserIdFromCustomerKey(String customerKey) {
+        if (customerKey == null || customerKey.isBlank() || !customerKey.startsWith("CUSTOMER_")) {
+            throw new BusinessException(PaymentErrorCode.INVALID_CUSTOMER_KEY);
+        }
+        try {
+            return Long.parseLong(customerKey.substring("CUSTOMER_".length()));
+        } catch (NumberFormatException e) {
+            throw new BusinessException(PaymentErrorCode.INVALID_CUSTOMER_KEY);
+        }
+    }
+
     private User getUser(Long userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() ->
-                        new BusinessException(SubscriptionErrorCode.SUBSCRIBER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIBER_NOT_FOUND));
     }
 
     private Subscription getSubscription(Long userId) {
         return subscriptionRepository.findBySubscriber_Id(userId)
-                .orElseThrow(() ->
-                        new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
     }
 }
