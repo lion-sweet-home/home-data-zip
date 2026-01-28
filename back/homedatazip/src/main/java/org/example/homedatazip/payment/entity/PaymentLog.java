@@ -33,8 +33,8 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name ="order_id", nullable = false, unique = true, length = 64)
     private String orderId;
 
-    // 토스 결제건 식별자 (승인/취소/조회에 필요)
-    @Column(name = "payment_key", unique = true, nullable = false, length = 200)
+    //  PROCESSING 단계에서는 null 가능해야 함 (승인 성공 후 채움)
+    @Column(name = "payment_key", unique = true, nullable = true, length = 200)
     private String paymentKey;
 
     @Column(name = "order_name", nullable = false, length = 100)
@@ -51,15 +51,11 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name = "payment_status", nullable = false, length = 20)
     private PaymentStatus paymentStatus;
 
-    // 토스 승인 시간
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
-    // 결제 완료 처리 시간
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
-
-    // ----- 메서드 -----
 
     public void markApproved(String paymentKey, String orderId, Long amount, LocalDateTime approvedAt) {
         this.paymentKey = paymentKey;
@@ -75,8 +71,4 @@ public class PaymentLog extends BaseTimeEntity {
         this.paymentStatus = PaymentStatus.FAILED;
         this.failReason = reason;
     }
-
-//    public void markCanceled() {
-//        this.paymentStatus = PaymentStatus.CANCELED;
-//    }
 }
