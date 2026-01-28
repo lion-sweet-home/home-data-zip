@@ -2,7 +2,7 @@ package org.example.homedatazip.apartment.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
-//import org.example.homedatazip.data.entity.Region;
+import org.example.homedatazip.data.Region;
 
 @Entity
 @Getter
@@ -36,7 +36,7 @@ public class Apartment {
     @Column(nullable = false)
     private String aptSeq;
 
-//    @ManyToOne
-//    private Region region;
+    @ManyToOne
+    private Region region;
 
 }
