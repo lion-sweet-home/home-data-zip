@@ -31,9 +31,11 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         // 회원가입
-                        .requestMatchers("/api/users/**", "/api/admin/**").permitAll()
+                        .requestMatchers("/api/users/**").permitAll()
                         // 로그인
                         .requestMatchers("/api/auth/**").permitAll()
+
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .anyRequest().authenticated()
                 )

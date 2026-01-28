@@ -49,8 +49,10 @@ public class User extends BaseTimeEntity {
 
     public boolean hasRole(RoleType roleType) {
         return roles.stream()
-                .anyMatch(role -> role.getRole().equals(roleType));
+                .anyMatch(role ->
+                        role.getRole().getRoleType().equals(roleType));
     }
+
     public static User create(String email, String nickname, String password, Role role) {
         User user = new User();
         user.email = email;
@@ -61,6 +63,7 @@ public class User extends BaseTimeEntity {
 
         return user;
     }
+
     public void changeNickname(String nickname) {
         this.nickname = nickname;
     }
