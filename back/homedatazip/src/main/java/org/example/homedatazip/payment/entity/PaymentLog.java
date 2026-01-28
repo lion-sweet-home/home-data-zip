@@ -34,13 +34,14 @@ public class PaymentLog extends BaseTimeEntity {
     private String orderId;
 
     // 토스 결제건 식별자 (승인/취소/조회에 필요)
-    @Column(name = "payment_key", unique = true, length = 200)
+    @Column(name = "payment_key", unique = true, nullable = false, length = 200)
     private String paymentKey;
 
     @Column(name = "order_name", nullable = false, length = 100)
     private String orderName;
 
-    @Column(name = "fail_reason", length = 300)
+    @Lob
+    @Column(name = "fail_reason", columnDefinition = "TEXT")
     private String failReason;
 
     @Column(nullable = false)
@@ -60,22 +61,22 @@ public class PaymentLog extends BaseTimeEntity {
 
     // ----- 메서드 -----
 
-    // 토스 결제 승인 성공시
-    public void markApproved(String paymentKey, LocalDateTime approvedAt, LocalDateTime paidAt) {
-        this.paymentStatus = PaymentStatus.APPROVED;
+    public void markApproved(String paymentKey, String orderId, Long amount, LocalDateTime approvedAt) {
         this.paymentKey = paymentKey;
+        this.orderId = orderId;
+        this.amount = amount;
+        this.paymentStatus = PaymentStatus.APPROVED;
         this.approvedAt = approvedAt;
-        this.paidAt = paidAt;
+        this.paidAt = approvedAt;
         this.failReason = null;
     }
 
-    // 승인 실패
-    public void markFailed(String failReason) {
+    public void markFailed(String reason) {
         this.paymentStatus = PaymentStatus.FAILED;
-        this.failReason = failReason;
+        this.failReason = reason;
     }
 
-    public void markCanceled() {
-        this.paymentStatus = PaymentStatus.CANCELED;
-    }
+//    public void markCanceled() {
+//        this.paymentStatus = PaymentStatus.CANCELED;
+//    }
 }

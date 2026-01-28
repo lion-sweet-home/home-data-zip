@@ -28,6 +28,8 @@ public enum PaymentErrorCode implements ErrorCode {
     // 502 (외부 연동 실패)
     TOSS_APPROVE_FAILED(HttpStatus.BAD_GATEWAY, "PAY_502_1", "토스 결제 승인에 실패했습니다."),
     TOSS_BILLING_FAILED(HttpStatus.BAD_GATEWAY, "PAY_502_2", "토스 정기결제에 실패했습니다."),
+    TOSS_BILLING_KEY_ISSUE_FAILED(HttpStatus.BAD_GATEWAY, "PAY_502_3", "토스 빌링키 발급에 실패했습니다."),
+    TOSS_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "PAY_502_4", "토스 응답 형식이 올바르지 않습니다."),
 
     // 500
     BATCH_RECURRING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY_500_1", "정기결제 배치 실행에 실패했습니다.");

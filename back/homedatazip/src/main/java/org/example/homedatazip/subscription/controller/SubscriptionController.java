@@ -2,6 +2,7 @@ package org.example.homedatazip.subscription.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
+import org.example.homedatazip.subscription.dto.BillingKeyRegisterRequest;
 import org.example.homedatazip.subscription.dto.SubscriptionMeResponse;
 import org.example.homedatazip.subscription.service.SubscriptionService;
 import org.springframework.http.ResponseEntity;
@@ -40,4 +41,14 @@ public class SubscriptionController {
     ) {
         return ResponseEntity.ok(subscriptionService.getMySubscription(principal.getUserId()));
     }
+
+    @PostMapping("/billing-key")
+    public ResponseEntity<Void> registerBillingKey(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody BillingKeyRegisterRequest request
+    ) {
+        subscriptionService.registerBillingKey(principal.getUserId(), request.authKey());
+        return ResponseEntity.noContent().build();
+    }
+
 }
