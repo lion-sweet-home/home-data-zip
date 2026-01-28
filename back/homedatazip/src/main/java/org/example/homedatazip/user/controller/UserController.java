@@ -58,7 +58,7 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK).body(userService.getMyPageInfo(userId, user.getEmail()));
     }
 
-    @PatchMapping("/{userId}/my-page/edit")
+    @PatchMapping("/{userId}/my-page")
     public ResponseEntity<MyPageResponse> editMyPage(@PathVariable Long userId,
                                                      @AuthenticationPrincipal CustomUserDetails user,
                                                      @Valid @RequestBody MyPageEditRequest request) {
