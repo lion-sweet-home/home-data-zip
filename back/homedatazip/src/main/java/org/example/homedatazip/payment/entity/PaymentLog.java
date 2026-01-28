@@ -57,18 +57,49 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
+    //-----메서드-----
+
+    /**
+     * 결제 처리 시작(PROCESSING) 로그 생성
+     */
+    public static PaymentLog createProcessing(
+            Subscription subscription,
+            String orderId,
+            String orderName,
+            Long amount
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return PaymentLog.builder()
+                .subscription(subscription)
+                .orderId(orderId)
+                .orderName(orderName)
+                .amount(amount)
+                .paymentStatus(PaymentStatus.PROCESSING)
+                .paidAt(now)
+                .approvedAt(null)
+                .paymentKey(null)
+                .failReason(null)
+                .build();
+    }
+
+    /**
+     * 결제 성공 처리
+     */
     public void markApproved(String paymentKey, String orderId, Long amount, LocalDateTime approvedAt) {
         this.paymentKey = paymentKey;
         this.orderId = orderId;
         this.amount = amount;
         this.paymentStatus = PaymentStatus.APPROVED;
-        this.approvedAt = approvedAt;
-        this.paidAt = approvedAt;
+        this.approvedAt = approvedAt != null ? approvedAt : LocalDateTime.now();
         this.failReason = null;
     }
 
+    /**
+     * 결제 실패 처리
+     */
     public void markFailed(String reason) {
         this.paymentStatus = PaymentStatus.FAILED;
-        this.failReason = reason;
+        this.failReason = (reason == null || reason.isBlank()) ? "결제 실패" : reason;
     }
 }

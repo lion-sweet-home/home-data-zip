@@ -1,134 +1,163 @@
 package org.example.homedatazip.subscription.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.PaymentErrorCode;
 import org.example.homedatazip.global.exception.domain.SubscriptionErrorCode;
 import org.example.homedatazip.payment.client.TossPaymentClient;
-import org.example.homedatazip.payment.client.dto.TossBillingKeyIssueResponse;
-import org.example.homedatazip.subscription.dto.SubscriptionMeResponse;
+import org.example.homedatazip.payment.client.dto.TossBillingPaymentResponse;
+import org.example.homedatazip.payment.entity.PaymentLog;
+import org.example.homedatazip.payment.repository.PaymentLogRepository;
+import org.example.homedatazip.payment.type.PaymentStatus;
+import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.subscription.repository.SubscriptionRepository;
 import org.example.homedatazip.subscription.type.SubscriptionStatus;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SubscriptionService {
 
+    private static final String PLAN_NAME = "기본 요금제";
+    private static final Long PRICE = 9900L;
+
     private final SubscriptionRepository subscriptionRepository;
     private final UserRepository userRepository;
+    private final PaymentLogRepository paymentLogRepository;
     private final TossPaymentClient tossPaymentClient;
 
+    @Value("${payment.toss.billing-success-url}")
+    private String successUrl;
+
+    @Value("${payment.toss.billing-fail-url}")
+    private String failUrl;
+
     /**
-     * ✅ 카드 등록 완료(authKey 수신) -> billingKey 발급/저장
-     * - authKey는 billingKey가 아님
-     * - Toss에 authKey를 보내서 billingKey로 "교환"해야 함
+     * 카드 등록 시작
      */
-    @Transactional
-    public void registerBillingKey(Long subscriberId, String authKey) {
+    public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
+        User user = getUser(userId);
 
-        if (authKey == null || authKey.isBlank()) {
-            throw new BusinessException(SubscriptionErrorCode.BILLING_AUTH_KEY_REQUIRED);
-        }
-
-        User user = userRepository.findById(subscriberId)
-                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIBER_NOT_FOUND));
-
-        // 구독 레코드 없으면 생성(카드등록은 '준비'라서 ACTIVE로 만들진 않음)
-        Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId).orElse(null);
-        if (s == null) {
-            LocalDate today = LocalDate.now();
-            s = Subscription.builder()
-                    .subscriber(user)
-                    .name("기본 요금제")
-                    .price(9900L)
-                    .status(SubscriptionStatus.EXPIRED)
-                    .isActive(false)
-                    .startDate(today)
-                    .endDate(today)
-                    .build();
-
-            s = subscriptionRepository.save(s);
-        }
-
-        // customerKey는 User.getCustomerKey()만 사용
-        TossBillingKeyIssueResponse res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
-
-        if (res == null || res.billingKey() == null || res.billingKey().isBlank()) {
-            throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_ISSUE_FAILED);
-        }
-
-        // 여기에는 "billingKey"만 저장
-        s.registerBillingKey(res.billingKey());
+        return new BillingKeyIssueResponse(
+                user.getCustomerKey(),
+                PLAN_NAME,
+                0L,
+                successUrl,
+                failUrl
+        );
     }
 
     /**
-     * 자동결제 취소(다음 결제부터 끊기)
-     * - 기간 남아있으면 CANCELED로 변경(권한 유지)
-     * - 만료면 EXPIRED로 정리
-     * - 이미 CANCELED면 멱등 처리
+     * authKey → billingKey 저장
      */
     @Transactional
-    public void cancelAutoPay(Long subscriberId) {
-        Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
-                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
+    public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
+        User user = getUser(userId);
 
-        LocalDate today = LocalDate.now();
+        var res = tossPaymentClient.issueBillingKey(
+                request.authKey(),
+                user.getCustomerKey()
+        );
 
-        if (s.getEndDate() != null && s.getEndDate().isBefore(today)) {
-            s.expire();
+        Subscription sub = subscriptionRepository
+                .findBySubscriber_Id(userId)
+                .orElseGet(() ->
+                        subscriptionRepository.save(
+                                Subscription.createInitial(user)
+                        )
+                );
+
+        sub.registerBillingKey(res.billingKey());
+    }
+
+    /**
+     * 첫 결제 = 구독 시작 (billingKey 결제)
+     */
+    @Transactional
+    public void startSubscription(Long userId) {
+        Subscription sub = getSubscription(userId);
+
+        if (!sub.hasBillingKey()) {
+            throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
+        }
+
+        if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
             return;
         }
 
-        if (s.getStatus() == SubscriptionStatus.CANCELED) {
-            return; // 멱등
+        String orderId = "SUB_START_" + UUID.randomUUID();
+
+        // 결제 로그 선생성
+        PaymentLog log = paymentLogRepository.save(
+                PaymentLog.createProcessing(sub, orderId, PLAN_NAME, PRICE)
+        );
+
+        TossBillingPaymentResponse res =
+                tossPaymentClient.payWithBillingKey(
+                        sub.getBillingKey(),
+                        sub.getSubscriber().getCustomerKey(),
+                        orderId,
+                        PLAN_NAME,
+                        PRICE
+                );
+
+        if (!PRICE.equals(res.totalAmount())) {
+            throw new BusinessException(PaymentErrorCode.INVALID_AMOUNT);
         }
 
-        if (s.getStatus() != SubscriptionStatus.ACTIVE) {
-            throw new BusinessException(SubscriptionErrorCode.INVALID_SUBSCRIPTION_STATUS);
-        }
+        log.markApproved(
+                res.paymentKey(),
+                res.orderId(),
+                PRICE,
+                LocalDateTime.now()
+        );
 
-        s.cancelAutoPay();
+        sub.start(LocalDate.now(), PRICE);
     }
 
     /**
-     * 자동결제 재등록(다시 ON)
-     * - 기간 남아있는 CANCELED만 ACTIVE로
-     * - 만료면 불가
-     * - 이미 ACTIVE면 멱등
+     * 자동결제 OFF
      */
     @Transactional
-    public void reactivateAutoPay(Long subscriberId) {
-        Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
-                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
-
-        LocalDate today = LocalDate.now();
-
-        if (s.getEndDate() != null && s.getEndDate().isBefore(today)) {
-            throw new BusinessException(SubscriptionErrorCode.CANNOT_REACTIVATE_EXPIRED);
-        }
-
-        if (s.getStatus() == SubscriptionStatus.ACTIVE) {
-            return;
-        }
-
-        if (s.getStatus() != SubscriptionStatus.CANCELED) {
-            throw new BusinessException(SubscriptionErrorCode.INVALID_SUBSCRIPTION_STATUS);
-        }
-
-        s.activateAutoPay();
+    public void cancelAutoPay(Long userId) {
+        getSubscription(userId).cancelAutoPay();
     }
 
-    public SubscriptionMeResponse getMySubscription(Long subscriberId) {
-        Subscription s = subscriptionRepository.findBySubscriber_Id(subscriberId)
-                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
+    /**
+     * 자동결제 ON
+     */
+    @Transactional
+    public void reactivateAutoPay(Long userId) {
+        getSubscription(userId).activateAutoPay();
+    }
 
-        return SubscriptionMeResponse.from(s);
+    public SubscriptionMeResponse getMySubscription(Long userId) {
+        return SubscriptionMeResponse.from(getSubscription(userId));
+    }
+
+    // ===== private =====
+
+    private User getUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new BusinessException(SubscriptionErrorCode.SUBSCRIBER_NOT_FOUND));
+    }
+
+    private Subscription getSubscription(Long userId) {
+        return subscriptionRepository.findBySubscriber_Id(userId)
+                .orElseThrow(() ->
+                        new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
     }
 }
