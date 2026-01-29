@@ -68,11 +68,20 @@ jwt:
 
 payment:
   toss:
-
+    secret-key: ${TOSS_SECRET_KEY}
+    client-key: ${TOSS_CLIENT_KEY}
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
+
 
 api:
   data-go-kr:
     service-key: your-service-key
 
+molit:
+  rent:
+    base-url: "http://openapi.molit.go.kr:8081/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc"
+    path: "/getRTMSDataSvcAptRent"
+    service-key: e04a6e5213127baba66ac59e4bb6f38bad7bbb8617f0a9c17f5374d3108462bc ||"${MOLIT_SERVICE_KEY}"
+    num-of-rows: 1000
+    timeout-seconds: 15

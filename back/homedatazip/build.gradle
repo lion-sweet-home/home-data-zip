@@ -72,6 +72,8 @@ dependencies {
 
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 
+    //jacson XmlMapper
+    // Xml -> json 파싱
     implementation 'org.springframework.boot:spring-boot-starter-quartz'
 }
 

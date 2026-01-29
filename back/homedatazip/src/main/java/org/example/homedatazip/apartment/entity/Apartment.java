@@ -17,7 +17,9 @@ import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
                 // 좌표 검색 성능을 위한 복합 인덱스 (반경 필터링 시 성능 발휘)
                 @Index(name = "idx_apt_coords", columnList = "latitude, longitude"),
                 // 주소 기반 조회를 위한 인덱스 (지오코딩 캐싱용)
-                @Index(name = "idx_apt_road_address", columnList = "roadAddress")
+                @Index(name = "idx_apt_road_address", columnList = "roadAddress"),
+                // 전월세 필드의 Apartment에 값을 주입하기 위한 인덱스
+                @Index(name="idx_apt_region_jibun", columnList="region_id, jibunAddress")
         }
 )
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
