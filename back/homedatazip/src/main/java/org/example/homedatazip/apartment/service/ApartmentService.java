@@ -27,6 +27,8 @@ public class ApartmentService {
     // 매매
     public Map<String, Apartment> getOrCreateApartmentsFromTradeSale(List<ApartmentTradeSaleItem> items) {
 
+        log.info("매매 데이터 {}건 처리 시도", items.size());
+
         // 아파트 시퀀스 정보 가져오기 (중복제거)
         List<String> aptSeqs = items.stream().map(ApartmentTradeSaleItem::aptSeq).distinct().toList();
 
@@ -60,6 +62,9 @@ public class ApartmentService {
         if (!newApartments.isEmpty()) {
             apartmentRepository.saveAll(newApartments);
         }
+
+        log.info("매매 데이터 처리 완료 - 신규 저장 {}건, 기존 데이터 활용 {}건",
+                newApartments.size(), aptMap.size() - newApartments.size());
 
         return aptMap;
     }

@@ -50,6 +50,9 @@ public class GeoService {
                 ? roadAddress.longitude() : address.longitude();
         String roadAddressName = roadAddress != null
                 ? roadAddress.roadAddressName() : null;
+        if (roadAddress == null) {
+            log.info("도로명 주소가 없어 지번 주소를 사용 - dongJibun={}", dongJibun);
+        }
 
         // 지역 조회
         Region region = regionRepository.findByLawdCode(address.bCode())
@@ -88,7 +91,7 @@ public class GeoService {
                     return new BusinessException(GeoErrorCode.CONVERT_COORDINATE_ERROR);
                 });
 
-        log.info("법정동 코드 추출 - bCode={}", bCode);
+        log.info("법정동 코드 추출 - bCode={}, regionName={}", bCode, response.documents().getFirst().addressName());
 
         // 지역 조회
         return regionRepository.findByLawdCode(bCode)
