@@ -25,12 +25,14 @@ public class MolitRentClient {
         this.webClient = WebClient.builder().baseUrl(props.getBaseUrl()).build();
     }
 
-    public MolitRentApiResponse fetch(String sggCd5, String dealYmd6, int pageNo){
+    public MolitRentApiResponse fetch(String sggCd5, String dealYmd6){
+        int page = 1;
+
         String uri = UriComponentsBuilder.fromPath(props.getBaseUrl())
                 .queryParam("LAWD_CD", sggCd5)
                 .queryParam("DEAL_YMD", dealYmd6)
                 .queryParam("serviceKey", props.getServiceKey())
-                .queryParam("pageNo", pageNo)
+                .queryParam("pageNo", page++)
                 .queryParam("numOfRows", props.getNumOfRows())
                 .build(false)
                 .toUriString();
