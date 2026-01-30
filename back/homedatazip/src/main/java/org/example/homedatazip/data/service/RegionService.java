@@ -50,6 +50,13 @@ public class RegionService {
 
             toSave.add(region);
         }
+
+        // Repo 저장
+        if (!toSave.isEmpty()) {
+            regionRepository.saveAll(toSave);
+            log.info("Region 데이터 {}건을 저장/업데이트 했습니다.", toSave.size());
+        }
+
     }
 
     // 중복 없는 5자리 시군구 코드 리스트(Open API 호출 루프)
