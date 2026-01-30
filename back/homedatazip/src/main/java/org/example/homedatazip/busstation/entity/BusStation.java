@@ -34,9 +34,6 @@ public class BusStation {
     @Column(nullable = false, length = 100)
     private String name;
 
-    @Column(length = 255)
-    private String address;
-
     private Double latitude; //YCRD 경도
     private Double longitude; //XCRD 위도
 
