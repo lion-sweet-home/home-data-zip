@@ -1,13 +1,14 @@
 package org.example.homedatazip.tradeRent.api;
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
-import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.apartment.dto.ApiResponse;
+import org.example.homedatazip.tradeRent.dto.MolitRentApiItemResponse;
 import org.example.homedatazip.tradeRent.dto.MolitRentApiResponse;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
+import com.fasterxml.jackson.core.type.TypeReference;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
@@ -25,14 +26,14 @@ public class MolitRentClient {
         this.webClient = WebClient.builder().baseUrl(props.getBaseUrl()).build();
     }
 
-    public MolitRentApiResponse fetch(String sggCd5, String dealYmd6){
-        int page = 1;
+    public ApiResponse<MolitRentApiItemResponse> fetch(String sggCd5, String dealYmd6, int page){
+
 
         String uri = UriComponentsBuilder.fromPath(props.getBaseUrl())
                 .queryParam("LAWD_CD", sggCd5)
                 .queryParam("DEAL_YMD", dealYmd6)
                 .queryParam("serviceKey", props.getServiceKey())
-                .queryParam("pageNo", page++)
+                .queryParam("pageNo", page)
                 .queryParam("numOfRows", props.getNumOfRows())
                 .build(false)
                 .toUriString();
@@ -49,7 +50,9 @@ public class MolitRentClient {
         if(xml == null || xml.isBlank()) return  null;
 
         try{
-            return xmlMapper.readValue(xml, MolitRentApiResponse.class);
+            ApiResponse<MolitRentApiItemResponse> res =
+                    xmlMapper.readValue(xml, new TypeReference<ApiResponse<MolitRentApiItemResponse>>() {});
+            return res;
         }catch (Exception e){
             return null;
         }

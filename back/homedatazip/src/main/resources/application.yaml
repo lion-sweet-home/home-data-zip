@@ -21,10 +21,15 @@ spring:
         format_sql: true
 
   batch:
+    trade-rent:
+      enabled: true
+      days-of-month: [ 25, 26, 27 ]
+      window-months: 2
     job:
       enabled: false 
     jdbc:
       initialize-schema: always
+
 
   mail:
     host: smtp.gmail.com

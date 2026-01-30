@@ -1,7 +1,6 @@
 package org.example.homedatazip.tradeRent.service;
 
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
-import org.example.homedatazip.data.RegionRepository;
 import org.example.homedatazip.tradeRent.api.MolitRentClient;
 import org.example.homedatazip.tradeRent.repository.TradeRentRepository;
 import org.springframework.stereotype.Service;
