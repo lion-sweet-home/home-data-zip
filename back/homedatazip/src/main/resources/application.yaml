@@ -63,8 +63,11 @@ jwt:
 
 payment:
   toss:
+
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
 
-    billing-success-url: "http://localhost:8080/api/subscriptions/billing/success"
-    billing-fail-url: "http://localhost:8080/api/subscriptions/billing/fail"
+api:
+  data-go-kr:
+    service-key: your-service-key
+
