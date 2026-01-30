@@ -29,7 +29,7 @@ public record MolitRentApiItemResponse (
         @JacksonXmlProperty(localName = "roadnmbubun") String roadnmbubun,
         @JacksonXmlProperty(localName = "roadnmcd") String roadnmcd,
         @JacksonXmlProperty(localName = "roadnmseq") String roadnmseq,
-        @JacksonXmlProperty(localName = "roadnmsggcd") String roadnmsggcd, // ✅ 이게 맞음
+        @JacksonXmlProperty(localName = "roadnmsggcd") String roadnmsggcd,
 
         @JacksonXmlProperty(localName = "sggCd") String sggCd,
         @JacksonXmlProperty(localName = "umdNm") String umdNm,

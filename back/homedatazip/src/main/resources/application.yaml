@@ -68,8 +68,6 @@ jwt:
 
 payment:
   toss:
-    secret-key: ${TOSS_SECRET_KEY}
-    client-key: ${TOSS_CLIENT_KEY}
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
 
