@@ -105,10 +105,6 @@ public class Subscription {
         this.billingKeyIssuedAt = null;
     }
 
-    public boolean hasBillingKey() {
-        return this.billingKey != null && !this.billingKey.isBlank();
-    }
-
     // 결제 승인 성공(첫 결제) -> ACTIVE로 전환 + 기간 세팅
     public void activateAfterFirstPayment(LocalDate startDate, LocalDate endDate) {
         this.status = SubscriptionStatus.ACTIVE;
@@ -116,4 +112,28 @@ public class Subscription {
         this.startDate = startDate;
         this.endDate = endDate;
     }
+
+    public static Subscription createInitial(User user) {
+        return Subscription.builder()
+                .subscriber(user)
+                .name("기본 요금제")
+                .price(0L)
+                .status(SubscriptionStatus.EXPIRED)
+                .isActive(false)
+                .build();
+    }
+
+    public void start(LocalDate today, Long price) {
+        this.status = SubscriptionStatus.ACTIVE;
+        this.isActive = true;
+        this.price = price;
+        this.startDate = today;
+        this.endDate = today.plusMonths(1);
+    }
+
+    public boolean hasBillingKey() {
+
+        return this.billingKey != null && !this.billingKey.isBlank();
+    }
+
 }

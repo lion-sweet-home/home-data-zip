@@ -24,8 +24,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: your-email@gmail.com
-    password: your-app-password
+    username: ${MAIL_USER_NAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -63,9 +63,11 @@ jwt:
 
 payment:
   toss:
-    secret-key: ${TOSS_SECRET_KEY}
-    client-key: ${TOSS_CLIENT_KEY}
+
+    secret-key: ${PAYMENT_TOSS_SECRET_KEY}
+    client-key: ${PAYMENT_TOSS_CLIENT_KEY}
 
 api:
   data-go-kr:
     service-key: your-service-key
+
