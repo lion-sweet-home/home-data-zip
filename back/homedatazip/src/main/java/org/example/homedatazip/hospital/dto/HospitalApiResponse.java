@@ -1,126 +1,112 @@
 package org.example.homedatazip.hospital.dto;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.List;
 
+/**
+ * XML 응답 구조
+ * <br/>
+ * <response>
+ *      <header>
+ *          <resultCode>...</resultCode>
+ *          <resultMsg>...</resultMsg>
+ *      </header>
+ *      <body>
+ *          <items>
+ *              <item>...</item>
+ *              <item>...</item>
+ *          </items>
+ *          <numOfRows>...</numOfRows>
+ *          <pageNo>...</pageNo>
+ *          <totalCount>...</totalCount>
+ *      </body>
+ * </response>
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@JacksonXmlRootElement(localName = "response")
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record HospitalApiResponse(
+public class HospitalApiResponse {
 
-        /**
-         * 최상위 래퍼 객체
-         */
-        @JsonProperty("TbHospitalInfo")
-        HospitalInfo hospitalInfo
-) {
+    @JacksonXmlProperty(localName = "header")
+    private Header header;
 
-    /**
-     * {
-     *   "TbHospitalInfo": {
-     *     "list_total_count": 22061,
-     *     "RESULT": { ... },
-     *     "row": [ ... ]
-     *   }
-     * }
-     */
+    @JacksonXmlProperty(localName = "body")
+    private Body body;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record HospitalInfo(
+    public static class Header {
+        @JacksonXmlProperty(localName = "resultCode")
+        private String resultCode;
 
-            @JsonProperty("list_total_count")
-            Integer listTotalCount,
-
-            @JsonProperty("RESULT")
-            Result result,
-
-            @JsonProperty("row")
-            List<HospitalRow> rows
-    ) {
-        @JsonCreator
-        public HospitalInfo {}
+        @JacksonXmlProperty(localName = "resultMsg")
+        private String resultMsg;
     }
 
-    /**
-     * {
-     *   "RESULT": {
-     *     "CODE": "INFO-000",
-     *     "MESSAGE": "정상 처리되었습니다"
-     *   }
-     * }
-     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Result(
+    public static class Body {
+        @JacksonXmlElementWrapper(localName = "items")
+        @JacksonXmlProperty(localName = "item")
+        private List<HospitalItem> items;
 
-            @JsonProperty("CODE")
-            String code,
+        @JacksonXmlProperty(localName = "numOfRows")
+        private Integer numOfRows;
 
-            @JsonProperty("MESSAGE")
-            String message
-    ) {
-        @JsonCreator
-        public Result {}
+        @JacksonXmlProperty(localName = "pageNo")
+        private Integer pageNo;
+
+        @JacksonXmlProperty(localName = "totalCount")
+        private Integer totalCount;
     }
 
-    /**
-     * 개별 병원 데이터
-     * <br/>
-     * {
-     *   "HPID": "A1120837",
-     *   "DUTYNAME": "가산기대찬의원",
-     *   "DUTYDIVNAM": "의원",
-     *   "DUTYADDR": "서울특별시 금천구...",
-     *   "WGS84LAT": 37.4803938036867,
-     *   "WGS84LON": 126.88412249700781
-     * }
-     */
+    @Getter
+    @Setter
+    @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record HospitalRow(
+    public static class HospitalItem {
+        @JacksonXmlProperty(localName = "hpid")
+        private String hospitalId;
 
-            @JsonProperty("HPID")
-            String hospitalId,
+        @JacksonXmlProperty(localName = "dutyName")
+        private String name;
 
-            @JsonProperty("DUTYNAME")
-            String name,
+        @JacksonXmlProperty(localName = "dutyDivNam")
+        private String typeName;
 
-            @JsonProperty("DUTYDIVNAM")
-            String typeName,
+        @JacksonXmlProperty(localName = "dutyAddr")
+        private String address;
 
-            @JsonProperty("DUTYADDR")
-            String address,
+        @JacksonXmlProperty(localName = "wgs84Lat")
+        private Double latitude;
 
-            @JsonProperty("WGS84LAT")
-            Double latitude,
-
-            @JsonProperty("WGS84LON")
-            Double longitude
-    ) {
-        @JsonCreator
-        public HospitalRow {}
+        @JacksonXmlProperty(localName = "wgs84Lon")
+        private Double longitude;
     }
 
-    // ============================================================
     // 편의 메서드
-    // ============================================================
-
-    /**
-     * 전체 데이터 건수 반환
-     */
-    public Integer getListTotalCount() {
-        return hospitalInfo != null ? hospitalInfo.listTotalCount() : null;
+    public Integer getTotalCount() {
+        return body != null ? body.getTotalCount() : null;
     }
 
-    /**
-     * 병원 데이터 목록 반환
-     */
-    public List<HospitalRow> getRows() {
-        return hospitalInfo != null ? hospitalInfo.rows() : null;
+    public List<HospitalItem> getItems() {
+        return body != null ? body.getItems() : null;
     }
 
-    /**
-     * API 응답 결과 반환
-     */
-    public Result getResult() {
-        return hospitalInfo != null ? hospitalInfo.result() : null;
+    public boolean isSuccess() {
+        return header != null && "00".equals(header.getResultCode());
     }
 }
