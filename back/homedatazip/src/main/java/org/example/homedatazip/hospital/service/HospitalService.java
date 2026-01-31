@@ -15,12 +15,12 @@ public class HospitalService {
 
     private final HospitalRepository hospitalRepository;
 
-    public Long getHospitalCountByDong(String dong) {
-        return hospitalRepository.countByDong(dong);
+    public Long getHospitalCountByGuAndDong(String gu, String dong) {
+        return hospitalRepository.countByGuAndDong(gu, dong);
     }
 
-    public HospitalStatsResponse getHospitalStatsByDong(String dong) {
-        List<Object[]> results = hospitalRepository.countByTypeNameAndDong(dong);
+    public HospitalStatsResponse getHospitalStatsByGuAndDong(String gu, String dong) {
+        List<Object[]> results = hospitalRepository.countByTypeNameAndGuAndDong(gu, dong);
 
         Map<String, Long> countByTypeName = results.stream()
                 .collect(Collectors.toMap(
@@ -32,6 +32,6 @@ public class HospitalService {
                 .mapToLong(Long::longValue)
                 .sum();
 
-        return new HospitalStatsResponse(dong, totalCount, countByTypeName);
+        return new HospitalStatsResponse(gu, dong, totalCount, countByTypeName);
     }
 }
