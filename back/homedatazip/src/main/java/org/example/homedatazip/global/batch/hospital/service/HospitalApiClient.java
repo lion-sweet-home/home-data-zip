@@ -1,9 +1,11 @@
 package org.example.homedatazip.global.batch.hospital.service;
 
+import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.hospital.dto.HospitalApiResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -11,7 +13,7 @@ import org.springframework.web.reactive.function.client.WebClient;
  * Open API 호출 클라이언트
  * <br/>
  * API 호출 URL 형식
- * https://apis.data.go.kr/B552657/HsptlAsembySearchService/getHsptlMdcncFullDown?serviceKey={serviceKey}
+ * https://apis.data.go.kr/B552657/HsptlAsembySearchService/getHsptlMdcncFullDown?serviceKey={serviceKey}&pageNo={pageNo}&numOfRows={numOfRows}
  */
 @Slf4j
 @Component
@@ -19,50 +21,46 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class HospitalApiClient {
 
     private final WebClient webClient;
-
-    @Value("${api.seoul.hospital.key}")
-    private String apiKey;
+    private final XmlMapper xmlMapper = new XmlMapper();
 
     @Value("${api.data.hospital.key}")
     private String serviceKey;
 
     private static final String BASE_URL
-//            = "http://apis.data.go.kr/B552657/HsptlAsembySearchService";
-            = "http://openapi.seoul.go.kr:8088";
-    private static final String TYPE = "json";
-    private static final String SERVICE_NAME
-//            = "getHsptlMdcncFullDown";
-            = "TbHospitalInfo";
+            = "http://apis.data.go.kr/B552657/HsptlAsembySearchService";
+    private static final String SERVICE_NAME = "getHsptlMdcncFullDown";
 
-    public HospitalApiResponse fetchHospitals(
-//            int pageNo,
-//            int numOfRows
-            int startIndex,
-            int endIndex
+    public HospitalApiResponse fetchHospital(
+            int pageNo,
+            int numOfRows
     ) {
-        String url = String.format("%s/%s/%s/%s/%d/%d",
+        String url = String.format("%s/%s?serviceKey=%s&pageNo=%d&numOfRows=%d",
                 BASE_URL,
-                apiKey,
-                TYPE,
                 SERVICE_NAME,
-                startIndex,
-                endIndex);
+                serviceKey,
+                pageNo,
+                numOfRows
+        );
 
-        log.info("API 호출: {} ~ {}", startIndex, endIndex);
-//        log.info("API 호출: pageNo={}, numOfRows={}", pageNo, numOfRows);
+        log.info("API 호출: pageNo={}, numOfRows={}", pageNo, numOfRows);
 
-        return webClient.get()
-                .uri(url)
-                .retrieve()
-                .bodyToMono(HospitalApiResponse.class)
-                .block();
+        try {
+            String xmlResponse = webClient.get()
+                    .uri(url)
+                    .accept(MediaType.APPLICATION_XML)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            return xmlMapper.readValue(xmlResponse, HospitalApiResponse.class);
+        } catch (Exception e) {
+            log.error("API 호출 또는 파싱 실패: {}", e.getMessage());
+            throw new RuntimeException("Hospital API 호출 실패", e);
+        }
     }
 
-    /**
-     * 전체 데이터 건수 조회
-     */
     public Integer getTotalCount() {
-        HospitalApiResponse response = fetchHospitals(1, 1);
-        return response.getListTotalCount();
+        HospitalApiResponse response = fetchHospital(1, 1);
+        return response.getTotalCount();
     }
 }

@@ -49,7 +49,7 @@ public class HospitalBatchConfig {
     @Bean
     public Step hospitalImportStep() {
         return new StepBuilder("hospitalImportStep", jobRepository)
-                .<HospitalApiResponse.HospitalRow, Hospital>chunk(1000, transactionManager)
+                .<HospitalApiResponse.HospitalItem, Hospital>chunk(1000, transactionManager)
                 .reader(hospitalItemReader()) // 데이터 읽기
                 .processor(hospitalItemProcessor()) // 데이터 변환
                 .writer(hospitalItemWriter()) // 데이터 저장
@@ -63,17 +63,17 @@ public class HospitalBatchConfig {
      * null을 반환하면 "더 이상 데이터 없음"으로 인식하여 종료
      */
     @Bean
-    public ItemReader<HospitalApiResponse.HospitalRow> hospitalItemReader() {
+    public ItemReader<HospitalApiResponse.HospitalItem> hospitalItemReader() {
         return new ItemReader<>() {
 
-            private Iterator<HospitalApiResponse.HospitalRow> iterator;
+            private Iterator<HospitalApiResponse.HospitalItem> iterator;
             private int currentPage = 1;
             private int totalCount = -1;
             private int processedCount = 0;
             private final int pageSize = 1000;
 
             @Override
-            public HospitalApiResponse.HospitalRow read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+            public HospitalApiResponse.HospitalItem read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
                 // 첫 호출 시 전체 건수 조회
                 if (totalCount == -1) {
                     totalCount = hospitalApiClient.getTotalCount();
@@ -88,26 +88,27 @@ public class HospitalBatchConfig {
                         return null; // 종료 신호
                     }
 
-                    // 페이지 범위 계산
-                    int startIndex = (currentPage - 1) * pageSize + 1;
-                    int endIndex = Math.min(currentPage * pageSize, totalCount);
-
-                    log.info("{} 페이지 로딩 중... ({} ~ {})",
+                    log.info("{} 페이지 로딩 중... (pageNo={}, numOfRows={})",
                             currentPage,
-                            startIndex,
-                            endIndex
+                            currentPage,
+                            pageSize
                     );
 
                     // API 호출
                     HospitalApiResponse response
-                            = hospitalApiClient.fetchHospitals(startIndex, endIndex);
+                            = hospitalApiClient.fetchHospital(currentPage, pageSize);
 
-                    // 데이터가 없는 경우 종료
-                    if (response.getRows() == null || response.getRows().isEmpty()) {
+                    if (!response.isSuccess()) {
+                        log.error("API 응답 오류: {}", response.getHeader().getResultMsg());
                         return null;
                     }
 
-                    iterator = response.getRows().iterator();
+                    // 데이터가 없는 경우 종료
+                    if (response.getItems() == null || response.getItems().isEmpty()) {
+                        return null;
+                    }
+
+                    iterator = response.getItems().iterator();
                     currentPage++;
                 }
 
@@ -123,24 +124,24 @@ public class HospitalBatchConfig {
      * Reader에서 읽은 데이터를 가공 혹은 필터링
      */
     @Bean
-    public ItemProcessor<HospitalApiResponse.HospitalRow, Hospital> hospitalItemProcessor() {
+    public ItemProcessor<HospitalApiResponse.HospitalItem, Hospital> hospitalItemProcessor() {
         return row -> {
             // 필수 데이터 검증
-            if (row.hospitalId() == null || row.name() == null) {
+            if (row.getHospitalId() == null || row.getName() == null) {
                 log.warn("데이터 누락- ID: {}, 이름: {}",
-                        row.hospitalId(),
-                        row.name()
+                        row.getHospitalId(),
+                        row.getName()
                 );
                 return null; // 해당 데이터는 저장하지 않음
             }
 
             return Hospital.fromApiResponse(
-                    row.hospitalId(),
-                    row.name(),
-                    row.typeName(),
-                    row.address(),
-                    row.latitude(),
-                    row.longitude()
+                    row.getHospitalId(),
+                    row.getName(),
+                    row.getTypeName(),
+                    row.getAddress(),
+                    row.getLatitude(),
+                    row.getLongitude()
             );
         };
     }
