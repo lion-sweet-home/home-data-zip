@@ -17,18 +17,20 @@ public class HospitalController {
     private final HospitalService hospitalService;
 
     @GetMapping("/count")
-    public ResponseEntity<Long> getHospitalCountByDong(
+    public ResponseEntity<Long> getHospitalCountByGuAndDong(
+            @RequestParam String gu,
             @RequestParam String dong
     ) {
         return ResponseEntity.ok()
-                .body(hospitalService.getHospitalCountByDong(dong));
+                .body(hospitalService.getHospitalCountByGuAndDong(gu, dong));
     }
 
     @GetMapping("/stats")
-    public ResponseEntity<HospitalStatsResponse> getHospitalStatsByDong(
+    public ResponseEntity<HospitalStatsResponse> getHospitalStatsByGuAndDong(
+            @RequestParam String gu,
             @RequestParam String dong
     ) {
         return ResponseEntity.ok()
-                .body(hospitalService.getHospitalStatsByDong(dong));
+                .body(hospitalService.getHospitalStatsByGuAndDong(gu, dong));
     }
 }

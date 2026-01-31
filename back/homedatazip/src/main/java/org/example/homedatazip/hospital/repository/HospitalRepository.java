@@ -11,11 +11,14 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
 
     @Query("""
             select h.typeName, count(h) from Hospital h
-            where h.dong = :dong
+            where h.gu = :gu and h.dong = :dong
             group by h.typeName
             order by count(h) desc 
             """)
-    List<Object[]> countByTypeNameAndDong(@Param("dong") String dong);
+    List<Object[]> countByTypeNameAndGuAndDong(
+            @Param("gu") String gu,
+            @Param("dong") String dong
+    );
 
-    Long countByDong(String dong);
+    Long countByGuAndDong(String gu, String dong);
 }
