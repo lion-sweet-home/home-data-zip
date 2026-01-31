@@ -1,0 +1,19 @@
+### 1. GeoCode Test
+POST http://localhost:8080/api/geo-test
+Content-Type: application/json
+
+{
+  "dong":"평창동",
+  "jibun":"596"
+}
+
+
+
+### 2. Reverse GeoCode Test
+POST http://localhost:8080/api1/reverse-geo-test
+Content-Type: application/json
+
+{
+  "latitude":"37.6107847060306",
+  "longitude":"126.978142953802"
+}
