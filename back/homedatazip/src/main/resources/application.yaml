@@ -2,6 +2,11 @@ spring:
   application:
     name : homedatazip
 
+  mvc:
+    contentnegotiation:
+      default-content-type: application/json  # 모든 응답의 기본은 JSON
+      favor-parameter: false
+
   datasource:
     url: jdbc:mysql://localhost:3306/home_db
     username: root
