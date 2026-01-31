@@ -1,5 +1,6 @@
 package org.example.homedatazip.global.exception.common;
 
+
 import lombok.Getter;
 
 import java.time.LocalDateTime;

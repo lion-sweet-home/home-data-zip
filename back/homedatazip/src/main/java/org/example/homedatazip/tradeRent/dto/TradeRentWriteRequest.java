@@ -1,5 +1,7 @@
 package org.example.homedatazip.tradeRent.dto;
 
+import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
+
 import java.time.LocalDate;
 
 public record TradeRentWriteRequest(
@@ -16,4 +18,8 @@ public record TradeRentWriteRequest(
         String contractTerm,
         String contractType,
         String useRRRight
-) {}
+) {
+    public ApartmentGetOrCreateRequest toApartmentGetOrCreateRequest() {
+        return ApartmentGetOrCreateRequest.from(this);
+    }
+}

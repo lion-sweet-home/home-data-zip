@@ -1,30 +1,31 @@
 package org.example.homedatazip.tradeRent.api;
 
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.dto.ApiResponse;
 import org.example.homedatazip.tradeRent.dto.MolitRentApiItemResponse;
-import org.example.homedatazip.tradeRent.dto.MolitRentApiResponse;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
-import com.fasterxml.jackson.core.type.TypeReference;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 
 @Component
+@RequiredArgsConstructor
 public class MolitRentClient {
 
     private final MolitRentProperties props;
-    private final XmlMapper xmlMapper;
     private final WebClient webClient;
-
-    public MolitRentClient(MolitRentProperties props, XmlMapper xmlMapper) {
-        this.props = props;
-        this.xmlMapper = xmlMapper;
-        this.webClient = WebClient.builder().baseUrl(props.getBaseUrl()).build();
-    }
+    private final XmlMapper xmlMapper = XmlMapper.builder()
+            .addModule(new ParameterNamesModule())
+            .build();
 
     public ApiResponse<MolitRentApiItemResponse> fetch(String sggCd5, String dealYmd6, int page){
 

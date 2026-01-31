@@ -4,8 +4,8 @@ spring:
 
   mvc:
     contentnegotiation:
-      default-content-type: application/json  # 모든 응답의 기본은 JSON
       favor-parameter: false
+      default-content-type: application/json
 
   datasource:
     url: jdbc:mysql://localhost:3306/home_db

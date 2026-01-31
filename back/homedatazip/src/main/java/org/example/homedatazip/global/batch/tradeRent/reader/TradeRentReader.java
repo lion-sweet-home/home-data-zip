@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Objects;
 
 
-public class tradeRentReader implements ItemStreamReader<MolitRentApiItemResponse> {
+public class TradeRentReader implements ItemStreamReader<MolitRentApiItemResponse> {
 
     private static final String CTX_SGG_IDX = "trBackfill.sggIdx";
     private static final String CTX_YMD_IDX = "trBackfill.ymdIdx";
@@ -29,10 +29,10 @@ public class tradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
 
     private Iterator<MolitRentApiItemResponse> iter;
 
-    public tradeRentReader(MolitRentClient client, List<String> sggCds, List<String> dealYmds) {
-        this.client = Objects.requireNonNull(client);
-        this.sggCds = Objects.requireNonNull(sggCds);
-        this.dealYmds = Objects.requireNonNull(dealYmds);
+    public TradeRentReader(MolitRentClient client, List<String> sggCds, List<String> dealYmds) {
+        this.client = Objects.requireNonNull(client, "client must not be null");
+        this.sggCds = Objects.requireNonNull(sggCds, "sggCds must not be null");
+        this.dealYmds = Objects.requireNonNull(dealYmds, "dealYmds must not be null");
         this.sggIdx = 0;
         this.ymdIdx = 0;
         this.pageNo = 1;
@@ -102,7 +102,7 @@ public class tradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
         cursorInPage = 0;
         for (int i = 0; i < skip && it.hasNext(); i++) it.next();
 
-        iter = it;
+        it = iter;
     }
 
     private static int computeMaxPage(Integer totalCount, Integer numOfRows) {

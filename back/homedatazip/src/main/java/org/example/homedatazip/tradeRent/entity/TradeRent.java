@@ -33,7 +33,7 @@ public class TradeRent {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name="apartment_id", nullable=false)
+    @JoinColumn(name="apartment_id", nullable=true)
     private Apartment apartment;
 
     @Column(name = "deposit", nullable = false)
