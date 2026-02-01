@@ -9,7 +9,10 @@ public record GeoCoordinateResponse(
 ) {
     public record Document(
             Address address,
-            @JsonProperty("road_address") RoadAddress roadAddress
+            @JsonProperty("road_address") RoadAddress roadAddress,
+            @JsonProperty("address_name") String addressName,
+            Double x, // 키워드 검색용 경도
+            Double y  // 키워드 검색용 위도
     ) {
     }
 
