@@ -33,14 +33,15 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name ="order_id", nullable = false, unique = true, length = 64)
     private String orderId;
 
-    // 토스 결제건 식별자 (승인/취소/조회에 필요)
-    @Column(name = "payment_key", unique = true, length = 200)
+    //  PROCESSING 단계에서는 null 가능해야 함 (승인 성공 후 채움)
+    @Column(name = "payment_key", unique = true, nullable = true, length = 200)
     private String paymentKey;
 
     @Column(name = "order_name", nullable = false, length = 100)
     private String orderName;
 
-    @Column(name = "fail_reason", length = 300)
+    @Lob
+    @Column(name = "fail_reason", columnDefinition = "TEXT")
     private String failReason;
 
     @Column(nullable = false)
@@ -50,32 +51,55 @@ public class PaymentLog extends BaseTimeEntity {
     @Column(name = "payment_status", nullable = false, length = 20)
     private PaymentStatus paymentStatus;
 
-    // 토스 승인 시간
     @Column(name = "approved_at")
     private LocalDateTime approvedAt;
 
-    // 결제 완료 처리 시간
     @Column(name = "paid_at")
     private LocalDateTime paidAt;
 
-    // ----- 메서드 -----
+    //-----메서드-----
 
-    // 토스 결제 승인 성공시
-    public void markApproved(String paymentKey, LocalDateTime approvedAt, LocalDateTime paidAt) {
-        this.paymentStatus = PaymentStatus.APPROVED;
+    /**
+     * 결제 처리 시작(PROCESSING) 로그 생성
+     */
+    public static PaymentLog createProcessing(
+            Subscription subscription,
+            String orderId,
+            String orderName,
+            Long amount
+    ) {
+        LocalDateTime now = LocalDateTime.now();
+
+        return PaymentLog.builder()
+                .subscription(subscription)
+                .orderId(orderId)
+                .orderName(orderName)
+                .amount(amount)
+                .paymentStatus(PaymentStatus.PROCESSING)
+                .paidAt(now)
+                .approvedAt(null)
+                .paymentKey(null)
+                .failReason(null)
+                .build();
+    }
+
+    /**
+     * 결제 성공 처리
+     */
+    public void markApproved(String paymentKey, String orderId, Long amount, LocalDateTime approvedAt) {
         this.paymentKey = paymentKey;
-        this.approvedAt = approvedAt;
-        this.paidAt = paidAt;
+        this.orderId = orderId;
+        this.amount = amount;
+        this.paymentStatus = PaymentStatus.APPROVED;
+        this.approvedAt = approvedAt != null ? approvedAt : LocalDateTime.now();
         this.failReason = null;
     }
 
-    // 승인 실패
-    public void markFailed(String failReason) {
+    /**
+     * 결제 실패 처리
+     */
+    public void markFailed(String reason) {
         this.paymentStatus = PaymentStatus.FAILED;
-        this.failReason = failReason;
-    }
-
-    public void markCanceled() {
-        this.paymentStatus = PaymentStatus.CANCELED;
+        this.failReason = (reason == null || reason.isBlank()) ? "결제 실패" : reason;
     }
 }

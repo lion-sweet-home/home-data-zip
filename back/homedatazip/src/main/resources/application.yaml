@@ -24,8 +24,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: your-email@gmail.com
-    password: your-app-password
+    username: ${MAIL_USER_NAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -56,16 +56,20 @@ cors:
   max-age: 3600
 
 jwt:
-  access-secret-key: ${JWT_ACCESS_SECRET:}
-  refresh-secret-key: ${JWT_REFRESH_SECRET:}
-  access-token-expiration: ${JWT_ACCESS_EXP_SEC:}
-  refresh-token-expiration: ${JWT_REFRESH_EXP_SEC:}
+  access-secret-key: ${JWT_ACCESS_SECRET}
+  refresh-secret-key: ${JWT_REFRESH_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXP_SEC}
+  refresh-token-expiration: ${JWT_REFRESH_EXP_SEC}
 
 payment:
   toss:
-    secret-key: ${TOSS_SECRET_KEY:}
-    client-key: ${TOSS_CLIENT_KEY:}
 
+    secret-key: ${PAYMENT_TOSS_SECRET_KEY}
+    client-key: ${PAYMENT_TOSS_CLIENT_KEY}
+
+api:
+  data-go-kr:
+    service-key: your-service-key
 
 subway:
   # OpenAPI 지하철 역 목록 URL

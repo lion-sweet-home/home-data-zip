@@ -1,8 +1,10 @@
 package org.example.homedatazip.apartment.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
+import lombok.*;
 import org.example.homedatazip.data.Region;
+import org.example.homedatazip.global.geocode.dto.CoordinateInfoResponse;
+import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 
 @Entity
 @Getter
@@ -18,6 +20,9 @@ import org.example.homedatazip.data.Region;
                 @Index(name = "idx_apt_road_address", columnList = "roadAddress")
         }
 )
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder(access = AccessLevel.PRIVATE)
 public class Apartment {
 
     @Id
@@ -39,4 +44,27 @@ public class Apartment {
     @ManyToOne
     private Region region;
 
+    public static Apartment create(ApartmentTradeSaleItem item, CoordinateInfoResponse response) {
+        return Apartment.builder()
+                .aptName(item.aptNm())
+                .roadAddress(response.roadAddress())
+                .jibunAddress(response.jibunAddress())
+                .latitude(response.latitude())
+                .longitude(response.longitude())
+                .buildYear(Integer.parseInt(item.buildYear()))
+                .aptSeq(item.aptSeq())
+                .region(response.region())
+                .build();
+    }
+
+    public void update(ApartmentTradeSaleItem item) {
+        Integer newBuildYear = Integer.parseInt(item.buildYear());
+
+        if (!this.aptName.equals(item.aptNm())) {
+            this.aptName = item.aptNm();
+        }
+        if (!this.buildYear.equals(newBuildYear)) {
+            this.buildYear = newBuildYear;
+        }
+    }
 }
