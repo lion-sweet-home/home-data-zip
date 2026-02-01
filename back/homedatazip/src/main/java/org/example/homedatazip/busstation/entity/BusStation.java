@@ -34,8 +34,8 @@ public class BusStation {
     @Column(nullable = false, length = 100)
     private String name;
 
-    private Double latitude; //YCRD 경도
-    private Double longitude; //XCRD 위도
+    private Double latitude; //YCRD 위도
+    private Double longitude; //XCRD 경도
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "region_id")
@@ -58,4 +58,9 @@ public class BusStation {
         this.latitude = latitude;
         this.region = region;
     }
+
+    public void attachRegion(Region region) {
+        this.region = region;
+    }
+
 }
