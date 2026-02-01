@@ -23,45 +23,54 @@ public class BusStationGeocodeTasklet implements Tasklet {
     @Transactional
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
 
-        var targets = busStationRepository.findTop500ByRegionIsNullOrderByIdAsc();
-        if (targets.isEmpty()) {
-            log.info("[BUS-GEO] nothing to enrich");
-            return RepeatStatus.FINISHED;
-        }
+        int totalSuccess = 0, totalFail = 0, totalSkipped = 0;
 
-        int success = 0;
-        int fail = 0;
-        int skipped = 0;
-
-        for (var station : targets) {
-            Double lat = station.getLatitude();
-            Double lon = station.getLongitude();
-
-            if (lat == null || lon == null) {
-                skipped++;
-                continue;
+        while (true) {
+            var targets = busStationRepository.findTop500ByRegionIsNullOrderByIdAsc();
+            if (targets.isEmpty()) {
+                log.info("[BUS-GEO] done. success={}, fail={}, skipped={}", totalSuccess, totalFail, totalSkipped);
+                return RepeatStatus.FINISHED;
             }
 
-            try {
-                // ✅ 여기서 끝: 좌표 -> 카카오 -> bCode -> Region 조회까지 완료
-                var region = geoService.convertAddressInfo(lat, lon);
+            int success = 0, fail = 0, skipped = 0;
 
-                // attachRegion 메서드가 있으면 그대로 쓰고,
-                // 없으면 station.update(..., region) 형태로 바꿔.
-                station.attachRegion(region);
+            for (var station : targets) {
+                Double lat = station.getLatitude();
+                Double lon = station.getLongitude();
 
-                success++;
-            } catch (Exception e) {
-                // 실패 로그는 남겨야 나중에 이유 찾는다
-                log.warn("[BUS-GEO] fail stationId={}, nodeId={}, lat={}, lon={}, err={}",
-                        station.getId(), station.getNodeId(), lat, lon, e.getMessage());
-                fail++;
+                if (lat == null || lon == null) {
+                    skipped++;
+                    continue;
+                }
+
+                try {
+                    var region = geoService.convertAddressInfo(lat, lon);
+                    if (region == null) {
+                        skipped++;
+                        continue;
+                    }
+                    station.attachRegion(region);
+                    success++;
+                } catch (Exception e) {
+                    log.warn("[BUS-GEO] fail stationId={}, nodeId={}, lat={}, lon={}, err={}",
+                            station.getId(), station.getNodeId(), lat, lon, e.getMessage());
+                    fail++;
+                }
+            }
+
+            totalSuccess += success;
+            totalFail += fail;
+            totalSkipped += skipped;
+
+            log.info("[BUS-GEO] batch success={}, fail={}, skipped={}, processed={}",
+                    success, fail, skipped, targets.size());
+
+            // 무한루프 방지: 이번 배치에서 성공이 0이면 더 돌려봐야 의미가 없음
+            if (success == 0) {
+                log.warn("[BUS-GEO] stop: no progress in this batch. (success=0) totalFail={}, totalSkipped={}",
+                        totalFail, totalSkipped);
+                return RepeatStatus.FINISHED;
             }
         }
-
-        log.info("[BUS-GEO] success={}, fail={}, skipped={}, processed={}",
-                success, fail, skipped, targets.size());
-
-        return RepeatStatus.FINISHED;
     }
 }

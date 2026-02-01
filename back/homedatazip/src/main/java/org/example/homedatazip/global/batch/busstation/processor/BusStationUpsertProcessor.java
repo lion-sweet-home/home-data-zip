@@ -15,30 +15,44 @@ public class BusStationUpsertProcessor implements ItemProcessor<Row, BusStation>
 
     @Override
     public BusStation process(Row row) {
-        String nodeId = row.NODE_ID();
-        if (nodeId == null || nodeId.isBlank()) return null;
+        if (row == null) return null;
+
+        String nodeId = safeTrim(row.NODE_ID());
+        if (nodeId == null) return null;
+
+        Double longitude = parseDouble(row.XCRD());
+        Double latitude  = parseDouble(row.YCRD());
+
+        if (longitude == null || latitude == null) return null;
 
         BusStation station = busStationRepository.findByNodeId(nodeId)
                 .orElseGet(() -> new BusStation(nodeId));
 
-        Double longitude = parseDouble(row.XCRD()); // 경도
-        Double latitude = parseDouble(row.YCRD());  // 위도
+        // 기존 region 유지 (업서트 배치가 region을 null로 덮어쓰면 안 됨)
+        var currentRegion = station.getRegion();
 
         station.update(
-                row.STOPS_NO(),
-                row.STOPS_NM(),
+                safeTrim(row.STOPS_NO()),
+                safeTrim(row.STOPS_NM()),
                 longitude,
                 latitude,
-                null // region은 여기서는 안 붙임
+                currentRegion
         );
 
         return station;
     }
 
+    private String safeTrim(String v) {
+        if (v == null) return null;
+        String t = v.trim();
+        return t.isEmpty() ? null : t;
+    }
+
     private Double parseDouble(String v) {
-        if (v == null || v.isBlank()) return null;
+        String t = safeTrim(v);
+        if (t == null) return null;
         try {
-            return Double.parseDouble(v);
+            return Double.parseDouble(t);
         } catch (Exception e) {
             return null;
         }
