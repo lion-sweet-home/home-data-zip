@@ -20,7 +20,7 @@ public class SubwayStationSource extends BaseTimeEntity {
     private Long id;
 
     @Column(unique = true, nullable = false)
-    private String lineStationCode;     // outStnNum → 노선별 역코드 (UNIQUE)
+    private String lineStationCode;     // outStnNum → 노선별 역코드
 
     @Column(nullable = false)
     private String stationName;         // stnKrNm → 역명
@@ -34,7 +34,7 @@ public class SubwayStationSource extends BaseTimeEntity {
     @Column(nullable = false)
     private Double longitude;           // convX → 경도
 
-//    @ManyToOne(fetch = FetchType.LAZY)
-//    @JoinColumn(name = "station_id")
-//    private SubwayStation station;      // Step2에서 대표 역 매핑 시 사용
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "station_id")
+    private SubwayStation station;      // Step2 대표 역 매핑
 }

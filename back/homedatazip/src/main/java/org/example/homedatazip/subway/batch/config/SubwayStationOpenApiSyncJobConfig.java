@@ -3,6 +3,7 @@ package org.example.homedatazip.subway.batch.config;
 import org.example.homedatazip.subway.batch.dto.SubwayStationSourceSync;
 import org.example.homedatazip.subway.batch.processor.StationApiToSourceSyncProcessor;
 import org.example.homedatazip.subway.batch.reader.StationApiReader;
+import org.example.homedatazip.subway.batch.tasklet.SubwayStationMapTasklet;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -15,7 +16,8 @@ import org.springframework.transaction.PlatformTransactionManager;
 
 /**
  * OpenAPI → subway_station_sources 동기화 Step + Job.
- * - Step1: Reader(OpenAPI) → Processor(검증) → Writer(upsert). Step2(대표 역 매핑)는 나중에 추가.
+ * - Step1: Reader(OpenAPI) → Processor(검증) → Writer(upsert).
+ * - Step2: Source 역명 그룹 → 위/경도 중앙값 → SubwayStation upsert + Source.station_id 매핑.
  */
 @Configuration
 public class SubwayStationOpenApiSyncJobConfig {
@@ -39,12 +41,25 @@ public class SubwayStationOpenApiSyncJobConfig {
     }
 
     @Bean
+    public Step subwayStationMapStep(
+            JobRepository jobRepository,
+            PlatformTransactionManager transactionManager,
+            SubwayStationMapTasklet subwayStationMapTasklet
+    ) {
+        return new StepBuilder("subwayStationMapStep", jobRepository)
+                .tasklet(subwayStationMapTasklet, transactionManager)
+                .build();
+    }
+
+    @Bean
     public Job subwayStationOpenApiSyncJob(
             JobRepository jobRepository,
-            Step subwayStationOpenApiSyncStep
+            Step subwayStationOpenApiSyncStep,
+            Step subwayStationMapStep
     ) {
         return new JobBuilder("subwayStationOpenApiSyncJob", jobRepository)
                 .start(subwayStationOpenApiSyncStep)
+                .next(subwayStationMapStep)
                 .build();
     }
 }

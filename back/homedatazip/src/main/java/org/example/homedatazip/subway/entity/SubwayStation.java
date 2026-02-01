@@ -10,8 +10,6 @@ import org.example.homedatazip.common.BaseTimeEntity;
 @Setter
 @Table(name = "subway_stations")
 public class SubwayStation extends BaseTimeEntity {
-
-    // TODO: 일단 대표 위경도는 이따가 하고 openapi 로 소스코드 다 받아오면 그 때 할거임
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

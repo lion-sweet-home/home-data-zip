@@ -13,8 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class SubwayStationOpenApiQuartzConfig {
 
-    // cron 예: "0 0 2 * * ?" = 매일 02:00:00
-    @Value("${subway.openapi.sync.cron:0 0 2 * * ?}")
+    @Value("${subway.openapi.sync.cron}")
     private String cronExpression;
 
     @Bean
