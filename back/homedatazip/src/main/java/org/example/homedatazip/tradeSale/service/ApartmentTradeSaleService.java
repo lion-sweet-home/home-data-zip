@@ -21,10 +21,10 @@ public class ApartmentTradeSaleService {
 
     @Transactional
     public void processChunk(List<ApartmentTradeSaleItem> items) {
-        // 1. 아파트 정보 확보 (신규 저장 포함)
+        // 아파트 정보
         Map<String, Apartment> apartmentMap = apartmentService.getOrCreateApartmentsFromTradeSale(items);
 
-        // 2. 아파트 정보가 존재하는 아이템만 TradeSale로 변환
+        // 아파트 정보가 존재하는 아이템만 TradeSale로 변환
         List<TradeSale> tradeSales = items.stream()
                 .filter(item -> apartmentMap.containsKey(item.getAptSeq())) // 아파트가 성공적으로 매칭된 것만!
                 .map(item -> TradeSale.from(item, apartmentMap.get(item.getAptSeq())))
