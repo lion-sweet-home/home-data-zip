@@ -4,8 +4,8 @@ spring:
 
   mvc:
     contentnegotiation:
+      default-content-type: application/json  # 모든 응답의 기본은 JSON
       favor-parameter: false
-      default-content-type: application/json
 
   datasource:
     url: jdbc:mysql://localhost:3306/home_db
@@ -72,7 +72,6 @@ jwt:
 
 payment:
   toss:
-
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
 
@@ -92,3 +91,10 @@ kakao:
   api:
     key: ${KAKAO_API_KEY}
     url: https://dapi.kakao.com
+
+seoul:
+  openapi:
+    base-url: http://openapi.seoul.go.kr:8088
+    key: ${SEOUL_OPENAPI_KEY}
+    type: json
+    service: ${SEOUL_OPENAPI_SERVICE}

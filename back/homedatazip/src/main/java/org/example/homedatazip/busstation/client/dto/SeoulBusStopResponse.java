@@ -1,27 +1,38 @@
 package org.example.homedatazip.busstation.client.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
-// 응답(JSON) -> DTO 파싱
 public record SeoulBusStopResponse(
+        @JsonProperty("busStopLocationXyInfo")
         BusStopLocationXyInfo busStopLocationXyInfo
 ) {
+
     public record BusStopLocationXyInfo(
-            int list_total_count,
-            Result RESULT,
+            @JsonProperty("list_total_count")
+            int listTotalCount,
+
+            @JsonProperty("RESULT")
+            Result result,
+
+            @JsonProperty("row")
             List<Row> row
     ) {}
 
     public record Result(
-            String CODE,
-            String MESSAGE
+            @JsonProperty("CODE")
+            String code,
+            @JsonProperty("MESSAGE")
+            String message
     ) {}
 
     public record Row(
-            String STOPS_NO, // ARS-ID (버스 정류장 전화/안내용 고유번호)
-            String STOPS_NM, // 정류소명
-            String XCRD, // 경도
-            String YCRD, // 위도
-            String NODE_ID
+            @JsonProperty("STOPS_NO") String STOPS_NO,     // 정류소 고유번호(ARS-ID)
+            @JsonProperty("STOPS_NM") String STOPS_NM,     // 정류소명
+            @JsonProperty("XCRD") String XCRD,            // 경도
+            @JsonProperty("YCRD") String YCRD,            // 위도
+            @JsonProperty("NODE_ID") String NODE_ID,       // 노드ID
+            @JsonProperty("STOPS_TYPE") String STOPS_TYPE  // 타입(있을 수도, 없을 수도)
     ) {}
 }

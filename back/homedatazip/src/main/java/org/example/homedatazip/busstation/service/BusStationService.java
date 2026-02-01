@@ -3,11 +3,11 @@ package org.example.homedatazip.busstation.service;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.busstation.entity.BusStation;
 import org.example.homedatazip.busstation.repository.BusStationRepository;
+import org.example.homedatazip.data.Region;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -16,40 +16,20 @@ public class BusStationService {
 
     private final BusStationRepository busStationRepository;
 
-    public void upsertStationsWithoutRegion(List<BusStationApiResponse> items) {
-
-        List<String> nodeIds = items.stream()
-                .map(BusStationApiResponse::nodeId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .toList();
-
-        Map<String, BusStation> existingMap = busStationRepository.findByNodeIdIn(nodeIds).stream()
-                .collect(Collectors.toMap(BusStation::getNodeId, s -> s));
-
-        List<BusStation> toSave = new ArrayList<>(items.size());
-
-        for (BusStationApiResponse dto : items) {
-            if (dto.nodeId() == null || dto.nodeId().isBlank()) {
-                continue;
-            }
-            if (dto.name() == null || dto.name().isBlank()) {
-                continue;
-            }
-
-            BusStation station = existingMap.getOrDefault(dto.nodeId(), new BusStation(dto.nodeId()));
+    public void upsertAll(List<BusStation> stations) {
+        for (BusStation incoming : stations) {
+            BusStation station = busStationRepository.findByNodeId(incoming.getNodeId())
+                    .orElseGet(() -> new BusStation(incoming.getNodeId()));
 
             station.update(
-                    dto.stationNumber(),
-                    dto.name(),
-                    dto.longitude(),
-                    dto.latitude(),
-                    null
+                    incoming.getStationNumber(),
+                    incoming.getName(),
+                    incoming.getLongitude(),
+                    incoming.getLatitude(),
+                    incoming.getRegion()
             );
 
-            toSave.add(station);
+            busStationRepository.save(station);
         }
-
-        busStationRepository.saveAll(toSave);
     }
 }
