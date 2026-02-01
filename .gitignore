@@ -4,7 +4,7 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
-**/application-*.yml
+**/application-*.yaml
 
 ### STS ###
 .apt_generated
@@ -42,3 +42,9 @@ out/
 # env
 .env
 **/.env
+
+# backend local config
+back/homedatazip/src/main/resources/application.yaml
+back/homedatazip/src/main/resources/application.yml
+back/homedatazip/src/main/resources/application-*.yml
+back/homedatazip/src/main/resources/application-*.yaml
