@@ -28,14 +28,14 @@ public class GeoService {
             String dong, String jibun, String sggCode, String apartmentName,
             String roadNm, String roadNmBonbun, String roadNmBubun) {
 
-        // [개선 1] API 초당 호출 제한 방지
+        // API 초당 호출 제한 방지
         try {
             Thread.sleep(50);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        // 1. 지역 정보 조회 및 기본 검증
+        // 지역 정보 조회 및 기본 검증
         Region region = regionRepository.findBySggCode(sggCode)
                 .stream().findFirst().orElse(null);
 
@@ -48,7 +48,7 @@ public class GeoService {
         String safeGugun = (region.getGugun() != null) ? region.getGugun() : "";
         if (safeSido.isEmpty() || safeGugun.isEmpty()) return null;
 
-        // 2. 검색용 주소 문자열 미리 생성
+        // 검색용 주소 문자열 미리 생성
         String roadAddressSearch = buildRoadAddress(safeSido, safeGugun, roadNm, roadNmBonbun, roadNmBubun);
         String jibunAddressSearch = buildJibunAddress(safeSido, safeGugun, dong, jibun, region);
 
@@ -56,26 +56,26 @@ public class GeoService {
             GeoCoordinateResponse response = null;
             String method = "";
 
-            // [STEP 1] 도로명 주소 검색 (최우선)
+            // 도로명 주소 검색
             if (roadAddressSearch != null) {
                 response = kakaoApiClient.getCoordinateByAddress(roadAddressSearch);
                 if (!isEmpty(response)) method = "도로명";
             }
 
-            // [STEP 2] 도로명 실패 시 지번 주소 검색 (Fallback 1)
+            // 도로명 실패 시 지번 주소 검색
             if (isEmpty(response)) {
                 response = kakaoApiClient.getCoordinateByAddress(jibunAddressSearch);
                 if (!isEmpty(response)) method = "지번";
             }
 
-            // [STEP 3] 모두 실패 시 키워드(아파트명) 검색 (Fallback 2)
+            // 모두 실패 시 아파트명
             if (isEmpty(response)) {
                 String keyword = safeSido + " " + safeGugun + " " + apartmentName;
                 response = kakaoApiClient.getCoordinateByKeyword(keyword);
                 if (!isEmpty(response)) method = "키워드";
             }
 
-            // 결과 검증 로그
+
             if (isEmpty(response)) {
                 log.warn(">>> [FAILED] 좌표 찾기 실패: {} (지번주소: {})", apartmentName, jibunAddressSearch);
                 return null;
@@ -83,12 +83,12 @@ public class GeoService {
 
             log.info(">>> [SUCCESS] 좌표 검색 성공 ({}): {}", method, apartmentName);
 
-            // 3. 결과 데이터 추출
+            // 결과 데이터 추출
             GeoCoordinateResponse.Document document = response.documents().getFirst();
             Double latitude = extractLatitude(document);
             Double longitude = extractLongitude(document);
 
-            // 4. 도로명 주소 텍스트 보정 (결과에 없으면 생성된 값 사용)
+            // 도로명 주소 텍스트 보정
             String finalRoadAddress = (document.roadAddress() != null)
                     ? document.roadAddress().roadAddressName() : roadAddressSearch;
 
@@ -103,8 +103,7 @@ public class GeoService {
         }
     }
 
-// --- 헬퍼 메소드 (로직 분리로 가독성 향상) ---
-
+    // 로직 분리
     private String buildRoadAddress(String sido, String gugun, String roadNm, String bonbun, String bubun) {
         if (roadNm == null || roadNm.trim().isEmpty()) return null;
         StringBuilder sb = new StringBuilder(sido).append(" ").append(gugun).append(" ").append(roadNm.trim());
