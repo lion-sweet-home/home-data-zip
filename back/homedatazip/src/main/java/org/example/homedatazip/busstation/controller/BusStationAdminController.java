@@ -2,8 +2,9 @@ package org.example.homedatazip.busstation.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.busstation.service.BusStationIngestService;
-import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.*;
+import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,12 +16,20 @@ import java.time.LocalDateTime;
 @RequestMapping("/api/admin/bus-stations")
 public class BusStationAdminController {
 
-    private final BusStationIngestService busStationIngestService;
+    private final JobLauncher jobLauncher;
+
+    // ✅ 여기 이름이 중요함: BusStationJobConfig에서 만든 Job Bean 이름으로 맞춰야 함
+    @Qualifier("busStationJob")
+    private final Job busStationJob;
 
     @PostMapping("/batch/run")
-    public ResponseEntity<BusStationBatchRunResponse> runBatch() {
+    public ResponseEntity<BusStationBatchRunResponse> runBatch() throws Exception {
 
-        JobExecution execution = busStationIngestService.run();
+        JobParameters params = new JobParametersBuilder()
+                .addLong("run.id", System.currentTimeMillis()) // 매번 다른 파라미터로 재실행 가능
+                .toJobParameters();
+
+        JobExecution execution = jobLauncher.run(busStationJob, params);
 
         BusStationBatchRunResponse response = BusStationBatchRunResponse.of(
                 execution.getJobId(),

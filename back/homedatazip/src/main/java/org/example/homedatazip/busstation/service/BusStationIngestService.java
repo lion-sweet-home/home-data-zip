@@ -2,36 +2,63 @@ package org.example.homedatazip.busstation.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.JobExecution;
-import org.springframework.batch.core.JobParameters;
-import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.launch.JobLauncher;
+import org.example.homedatazip.busstation.client.dto.SeoulBusStopResponse;
+import org.example.homedatazip.busstation.entity.BusStation;
+import org.example.homedatazip.busstation.repository.BusStationRepository;
+import org.example.homedatazip.data.Region;
+import org.example.homedatazip.global.geocode.service.GeoService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class BusStationIngestService {
 
-    private final JobLauncher jobLauncher;
-    private final Job busStationJob;
+    private final BusStationRepository busStationRepository;
+    private final GeoService geoService;
 
-    public JobExecution run() {
+    @Transactional
+    public void upsert(SeoulBusStopResponse.Row row) {
+        // 좌표 파싱
+        Double lon = parseDouble(row.XCRD()); // 경도
+        Double lat = parseDouble(row.YCRD()); // 위도
+
+        if (lat == null || lon == null) {
+            log.warn("좌표 누락 - nodeId={}, name={}", row.NODE_ID(), row.STOPS_NM());
+            return;
+        }
+
+        Region region;
         try {
-            JobParameters params = new JobParametersBuilder()
-                    .addLong("run.id", System.currentTimeMillis())
-                    .toJobParameters();
-
-            JobExecution execution = jobLauncher.run(busStationJob, params);
-
-            log.info("[BUS_STATION] job started. jobId={}, status={}",
-                    execution.getJobId(), execution.getStatus());
-
-            return execution;
+            region = geoService.convertAddressInfo(lat, lon); // ✅ 여기서 lawdCode 매핑 끝
         } catch (Exception e) {
-            log.error("[BUS_STATION] job run failed.", e);
-            throw new IllegalStateException("busStationJob 실행 실패", e);
+            // 카카오 호출 실패/Region 못찾음 등
+            log.warn("Region 매핑 실패 - nodeId={}, lat={}, lon={}, err={}",
+                    row.NODE_ID(), lat, lon, e.getMessage());
+            region = null; // region 없이라도 저장하고 싶으면 null로 두고 진행
+        }
+
+        BusStation station = busStationRepository.findByNodeId(row.NODE_ID())
+                .orElseGet(() -> new BusStation(row.NODE_ID()));
+
+        station.update(
+                row.STOPS_NO(),      // ARS-ID
+                row.STOPS_NM(),      // 이름
+                lon,                 // longitude
+                lat,                 // latitude
+                region
+        );
+
+        busStationRepository.save(station);
+    }
+
+    private Double parseDouble(String v) {
+        if (v == null || v.isBlank()) return null;
+        try {
+            return Double.valueOf(v.trim());
+        } catch (NumberFormatException e) {
+            return null;
         }
     }
 }

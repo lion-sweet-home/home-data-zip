@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.busstation.client.dto.SeoulBusStopResponse;
 import org.example.homedatazip.busstation.client.dto.SeoulBusStopResponse.Row;
 import org.example.homedatazip.busstation.entity.BusStation;
-import org.example.homedatazip.global.batch.busstation.processor.BusStationProcessor;
+import org.example.homedatazip.busstation.batch.BusStationProcessor;
 import org.example.homedatazip.global.batch.busstation.reader.BusStationApiReader;
 import org.example.homedatazip.global.batch.busstation.writer.BusStationWriter;
 import org.springframework.batch.core.Job;
