@@ -52,6 +52,11 @@ dependencies {
 
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+    implementation 'org.springframework.boot:spring-boot-starter-quartz'
+//    // Apache POI (MS Office 파일 다룰 때 씀)
+//    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+
     //jwt
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
     runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
