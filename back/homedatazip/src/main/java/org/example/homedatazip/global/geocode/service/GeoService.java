@@ -9,6 +9,11 @@ import org.example.homedatazip.global.exception.domain.GeoErrorCode;
 import org.example.homedatazip.global.geocode.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClientResponseException;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
+
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional
@@ -18,6 +23,143 @@ public class GeoService {
 
     private final KakaoApiClient kakaoApiClient;
     private final RegionRepository regionRepository;
+
+    public CoordinateInfoResponse convertCoordinateInfo(
+            String dong, String jibun, String sggCode, String apartmentName,
+            String roadNm, String roadNmBonbun, String roadNmBubun) {
+
+        // API 초당 호출 제한 방지
+        try {
+            Thread.sleep(50);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 지역 정보 조회 및 기본 검증
+        Region region = regionRepository.findBySggCode(sggCode)
+                .stream().findFirst().orElse(null);
+
+        if (region == null) {
+            log.warn(">>> [SKIPPED] 지역 정보(Region)를 찾을 수 없습니다. sggCode={}", sggCode);
+            return null;
+        }
+
+        String safeSido = (region.getSido() != null) ? region.getSido() : "";
+        String safeGugun = (region.getGugun() != null) ? region.getGugun() : "";
+        if (safeSido.isEmpty() || safeGugun.isEmpty()) return null;
+
+        // 검색용 주소 문자열 미리 생성
+        String roadAddressSearch = buildRoadAddress(safeSido, safeGugun, roadNm, roadNmBonbun, roadNmBubun);
+        String jibunAddressSearch = buildJibunAddress(safeSido, safeGugun, dong, jibun, region);
+
+        try {
+            GeoCoordinateResponse response = null;
+            String method = "";
+
+            // 도로명 주소 검색
+            if (roadAddressSearch != null) {
+                response = kakaoApiClient.getCoordinateByAddress(roadAddressSearch);
+                if (!isEmpty(response)) method = "도로명";
+            }
+
+            // 도로명 실패 시 지번 주소 검색
+            if (isEmpty(response)) {
+                response = kakaoApiClient.getCoordinateByAddress(jibunAddressSearch);
+                if (!isEmpty(response)) method = "지번";
+            }
+
+            // 모두 실패 시 아파트명
+            if (isEmpty(response)) {
+                String keyword = safeSido + " " + safeGugun + " " + apartmentName;
+                response = kakaoApiClient.getCoordinateByKeyword(keyword);
+                if (!isEmpty(response)) method = "키워드";
+            }
+
+
+            if (isEmpty(response)) {
+                log.warn(">>> [FAILED] 좌표 찾기 실패: {} (지번주소: {})", apartmentName, jibunAddressSearch);
+                return null;
+            }
+
+            log.info(">>> [SUCCESS] 좌표 검색 성공 ({}): {}", method, apartmentName);
+
+            // 결과 데이터 추출
+            GeoCoordinateResponse.Document document = response.documents().getFirst();
+            Double latitude = extractLatitude(document);
+            Double longitude = extractLongitude(document);
+
+            // 도로명 주소 텍스트 보정
+            String finalRoadAddress = (document.roadAddress() != null)
+                    ? document.roadAddress().roadAddressName() : roadAddressSearch;
+
+            String finalJibunAddress = (document.address() != null)
+                    ? document.address().addressName() : jibunAddressSearch;
+
+            return CoordinateInfoResponse.create(region, finalJibunAddress, finalRoadAddress, latitude, longitude);
+
+        } catch (Exception e) {
+            handleApiException(e, apartmentName);
+            return null;
+        }
+    }
+
+    // 로직 분리
+    private String buildRoadAddress(String sido, String gugun, String roadNm, String bonbun, String bubun) {
+        if (roadNm == null || roadNm.trim().isEmpty()) return null;
+        StringBuilder sb = new StringBuilder(sido).append(" ").append(gugun).append(" ").append(roadNm.trim());
+        if (bonbun != null && !bonbun.isEmpty()) {
+            sb.append(" ").append(bonbun.replaceAll("^0+", ""));
+            if (bubun != null && !bubun.isEmpty() && !bubun.equals("00000")) {
+                sb.append("-").append(bubun.replaceAll("^0+", ""));
+            }
+        }
+        return sb.toString();
+    }
+
+    private String buildJibunAddress(String sido, String gugun, String dong, String jibun, Region region) {
+        String realDong = (dong != null && !dong.trim().isEmpty() && !dong.equalsIgnoreCase("null"))
+                ? dong.trim() : (region.getDong() != null ? region.getDong() : "");
+
+        String cleanJibun = "";
+        if (jibun != null && !jibun.trim().isEmpty()) {
+            cleanJibun = jibun.replaceAll("[^0-9-]", " ").trim();
+            if (cleanJibun.contains(" ")) {
+                String[] parts = cleanJibun.split("\\s+");
+                cleanJibun = parts[parts.length - 1];
+            }
+            cleanJibun = cleanJibun.replaceAll("^0+", "");
+        }
+
+        return Stream.of(sido, gugun, realDong, cleanJibun)
+                .filter(s -> !s.isEmpty() && !s.equalsIgnoreCase("null"))
+                .collect(Collectors.joining(" ")).trim();
+    }
+
+    private Double extractLatitude(GeoCoordinateResponse.Document doc) {
+        if (doc.roadAddress() != null && doc.roadAddress().latitude() != null) return doc.roadAddress().latitude();
+        if (doc.address() != null && doc.address().latitude() != null) return doc.address().latitude();
+        return doc.y();
+    }
+
+    private Double extractLongitude(GeoCoordinateResponse.Document doc) {
+        if (doc.roadAddress() != null && doc.roadAddress().longitude() != null) return doc.roadAddress().longitude();
+        if (doc.address() != null && doc.address().longitude() != null) return doc.address().longitude();
+        return doc.x();
+    }
+
+    private boolean isEmpty(GeoCoordinateResponse response) {
+        return response == null || response.documents() == null || response.documents().isEmpty();
+    }
+
+    private void handleApiException(Exception e, String apartmentName) {
+        if (e instanceof RestClientResponseException re && re.getStatusCode().value() == 429) {
+            log.error(">>> [API LIMIT] 429 Too Many Requests (RestClient). 아파트: {}", apartmentName);
+        } else if (e instanceof WebClientResponseException we && we.getStatusCode().value() == 429) {
+            log.error(">>> [API LIMIT] 429 Too Many Requests (WebClient). 아파트: {}", apartmentName);
+        } else {
+            log.error(">>> [ERROR] 주소 변환 중 예외 발생: {}", e.getMessage());
+        }
+    }
 
     // 주소로 좌표변환
     public CoordinateInfoResponse convertCoordinateInfo(String dong, String jibun) {

@@ -51,7 +51,7 @@ public class RegionApiReader implements ItemReader<RegionApiResponse> {
 
     private void fetch() {
         ApiResponse res = webClient.get()
-                .uri(uri -> uri.path("/15063424/v1/uddi:6d7fd177-cc7d-426d-ba80-9b137edf6066")
+                .uri(uri -> uri.path("/15063424/v1/uddi:5176efd5-da6e-42a0-b2cf-8512f74503ea")
                         .queryParam("page", page++)
                         .queryParam("perPage", 100)
                         .queryParam("serviceKey", serviceKey)

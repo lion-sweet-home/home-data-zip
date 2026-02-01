@@ -46,22 +46,22 @@ public class Apartment {
 
     public static Apartment create(ApartmentTradeSaleItem item, CoordinateInfoResponse response) {
         return Apartment.builder()
-                .aptName(item.aptNm())
+                .aptName(item.getAptNm())
                 .roadAddress(response.roadAddress())
                 .jibunAddress(response.jibunAddress())
                 .latitude(response.latitude())
                 .longitude(response.longitude())
-                .buildYear(Integer.parseInt(item.buildYear()))
-                .aptSeq(item.aptSeq())
+                .buildYear(Integer.parseInt(item.getBuildYear()))
+                .aptSeq(item.getAptSeq())
                 .region(response.region())
                 .build();
     }
 
     public void update(ApartmentTradeSaleItem item) {
-        Integer newBuildYear = Integer.parseInt(item.buildYear());
+        Integer newBuildYear = Integer.parseInt(item.getBuildYear());
 
-        if (!this.aptName.equals(item.aptNm())) {
-            this.aptName = item.aptNm();
+        if (!this.aptName.equals(item.getAptNm())) {
+            this.aptName = item.getAptNm();
         }
         if (!this.buildYear.equals(newBuildYear)) {
             this.buildYear = newBuildYear;

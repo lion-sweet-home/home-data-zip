@@ -1,5 +1,8 @@
 package org.example.homedatazip.apartment.dto;
 
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+
 import java.util.List;
 
 public record ApiResponse<T>(
@@ -19,6 +22,8 @@ public record ApiResponse<T>(
     ) {}
 
     public record ResponseItems<T>(
+            @JacksonXmlElementWrapper(useWrapping = false) // <item> 태그가 반복될 때 래퍼가 없음을 명시
+            @JacksonXmlProperty(localName = "item")
             List<T> item
     ) {}
 }
