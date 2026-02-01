@@ -23,15 +23,15 @@ import java.util.stream.Collectors;
 public class ApartmentService {
 
     private final ApartmentRepository apartmentRepository;
-    private final ApartmentTradeSaleSaveService apartmentSaveService; // 새 서비스 주입
+    private final ApartmentTradeSaleSaveService apartmentSaveService;
     private final GeoService geoService;
 
     // 매매
-    @Transactional // 메인 트랜잭션
+    @Transactional
     public Map<String, Apartment> getOrCreateApartmentsFromTradeSale(List<ApartmentTradeSaleItem> items) {
         List<String> aptSeqs = items.stream().map(ApartmentTradeSaleItem::getAptSeq).distinct().toList();
 
-        // 1. 기존 DB 데이터 로드
+        // 기존 DB 데이터 로드
         Map<String, Apartment> aptMap = apartmentRepository.findAllByAptSeqIn(aptSeqs)
                 .stream()
                 .collect(Collectors.toMap(Apartment::getAptSeq, a -> a));
@@ -46,7 +46,7 @@ public class ApartmentService {
 
                 if (response == null) continue;
 
-                // 2. [핵심] 별도 트랜잭션에서 안전하게 저장 시도
+                // 별도 트랜잭션에서 안전하게 저장 시도
                 Apartment apt = apartmentSaveService.saveAndGetApartment(item, response);
                 if (apt != null) {
                     aptMap.put(seq, apt);
