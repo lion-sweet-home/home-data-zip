@@ -31,7 +31,6 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
     // 특정 법정동 코드 존재 여부 확인
     Optional<Region> findByLawdCode(String lawdCode);
 
-    // 시군구 코드(5자리)로 조회할 때 (새로 추가!)
-    // 아파트 API의 지역코드와 Region 엔티티의 sggCode 필드를 매핑합니다.
+    // 시군구 코드(5자리)로 조회할 때
     List<Region> findBySggCode(String sggCode);
 }
