@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class ApartmentTradeSaleSaveService { // 별도의 클래스로 분리!
+public class ApartmentTradeSaleSaveService {
     private final ApartmentRepository apartmentRepository;
     private final EntityManager em;
 
