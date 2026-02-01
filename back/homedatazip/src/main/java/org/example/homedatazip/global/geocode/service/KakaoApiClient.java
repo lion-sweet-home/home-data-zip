@@ -43,7 +43,7 @@ public class KakaoApiClient {
                 .body(GeoAddressResponse.class);
     }
 
-    // [추가] 키워드로 좌표 변환 (아파트 이름 검색용)
+    // 키워드로 좌표 변환 (아파트 이름 검색용)
     public GeoCoordinateResponse getCoordinateByKeyword(String keyword) {
         return restClient.get()
                 .uri(uriBuilder -> uriBuilder
