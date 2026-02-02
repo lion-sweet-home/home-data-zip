@@ -42,4 +42,15 @@ public class KakaoApiClient {
                 .retrieve()
                 .body(GeoAddressResponse.class);
     }
+
+    // 키워드로 좌표 변환 (아파트 이름 검색용)
+    public GeoCoordinateResponse getCoordinateByKeyword(String keyword) {
+        return restClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v2/local/search/keyword.json")
+                        .queryParam("query", keyword)
+                        .build())
+                .retrieve()
+                .body(GeoCoordinateResponse.class);
+    }
 }

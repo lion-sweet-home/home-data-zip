@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.example.homedatazip.data.Region;
 import org.example.homedatazip.global.geocode.dto.CoordinateInfoResponse;
+import org.example.homedatazip.tradeRent.dto.ApartmentGetOrCreateRequest;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 
 @Entity
@@ -17,7 +18,9 @@ import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
                 // 좌표 검색 성능을 위한 복합 인덱스 (반경 필터링 시 성능 발휘)
                 @Index(name = "idx_apt_coords", columnList = "latitude, longitude"),
                 // 주소 기반 조회를 위한 인덱스 (지오코딩 캐싱용)
-                @Index(name = "idx_apt_road_address", columnList = "roadAddress")
+                @Index(name = "idx_apt_road_address", columnList = "roadAddress"),
+                // 전월세 필드의 Apartment에 값을 주입하기 위한 인덱스
+                @Index(name="idx_apt_region_jibun", columnList="region_id, jibunAddress")
         }
 )
 @AllArgsConstructor(access = AccessLevel.PROTECTED)
@@ -46,22 +49,46 @@ public class Apartment {
 
     public static Apartment create(ApartmentTradeSaleItem item, CoordinateInfoResponse response) {
         return Apartment.builder()
-                .aptName(item.aptNm())
+                .aptName(item.getAptNm())
                 .roadAddress(response.roadAddress())
                 .jibunAddress(response.jibunAddress())
                 .latitude(response.latitude())
                 .longitude(response.longitude())
-                .buildYear(Integer.parseInt(item.buildYear()))
+                .buildYear(Integer.parseInt(item.getBuildYear()))
+                .aptSeq(item.getAptSeq())
+                .region(response.region())
+                .build();
+    }
+    public static Apartment createByRent(ApartmentGetOrCreateRequest item, CoordinateInfoResponse response) {
+
+        return Apartment.builder()
+                .aptName(item.aptName())
+                .roadAddress(response.roadAddress())
+                .jibunAddress(response.jibunAddress())
+                .latitude(response.latitude())
+                .longitude(response.longitude())
+                .buildYear(item.buildYear())
                 .aptSeq(item.aptSeq())
                 .region(response.region())
                 .build();
     }
 
     public void update(ApartmentTradeSaleItem item) {
-        Integer newBuildYear = Integer.parseInt(item.buildYear());
+        Integer newBuildYear = Integer.parseInt(item.getBuildYear());
 
-        if (!this.aptName.equals(item.aptNm())) {
-            this.aptName = item.aptNm();
+        if (!this.aptName.equals(item.getAptNm())) {
+            this.aptName = item.getAptNm();
+        }
+        if (!this.buildYear.equals(newBuildYear)) {
+            this.buildYear = newBuildYear;
+        }
+    }
+
+    public void updateByRent(ApartmentGetOrCreateRequest item) {
+        Integer newBuildYear = item.buildYear();
+
+        if (item.aptName() != null && !item.aptName().equals(this.aptName)) {
+            this.aptName = item.aptName();
         }
         if (!this.buildYear.equals(newBuildYear)) {
             this.buildYear = newBuildYear;

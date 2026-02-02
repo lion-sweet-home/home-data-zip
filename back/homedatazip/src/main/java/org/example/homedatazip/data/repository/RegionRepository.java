@@ -30,4 +30,7 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
 
     // 특정 법정동 코드 존재 여부 확인
     Optional<Region> findByLawdCode(String lawdCode);
+
+    // 시군구 코드(5자리)로 조회할 때
+    List<Region> findBySggCode(String sggCode);
 }

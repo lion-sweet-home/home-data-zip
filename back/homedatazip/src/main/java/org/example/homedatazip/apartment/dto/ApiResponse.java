@@ -1,7 +1,14 @@
 package org.example.homedatazip.apartment.dto;
 
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlElementWrapper;
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlRootElement;
+
+
 import java.util.List;
 
+@JacksonXmlRootElement(localName="response")
 public record ApiResponse<T>(
         ResponseHeader header,
         ResponseBody<T> body
@@ -19,6 +26,12 @@ public record ApiResponse<T>(
     ) {}
 
     public record ResponseItems<T>(
+            @JacksonXmlElementWrapper(useWrapping = false)
+            @JacksonXmlProperty(localName = "item")
             List<T> item
-    ) {}
+    ) {
+        public List<T> safeItem() {
+            return item == null ? List.of() : item;
+        }
+    }
 }
