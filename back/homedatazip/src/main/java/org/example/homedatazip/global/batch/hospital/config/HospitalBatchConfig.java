@@ -2,6 +2,9 @@ package org.example.homedatazip.global.batch.hospital.config;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.homedatazip.data.Region;
+import org.example.homedatazip.global.exception.BatchSkipException;
+import org.example.homedatazip.global.geocode.service.GeoService;
 import org.example.homedatazip.hospital.dto.HospitalApiResponse;
 import org.example.homedatazip.hospital.entity.Hospital;
 import org.example.homedatazip.hospital.repository.HospitalRepository;
@@ -15,6 +18,7 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.util.Iterator;
@@ -29,6 +33,7 @@ public class HospitalBatchConfig {
 
     private final HospitalApiClient hospitalApiClient;
     private final HospitalRepository hospitalRepository;
+    private final GeoService geoService;
 
     /**
      * Job: 배치 작업의 전체 단위
@@ -53,6 +58,10 @@ public class HospitalBatchConfig {
                 .reader(hospitalItemReader()) // 데이터 읽기
                 .processor(hospitalItemProcessor()) // 데이터 변환
                 .writer(hospitalItemWriter()) // 데이터 저장
+                .faultTolerant() // 내결함성 기능 활성화
+                .skipLimit(100) // 최대 100건 오류 허용
+                .skip(BatchSkipException.class) // Custom Exception 발생 시 스킵
+                .skip(DataIntegrityViolationException.class) // 중복 키 오류 스킵
                 .build();
     }
 
@@ -74,16 +83,11 @@ public class HospitalBatchConfig {
 
             @Override
             public HospitalApiResponse.HospitalItem read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
-                // 첫 호출 시 전체 건수 조회
-                if (totalCount == -1) {
-                    totalCount = hospitalApiClient.getTotalCount();
-                    log.info("전체 데이터 건수: {}", totalCount);
-                }
 
                 // 현재 페이지 소진 시 다음 페이지 로드
                 if (iterator == null || !iterator.hasNext()) {
                     // 모든 데이터 처리 완료 체크
-                    if (processedCount >= totalCount) {
+                    if (processedCount >= totalCount && totalCount != -1) {
                         log.info("모든 데이터 처리 완료: {}", processedCount);
                         return null; // 종료 신호
                     }
@@ -101,6 +105,12 @@ public class HospitalBatchConfig {
                     if (!response.isSuccess()) {
                         log.error("API 응답 오류: {}", response.getHeader().getResultMsg());
                         return null;
+                    }
+
+                    // 첫 호출 시 totalCount 설정
+                    if (totalCount == -1) {
+                        totalCount = response.getTotalCount();
+                        log.info("전체 데이터 건수: {}", totalCount);
                     }
 
                     // 데이터가 없는 경우 종료
@@ -135,10 +145,35 @@ public class HospitalBatchConfig {
                 return null; // 해당 데이터는 저장하지 않음
             }
 
+            // 지역 필터링 (서울, 인천, 경기만 저장)
+            if (!isTargetRegion(row.getAddress())) {
+                return null; // 해당 데이터는 저장하지 않음
+            }
+
+            // Region 조회 (서울, 인천, 경기 필터링 통과된 병원 한정)
+            Region region = null;
+
+            if (row.getLatitude() != null && row.getLongitude() != null) {
+                region = geoService.convertAddressInfo(
+                        row.getLatitude(),
+                        row.getLongitude()
+                );
+            }
+
+            // Region 조회 실패 시 로그
+            if (region == null) {
+                log.warn("Region 조회 실패 - Hospital: {}, 위도: {}, 경도: {}",
+                        row.getName(),
+                        row.getLatitude(),
+                        row.getLongitude()
+                );
+            }
+
             return Hospital.fromApiResponse(
                     row.getHospitalId(),
                     row.getName(),
                     row.getTypeName(),
+                    region,
                     row.getAddress(),
                     row.getLatitude(),
                     row.getLongitude()
@@ -147,15 +182,48 @@ public class HospitalBatchConfig {
     }
 
     /**
+     * 서울, 인천, 경기 필터링
+     */
+    private boolean isTargetRegion(String address) {
+        if (address == null || address.isEmpty()) return false;
+
+        return address.startsWith("서울") ||
+               address.startsWith("인천") ||
+               address.startsWith("경기");
+    }
+
+    /**
      * Writer: DB에 저장
      * <br/>
      * Processor에서 가공한 데이터를 chunk 크기만큼 모아 한 번에 DB에 저장
+     * UPSERT 방식 (기존에 존재하면 UPDATE, 존재하지 않으면 INSERT)
      */
     @Bean
     public ItemWriter<Hospital> hospitalItemWriter() {
         return items -> {
-            log.info("{} 건 저장 중", items.size());
-            hospitalRepository.saveAll(items);
+            log.info("{} 건 저장/업데이트 중", items.size());
+
+            for (Hospital hospital : items) {
+                hospitalRepository.findByHospitalId(hospital.getHospitalId())
+                        .ifPresentOrElse(
+                                existing -> {
+                                    // 이미 존재하면 업데이트
+                                    existing.updateFrom(
+                                            hospital.getName(),
+                                            hospital.getTypeName(),
+                                            hospital.getRegion(),
+                                            hospital.getAddress(),
+                                            hospital.getLatitude(),
+                                            hospital.getLongitude()
+                                    );
+                                    hospitalRepository.save(existing);
+                                },
+                                () -> {
+                                    // 없으면 새로 저장
+                                    hospitalRepository.save(hospital);
+                                }
+                        );
+            }
         };
     }
 }

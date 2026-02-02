@@ -9,11 +9,13 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import java.time.Duration;
+
 /**
  * Open API 호출 클라이언트
  * <br/>
  * API 호출 URL 형식
- * https://apis.data.go.kr/B552657/HsptlAsembySearchService/getHsptlMdcncFullDown?serviceKey={serviceKey}&pageNo={pageNo}&numOfRows={numOfRows}
+ * http://apis.data.go.kr/B552657/HsptlAsembySearchService/getHsptlMdcncFullDown?serviceKey={serviceKey}&pageNo={pageNo}&numOfRows={numOfRows}
  */
 @Slf4j
 @Component
@@ -30,6 +32,8 @@ public class HospitalApiClient {
             = "http://apis.data.go.kr/B552657/HsptlAsembySearchService";
     private static final String SERVICE_NAME = "getHsptlMdcncFullDown";
 
+    private static final int API_CALL_DELAY_MS = 100; // Rate Limiting 방지
+
     public HospitalApiResponse fetchHospital(
             int pageNo,
             int numOfRows
@@ -45,11 +49,14 @@ public class HospitalApiClient {
         log.info("API 호출: pageNo={}, numOfRows={}", pageNo, numOfRows);
 
         try {
+            Thread.sleep(API_CALL_DELAY_MS);
+
             String xmlResponse = webClient.get()
                     .uri(url)
                     .accept(MediaType.APPLICATION_XML)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(30)) // 최대 대기시간
                     .block();
 
             return xmlMapper.readValue(xmlResponse, HospitalApiResponse.class);
