@@ -93,6 +93,10 @@ kakao:
     key: ${KAKAO_API_KEY}
     url: https://dapi.kakao.com
 
+batch:
+  backoff:
+    external-api: 2000
+
 subway:
   # OpenAPI 지하철 역 목록 URL
   openapi:
