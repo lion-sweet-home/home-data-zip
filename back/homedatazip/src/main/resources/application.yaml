@@ -99,8 +99,3 @@ seoul:
     key: ${SEOUL_OPENAPI_KEY}
     type: json
     service: ${SEOUL_OPENAPI_SERVICE}
-
-kakao:
-  api:
-    url: https://dapi.kakao.com
-    key: ${KAKAO_API_KEY}
