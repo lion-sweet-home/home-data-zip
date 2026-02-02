@@ -18,7 +18,6 @@ public class BusStationAdminController {
 
     private final JobLauncher jobLauncher;
 
-    // ✅ 여기 이름이 중요함: BusStationJobConfig에서 만든 Job Bean 이름으로 맞춰야 함
     @Qualifier("busStationJob")
     private final Job busStationJob;
 

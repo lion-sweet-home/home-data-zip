@@ -13,6 +13,8 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.List;
 
+//Spring Batch가 데이터를 한 줄씩 읽어가게 만드는 실행 로직
+
 @Component
 @StepScope
 @Slf4j

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+//서울 API 응답 JSON 모양을 그대로 담는 그릇(DTO)
+
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -45,7 +47,7 @@ public class SeoulBusOpenApiClient {
                                 .doOnNext(body -> log.error("[SEOUL API] error body={}", body))
                                 .flatMap(body -> Mono.error(new IllegalStateException("서울 API 실패: " + body)))
                 )
-                // 여기서 JSON이 아니면(=XML) UnsupportedMediaType 터질 수 있어서 String으로 받아서 체크
+
                 .bodyToMono(String.class)
                 .map(body -> {
                     // XML(인증키 오류 등) 방어
@@ -55,11 +57,11 @@ public class SeoulBusOpenApiClient {
                     return body;
                 })
                 .flatMap(body -> webClient().mutate().build()
-                        .post() // Jackson 파싱만 하려고 임시로 쓰는 꼼수 싫으면 ObjectMapper 직접 써도 됨
-                        .uri("http://localhost/") // 실제 호출 안 함(사용 안 됨)
+                        .post()
+                        .uri("http://localhost/")
                         .exchangeToMono(r -> Mono.just(body))
                 )
-                // 사실상 위 플랫맵 필요 없음. 깔끔하게 ObjectMapper로 가는 버전이 더 낫다.
+
                 .map(body -> {
                     try {
                         // ObjectMapper 직접 사용

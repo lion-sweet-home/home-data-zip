@@ -16,6 +16,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+// 배치 정의 설계도
+
 @Configuration
 @RequiredArgsConstructor
 public class BusStationJobConfig {

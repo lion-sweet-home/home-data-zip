@@ -28,7 +28,6 @@ public class BusStationUpsertProcessor implements ItemProcessor<Row, BusStation>
         BusStation station = busStationRepository.findByNodeId(nodeId)
                 .orElseGet(() -> new BusStation(nodeId));
 
-        // 기존 region 유지 (업서트 배치가 region을 null로 덮어쓰면 안 됨)
         var currentRegion = station.getRegion();
 
         station.update(
