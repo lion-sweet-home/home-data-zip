@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface HospitalRepository extends JpaRepository<Hospital, Long> {
 
@@ -21,4 +22,6 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
     );
 
     Long countByGuAndDong(String gu, String dong);
+
+    Optional<Hospital> findByHospitalId(String hospitalId);
 }
