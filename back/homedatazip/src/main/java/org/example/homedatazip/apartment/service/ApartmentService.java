@@ -122,6 +122,7 @@ public class ApartmentService {
                     continue;
                 }
                 aptMap.put(req.aptSeq(), newApt);
+                newApartments.add(newApt);
             }else{
                 found.updateByRent(req);
             }

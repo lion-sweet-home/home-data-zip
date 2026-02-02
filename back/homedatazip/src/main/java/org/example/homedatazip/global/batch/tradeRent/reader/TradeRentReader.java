@@ -8,6 +8,7 @@ import org.springframework.batch.item.*;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 
 public class TradeRentReader implements ItemStreamReader<RentApiItem> {
@@ -16,6 +17,8 @@ public class TradeRentReader implements ItemStreamReader<RentApiItem> {
     private static final String CTX_YMD_IDX = "trBackfill.ymdIdx";
     private static final String CTX_PAGE_NO = "trBackfill.pageNo";
     private static final String CTX_CURSOR = "trBackfill.cursor";
+
+    private static final Set<String> ALLOWED_SIDO_PREFIX = Set.of("11", "28", "41");
 
     private final RentApiClient client;
     private final List<String> sggCds;
@@ -44,9 +47,19 @@ public class TradeRentReader implements ItemStreamReader<RentApiItem> {
     @Override
     public RentApiItem read() {
         while (true) {
+            if(hasMore() && !isAllowedSidoBySggCd(currentSggCd())){
+                advanceSggOnly();
+                continue;
+            }
             if (iter != null && iter.hasNext()) {
+                RentApiItem next = iter.next();
                 cursorInPage++;
-                return iter.next();
+
+                String itemSggCd = tryGetSggCd(next);
+                if(itemSggCd == null || isAllowedSidoBySggCd(itemSggCd)){
+                    return next;
+                }
+                continue;
             }
 
             if (!hasMore()) return null;
@@ -66,6 +79,31 @@ public class TradeRentReader implements ItemStreamReader<RentApiItem> {
 
     private boolean hasMore() {
         return sggIdx < sggCds.size() && ymdIdx < dealYmds.size();
+    }
+
+    private String currentSggCd() {
+        if (sggIdx < 0 || sggIdx >= sggCds.size()) return null;
+        return sggCds.get(sggIdx);
+    }
+    private static boolean isAllowedSidoBySggCd(String sggCd) {
+        if (sggCd == null) return false;
+        String t = sggCd.trim();
+        if (t.length() < 2) return false;
+        return ALLOWED_SIDO_PREFIX.contains(t.substring(0, 2));
+    }
+
+    private static String tryGetSggCd(RentApiItem item) {
+         return item.getSggCd();
+    }
+
+    private void advanceSggOnly() {
+        iter = null;
+        cursorInPage = 0;
+        pageNo = 1;
+        maxPage = Integer.MAX_VALUE;
+
+        ymdIdx = 0;
+        sggIdx++;
     }
 
     private void advance() {
