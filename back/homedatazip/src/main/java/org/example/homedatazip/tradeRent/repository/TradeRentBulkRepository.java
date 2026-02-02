@@ -61,7 +61,7 @@ public class TradeRentBulkRepository {
                     }
 
                     ps.setString(8, rent.getRentTerm());
-                    ps.setString(9, rent.getSggCd());
+                    ps.setString(9, rent.getSggCode());
                 });
 
         // 결과 분석
@@ -124,7 +124,7 @@ public class TradeRentBulkRepository {
                     }
 
                     ps.setString(8, rent.getRentTerm());
-                    ps.setString(9, rent.getSggCd());
+                    ps.setString(9, rent.getSggCode());
                 });
 
         int insertedCount = 0;
