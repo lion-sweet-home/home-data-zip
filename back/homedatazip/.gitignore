@@ -45,7 +45,11 @@ out/
 
 ### application-dev.yml
 **/application-dev.yml
-src/main/resources/application-dev.yaml
+
+# resources 설정 파일
+src/main/resources/application.yaml
+src/main/resources/application-*.yaml
+src/main/resources/data.sql
 
 ###Test폴더
 ../test/
