@@ -11,6 +11,11 @@ public record TradeRentWriteRequest(
         String umdNm,
         String jibun,      // "232" 같은 원문
         String jibunKey,   // "창신동 232"
+
+        String roadnm,
+        String roadnmbonbun,
+        String roadnmbubun,
+
         LocalDate dealDate,
         Long deposit,
         Integer monthlyRent,

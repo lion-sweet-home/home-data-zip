@@ -37,7 +37,7 @@ public class TradeRentMapperService {
                 .dealDate(dealDate)
                 .renewalRequested(renewalRequested)
                 .rentTerm(rentTerm)
-                .sggCd(sggCd)
+                .sggCode(sggCd)
                 .build();
     }
 
