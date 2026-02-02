@@ -6,6 +6,8 @@ import org.example.homedatazip.data.repository.RegionRepository;
 import org.example.homedatazip.global.batch.apartment.partition.ApartmentIdPartitioner;
 import org.example.homedatazip.global.batch.apartment.processor.ApartmentSaleItemProcessor;
 import org.example.homedatazip.global.batch.apartment.reader.ApartmentSaleApiReader;
+import org.example.homedatazip.global.exception.BatchRetryException;
+import org.example.homedatazip.global.exception.BatchSkipException;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 import org.example.homedatazip.tradeSale.service.ApartmentTradeSaleService;
 import org.springframework.batch.core.Job;
@@ -19,6 +21,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
@@ -36,6 +39,7 @@ public class ApartmentBatchConfig {
     private final ApartmentSaleApiReader apartmentSaleApiReader;
     private final ApartmentSaleItemProcessor apartmentSaleItemProcessor;
     private final ApartmentTradeSaleService apartmentTradeSaleService;
+    private final FixedBackOffPolicy fixedBackOffPolicy;
 
     @Bean
     public TaskExecutor batchTaskExecutor() {
@@ -72,6 +76,11 @@ public class ApartmentBatchConfig {
                 .reader(apartmentSaleApiReader)
                 .processor(apartmentSaleItemProcessor)
                 .writer(apartmentSaleItemWriter())
+                .faultTolerant() // 내결함성 기능 활성화
+                .skip(BatchSkipException.class)
+                .retry(BatchRetryException.class)
+                .retryLimit(3) // 3번까지 다시 시도
+                .backOffPolicy(fixedBackOffPolicy) // BackOff 설정 : 재시도 사이의 대기시간
                 .build();
     }
 

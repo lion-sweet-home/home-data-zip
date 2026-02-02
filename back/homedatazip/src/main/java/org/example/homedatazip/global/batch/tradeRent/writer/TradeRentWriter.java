@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.apartment.service.ApartmentService;
+import org.example.homedatazip.global.batch.tradeRent.Filter.TradeRentRegionFilter;
 import org.example.homedatazip.tradeRent.dto.ApartmentGetOrCreateRequest;
 import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
@@ -24,10 +25,7 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
-
-    private final ApartmentRepository apartmentRepository;
     private final ApartmentService apartmentService;
-    private final TradeRentRepository tradeRentRepository;
     private final TradeRentBulkRepository tradeRentBulkRepository;
 
     private static final boolean USE_UPSERT = false;
@@ -37,6 +35,20 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
     public void write(Chunk<? extends TradeRentWriteRequest> chunk) throws Exception {
         List<? extends TradeRentWriteRequest> items = chunk.getItems();
         if (items == null || items.isEmpty()) return;
+        List<TradeRentWriteRequest> listForFilteringRegion = new ArrayList<>(items.size());
+        int filteredOut = 0;
+        for (TradeRentWriteRequest it : items) {
+            if (it == null) continue;
+            if (!TradeRentRegionFilter.isAllowedBySggcd(it.sggCd())) {
+                filteredOut++;
+                continue;
+            }
+            listForFilteringRegion.add(it);
+        }
+        if (items.isEmpty()) {
+            log.info("지역 필터로 모두 스킵 - 입력:{}건, 제외:{}건", items.size(), filteredOut);
+            return;
+        }
 
         List<ApartmentGetOrCreateRequest> dtos = new ArrayList<>();
         List<TradeRent> tradeRents = new ArrayList<>();
@@ -51,7 +63,6 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
         log.info("아파트 처리 완료 - aptMap 크기: {}", aptMap.size());
 
         // 3. TradeRent 엔티티 생성
-        int skippedCount = 0;
         int skippedAptMissingCount = 0;
         int skippedRequiredMissingCount = 0;
         
@@ -59,11 +70,9 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
             Apartment apt = aptMap.get(item.aptSeq());
             if (apt == null) {
                 log.debug("아파트 없음 스킵 - aptSeq: {}", item.aptSeq());
-                skippedCount++;
+                skippedAptMissingCount++;
                 continue;
             }
-
-
 
             Long deposit = item.deposit();
             Integer monthlyRent = item.monthlyRent();
@@ -71,7 +80,6 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
             Integer floor = item.floor();
             LocalDate dealDate = item.dealDate();
             String sggCd = item.sggCd();
-            String rentTerm = normalizeRentTerm(item.contractTerm());
 
             if (deposit == null || monthlyRent == null || exclusiveArea == null || floor == null || dealDate == null || sggCd == null) {
                 skippedRequiredMissingCount++;

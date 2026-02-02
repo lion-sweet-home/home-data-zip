@@ -1,6 +1,7 @@
 package org.example.homedatazip.global.batch.tradeRent.processor;
 
 import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
+import org.example.homedatazip.global.batch.tradeRent.Filter.TradeRentRegionFilter;
 import org.example.homedatazip.tradeRent.dto.RentApiItem;
 import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
 import org.springframework.batch.item.ItemProcessor;
@@ -11,8 +12,13 @@ import java.util.Locale;
 
 @Component
 public class TradeProcessor implements ItemProcessor<RentApiItem, TradeRentWriteRequest> {
+
     @Override
     public TradeRentWriteRequest process(RentApiItem item) throws Exception {
+        if(item == null) return null;
+        if(!TradeRentRegionFilter.isAllowedBySggcd(item.getSggCd())) return null;
+
+
         String sggCd = norm(item.getSggCd());
         String aptSeq = norm(item.getAptSeq());
         String aptName = norm(item.getAptNm());
