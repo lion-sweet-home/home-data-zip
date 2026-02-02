@@ -1,5 +1,7 @@
 package org.example.homedatazip.subway.batch.tasklet;
 
+import org.example.homedatazip.data.Region;
+import org.example.homedatazip.global.geocode.service.GeoService;
 import org.example.homedatazip.subway.entity.SubwayStation;
 import org.example.homedatazip.subway.entity.SubwayStationSource;
 import org.example.homedatazip.subway.repository.SubwayStationRepository;
@@ -10,26 +12,32 @@ import org.springframework.batch.core.step.tasklet.Tasklet;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.stereotype.Component;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Step2: subway_station_sources → 역명(stationName) 그룹 → 위/경도 중앙값 → SubwayStation upsert + Source.station_id 매핑
+ * Step2: subway_station_sources → 역명(stationName) 그룹 → 위/경도 중앙값 → SubwayStation upsert + 역지오코딩(Region) + Source.station_id 매핑
  */
+@Slf4j
 @Component
 public class SubwayStationMapTasklet implements Tasklet {
 
     private final SubwayStationSourceRepository sourceRepository;
     private final SubwayStationRepository stationRepository;
+    private final GeoService geoService;
 
     public SubwayStationMapTasklet(
             SubwayStationSourceRepository sourceRepository,
-            SubwayStationRepository stationRepository
+            SubwayStationRepository stationRepository,
+            GeoService geoService
     ) {
         this.sourceRepository = sourceRepository;
         this.stationRepository = stationRepository;
+        this.geoService = geoService;
     }
 
     @Override
@@ -54,6 +62,15 @@ public class SubwayStationMapTasklet implements Tasklet {
             station.setLatitude(medianLat);
             station.setLongitude(medianLon);
             station = stationRepository.save(station);
+
+            // 대표 위/경도 → 역지오코딩 → Region 설정 (실패 시 region=null 유지)
+            try {
+                Region region = geoService.convertAddressInfo(medianLat, medianLon);
+                station.setRegion(region);
+                stationRepository.save(station);
+            } catch (Exception e) {
+                log.warn("역지오코딩 실패 - 역명={}, lat={}, lon={}: {}", stationName, medianLat, medianLon, e.getMessage());
+            }
 
             for (SubwayStationSource source : sources) {
                 source.setStation(station);
