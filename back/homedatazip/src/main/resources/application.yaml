@@ -76,6 +76,7 @@ payment:
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
     billing-success-url: http://localhost:5173/payments/billing/success
     billing-fail-url: http://localhost:5173/payments/billing/fail
+
 api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY}
@@ -91,6 +92,14 @@ kakao:
   api:
     key: ${KAKAO_API_KEY}
     url: https://dapi.kakao.com
+
+subway:
+  # OpenAPI 지하철 역 목록 URL
+  openapi:
+    url: ${SUBWAY_OPENAPI_URL:}
+    # Quartz 실행 주기, 기본: 매일 새벽 2시
+    sync:
+      cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
 
 seoul:
   openapi:
