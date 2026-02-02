@@ -15,15 +15,15 @@ public interface BusStationRepository extends JpaRepository<BusStation, Long> {
     List<BusStation> findTop500ByRegionIsNullOrderByIdAsc();
 
     @Query("""
-        select b
-        from BusStation b
-        where b.longitude between :minLat and :maxLat
-          and b.latitude between :minLon and :maxLon
-    """)
+            SELECT b FROM BusStation b
+            WHERE b.latitude BETWEEN :minLat AND :maxLat
+              AND b.longitude BETWEEN :minLon AND :maxLon
+            """)
     List<BusStation> findCandidates(
             @Param("minLat") double minLat,
             @Param("maxLat") double maxLat,
             @Param("minLon") double minLon,
             @Param("maxLon") double maxLon
     );
+
 }

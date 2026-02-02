@@ -1,6 +1,6 @@
 package org.example.homedatazip.busstation.dto;
 
-public record NearbyBusStationResponse(
+public record NearbyBusStationReponse(
         Long id,
         String nodeId,
         String stationNumber,
