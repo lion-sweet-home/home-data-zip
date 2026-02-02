@@ -4,8 +4,8 @@ spring:
 
   mvc:
     contentnegotiation:
-      default-content-type: application/json  # 모든 응답의 기본은 JSON
       favor-parameter: false
+      default-content-type: application/json
 
   datasource:
     url: jdbc:mysql://localhost:3306/home_db
@@ -21,10 +21,15 @@ spring:
         format_sql: true
 
   batch:
+    trade-rent:
+      enabled: true
+      days-of-month: [ 25, 26, 27 ]
+      window-months: 2
     job:
       enabled: false 
     jdbc:
       initialize-schema: always
+
 
   mail:
     host: smtp.gmail.com
@@ -68,11 +73,23 @@ jwt:
 
 payment:
   toss:
-
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
 
+
 api:
   data-go-kr:
-    service-key: your-service-key
+    service-key: e04a6e5213127baba66ac59e4bb6f38bad7bbb8617f0a9c17f5374d3108462bc
 
+molit:
+  rent:
+    base-url: "http://openapi.molit.go.kr:8081/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc"
+    path: "/getRTMSDataSvcAptRent"
+    service-key: "${MOLIT_SERVICE_KEY}"
+    num-of-rows: 1000
+    timeout-seconds: 15
+
+kakao:
+  api:
+    key: ${KAKAO_API_KEY}
+    url: https://dapi.kakao.com
