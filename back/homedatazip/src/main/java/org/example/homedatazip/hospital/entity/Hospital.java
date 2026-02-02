@@ -42,6 +42,7 @@ public class Hospital {
             String hospitalId,
             String name,
             String typeName,
+            Region region,
             String address,
             Double latitude,
             Double longitude
@@ -54,12 +55,34 @@ public class Hospital {
                 .hospitalId(hospitalId)
                 .name(name)
                 .typeName(typeName)
+                .region(region)
                 .address(address)
                 .gu(gu)
                 .dong(dong)
                 .latitude(latitude)
                 .longitude(longitude)
                 .build();
+    }
+
+    /**
+     * 기존 엔티티 업데이트
+     */
+    public void updateFrom(
+            String name,
+            String typeName,
+            Region region,
+            String address,
+            Double latitude,
+            Double longitude
+    ) {
+        this.name = name;
+        this.typeName = typeName;
+        this.region = region;
+        this.address = address;
+        this.latitude = latitude;
+        this.longitude = longitude;
+        this.gu = extractGu(address);
+        this.dong = extractDong(address);
     }
 
     /**
