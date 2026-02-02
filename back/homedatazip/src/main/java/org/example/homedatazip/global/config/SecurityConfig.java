@@ -34,7 +34,7 @@ public class SecurityConfig {
                         // 로그인
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        .requestMatchers("/api/bus-stations/**").permitAll()
+                        //.requestMatchers("/api/bus-stations/**").permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
