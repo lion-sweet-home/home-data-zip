@@ -34,6 +34,7 @@ public class BusStationApiReader implements ItemReader<Row> {
     private int startIndex = 1;
     private final int pageSize = 1000;
 
+    // 임시 저장소
     private final List<Row> buffer = new ArrayList<>();
     private boolean isEnd = false;
 
