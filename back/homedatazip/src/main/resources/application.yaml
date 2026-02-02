@@ -83,7 +83,7 @@ api:
 rent-api:
   base-url: "http://apis.data.go.kr/1613000/RTMSDataSvcAptRent"
   path: "/getRTMSDataSvcAptRent"
-  service-key: e04a6e5213127baba66ac59e4bb6f38bad7bbb8617f0a9c17f5374d3108462bc
+  service-key: api-service-key
   num-of-rows: 1000
   timeout-seconds: 15
 
