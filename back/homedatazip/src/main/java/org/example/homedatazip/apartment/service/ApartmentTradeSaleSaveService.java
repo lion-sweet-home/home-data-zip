@@ -19,29 +19,23 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class ApartmentTradeSaleSaveService {
     private final ApartmentRepository apartmentRepository;
-    private final EntityManager em;
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW,
-            noRollbackFor = {DataIntegrityViolationException.class})
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Apartment saveAndGetApartment(ApartmentTradeSaleItem item, CoordinateInfoResponse response) {
-        String aptSeq = item.getAptSeq();
+        // 중복 에러 발생 가능성을 원천 차단 (Native SQL)
+        apartmentRepository.insertIgnore(
+                item.getAptNm(),
+                response.roadAddress(),
+                response.jibunAddress(),
+                response.latitude(),
+                response.longitude(),
+                Integer.parseInt(item.getBuildYear()),
+                item.getAptSeq(),
+                response.region() != null ? response.region().getId() : null
+        );
 
-        // 1. 세션에 남아있는 찌꺼기 제거 (캐시 충돌 방지)
-        em.clear();
-
-        try {
-            // 2. DB에서 직접 조회 (영속성 컨텍스트를 거치지 않음)
-            return apartmentRepository.findByAptSeq(aptSeq)
-                    .orElseGet(() -> {
-                        Apartment newApt = Apartment.create(item, response);
-                        apartmentRepository.saveAndFlush(newApt);
-                        return newApt;
-                    });
-        } catch (Exception e) {
-            log.info(">>> [RETRY-FINAL] 중복 발생, 강제 세션 클리어 후 재조회: {}", aptSeq);
-            // 3. 에러 발생 시 세션을 아예 밀어버리고 다시 조회
-            em.clear();
-            return apartmentRepository.findByAptSeq(aptSeq).orElse(null);
-        }
+        // 깨끗한 세션에서 데이터 조회
+        return apartmentRepository.findByAptSeq(item.getAptSeq())
+                .orElseThrow(() -> new RuntimeException("아파트 처리 실패: " + item.getAptSeq()));
     }
 }
