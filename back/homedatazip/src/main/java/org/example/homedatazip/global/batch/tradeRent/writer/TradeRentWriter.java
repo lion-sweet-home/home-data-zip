@@ -90,7 +90,7 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
                     .dealDate(item.dealDate())
                     .renewalRequested(null)
                     .rentTerm(item.contractTerm() == null ? "-" : item.contractTerm())
-                    .sggCd(item.sggCd())
+                    .sggCode(item.sggCd())
                     .renewalRequested(item.useRRRight())
                     .build();
 

@@ -58,6 +58,6 @@ public class TradeRent {
     private String rentTerm;             // 계약 기간
 
     @Column(name = "sgg_code", nullable = false)
-    private String sggCd;                // 지역 코드
+    private String sggCode;                // 지역 코드
 
 }

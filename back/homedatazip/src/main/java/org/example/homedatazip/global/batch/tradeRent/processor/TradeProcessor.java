@@ -1,5 +1,6 @@
 package org.example.homedatazip.global.batch.tradeRent.processor;
 
+import com.fasterxml.jackson.dataformat.xml.annotation.JacksonXmlProperty;
 import org.example.homedatazip.tradeRent.dto.RentApiItem;
 import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
 import org.springframework.batch.item.ItemProcessor;
@@ -18,6 +19,10 @@ public class TradeProcessor implements ItemProcessor<RentApiItem, TradeRentWrite
         String umdNm = norm(item.getUmdNm());
         String jibun = norm(item.getJibun());
         String jibunKey = (umdNm != null && jibun != null) ? (umdNm + " " + jibun) : null;
+
+        String roadnm = norm(item.getRoadnm());
+        String roadnmbonbun = norm(item.getRoadnmbonbun());
+        String roadnmbubun = norm(item.getRoadnmbubun());
 
         Long deposit = parseLong(item.getDeposit());
         Integer monthlyRent = parseInt(item.getMonthlyRent());
