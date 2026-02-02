@@ -93,3 +93,7 @@ kakao:
   api:
     key: ${KAKAO_API_KEY}
     url: https://dapi.kakao.com
+
+batch:
+  backoff:
+    external-api: 2000
