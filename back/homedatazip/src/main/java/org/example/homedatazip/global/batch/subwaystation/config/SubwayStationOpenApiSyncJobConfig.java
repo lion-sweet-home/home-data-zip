@@ -1,9 +1,9 @@
-package org.example.homedatazip.subway.batch.config;
+package org.example.homedatazip.global.batch.subwaystation.config;
 
-import org.example.homedatazip.subway.batch.dto.SubwayStationSourceSync;
-import org.example.homedatazip.subway.batch.processor.StationApiToSourceSyncProcessor;
-import org.example.homedatazip.subway.batch.reader.StationApiReader;
-import org.example.homedatazip.subway.batch.tasklet.SubwayStationMapTasklet;
+import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
+import org.example.homedatazip.global.batch.subwaystation.processor.StationApiToSourceSyncProcessor;
+import org.example.homedatazip.global.batch.subwaystation.reader.StationApiReader;
+import org.example.homedatazip.global.batch.subwaystation.tasklet.SubwayStationMapTasklet;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;

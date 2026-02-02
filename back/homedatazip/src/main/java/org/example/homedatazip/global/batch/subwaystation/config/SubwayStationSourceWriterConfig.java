@@ -1,8 +1,8 @@
-package org.example.homedatazip.subway.batch.config;
+package org.example.homedatazip.global.batch.subwaystation.config;
 
 import javax.sql.DataSource;
 
-import org.example.homedatazip.subway.batch.dto.SubwayStationSourceSync;
+import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.context.annotation.Bean;

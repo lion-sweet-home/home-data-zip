@@ -1,4 +1,4 @@
-package org.example.homedatazip.subway.batch.quartz;
+package org.example.homedatazip.global.batch.subwaystation.quartz;
 
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;

@@ -1,8 +1,8 @@
-package org.example.homedatazip.subway.batch.reader;
+package org.example.homedatazip.global.batch.subwaystation.reader;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.homedatazip.subway.batch.dto.SubwayStationSourceSync;
+import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
 import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemStreamException;

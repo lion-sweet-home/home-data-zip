@@ -1,4 +1,4 @@
-package org.example.homedatazip.subway.batch.dto;
+package org.example.homedatazip.subway.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

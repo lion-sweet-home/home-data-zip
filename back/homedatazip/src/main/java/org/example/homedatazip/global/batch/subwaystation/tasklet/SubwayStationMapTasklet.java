@@ -1,4 +1,4 @@
-package org.example.homedatazip.subway.batch.tasklet;
+package org.example.homedatazip.global.batch.subwaystation.tasklet;
 
 import org.example.homedatazip.data.Region;
 import org.example.homedatazip.global.geocode.service.GeoService;

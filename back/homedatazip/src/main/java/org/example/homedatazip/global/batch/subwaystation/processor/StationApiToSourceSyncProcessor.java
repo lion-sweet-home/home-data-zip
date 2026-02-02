@@ -1,6 +1,6 @@
-package org.example.homedatazip.subway.batch.processor;
+package org.example.homedatazip.global.batch.subwaystation.processor;
 
-import org.example.homedatazip.subway.batch.dto.SubwayStationSourceSync;
+import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 

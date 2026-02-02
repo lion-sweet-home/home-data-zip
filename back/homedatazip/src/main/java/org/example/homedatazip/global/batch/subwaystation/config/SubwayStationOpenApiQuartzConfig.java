@@ -1,6 +1,6 @@
-package org.example.homedatazip.subway.batch.config;
+package org.example.homedatazip.global.batch.subwaystation.config;
 
-import org.example.homedatazip.subway.batch.quartz.SubwayStationOpenApiSyncQuartzJob;
+import org.example.homedatazip.global.batch.subwaystation.quartz.SubwayStationOpenApiSyncQuartzJob;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
