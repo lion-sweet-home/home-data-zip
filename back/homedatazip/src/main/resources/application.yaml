@@ -80,13 +80,12 @@ api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY}
 
-molit:
-  rent:
-    base-url: "http://openapi.molit.go.kr:8081/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc"
-    path: "/getRTMSDataSvcAptRent"
-    service-key: "${MOLIT_SERVICE_KEY}"
-    num-of-rows: 1000
-    timeout-seconds: 15
+rent-api:
+  base-url: "http://apis.data.go.kr/1613000/RTMSDataSvcAptRent"
+  path: "/getRTMSDataSvcAptRent"
+  service-key: e04a6e5213127baba66ac59e4bb6f38bad7bbb8617f0a9c17f5374d3108462bc
+  num-of-rows: 1000
+  timeout-seconds: 15
 
 kakao:
   api:
