@@ -79,7 +79,7 @@ payment:
 
 api:
   data-go-kr:
-    service-key: your-service-key
+    service-key: e04a6e5213127baba66ac59e4bb6f38bad7bbb8617f0a9c17f5374d3108462bc
 
 molit:
   rent:
@@ -88,3 +88,8 @@ molit:
     service-key: "${MOLIT_SERVICE_KEY}"
     num-of-rows: 1000
     timeout-seconds: 15
+
+kakao:
+  api:
+    key: ${KAKAO_API_KEY}
+    url: https://dapi.kakao.com

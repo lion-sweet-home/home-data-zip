@@ -19,16 +19,12 @@ public record ApartmentGetOrCreateRequest(
                 blankToNull(tr.jibun()),
                 blankToNull(tr.jibunKey()), // 이미 "umdNm + jibun" 형태라면 그대로 사용
                 null,                       // roadAddress (rent DTO에 없어서 null)
-                null,                       // aptName
-                null                        // buildYear
+                blankToNull(tr.aptName()),                    // aptName
+                tr.buildYear()                        // buildYear
         );
     }
 
-    /**
-     * 지오코더 입력으로 쓸 주소 문자열.
-     * - 도로명 주소가 있으면 도로명 우선
-     * - 없으면 지번 주소 사용
-     */
+
     public String addressQuery() {
         if (roadAddress != null && !roadAddress.isBlank()) return roadAddress.trim();
         if (jibunAddress != null && !jibunAddress.isBlank()) return jibunAddress.trim();

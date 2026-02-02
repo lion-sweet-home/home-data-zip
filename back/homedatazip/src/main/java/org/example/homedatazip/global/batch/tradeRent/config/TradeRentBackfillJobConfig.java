@@ -1,12 +1,13 @@
-package org.example.homedatazip.global.batch.tradeRent.comfig;
+package org.example.homedatazip.global.batch.tradeRent.config;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.example.homedatazip.data.repository.RegionRepository;
 import org.example.homedatazip.global.batch.tradeRent.processor.TradeProcessor;
 import org.example.homedatazip.global.batch.tradeRent.reader.TradeRentReader;
-import org.example.homedatazip.global.batch.tradeRent.wrtier.TradeRentWriter;
-import org.example.homedatazip.tradeRent.api.MolitRentClient;
-import org.example.homedatazip.tradeRent.dto.MolitRentApiItemResponse;
+import org.example.homedatazip.global.batch.tradeRent.writer.TradeRentWriter;
+import org.example.homedatazip.tradeRent.api.RentApiClient;
+import org.example.homedatazip.tradeRent.dto.RentApiItem;
 import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -27,9 +28,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
+@RequiredArgsConstructor
 public class TradeRentBackfillJobConfig {
 
     private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
+    private final TradeProcessor tradeProcessor;
 
     @Bean
     public Job tradeRentBackfillJob(JobRepository jobRepository, Step tradeRentBackfillStep ) {
@@ -41,11 +44,11 @@ public class TradeRentBackfillJobConfig {
     @Bean
     public Step tradeRentBackfillStep(JobRepository jobRepository,
                                     PlatformTransactionManager tx,
-                                    ItemReader<MolitRentApiItemResponse> tradeRentBackfillReader,
-                                    ItemProcessor<MolitRentApiItemResponse, TradeRentWriteRequest> tradeRentBackfillProcessor,
+                                    ItemReader<RentApiItem> tradeRentBackfillReader,
+                                    ItemProcessor<RentApiItem, TradeRentWriteRequest> tradeRentBackfillProcessor,
                                     ItemWriter<TradeRentWriteRequest> tradeRentBackfillWriter){
         return new StepBuilder("tradeRentBackfillStep", jobRepository)
-                .<MolitRentApiItemResponse, TradeRentWriteRequest>chunk(100,tx)
+                .<RentApiItem, TradeRentWriteRequest>chunk(100,tx)
                 .reader(tradeRentBackfillReader)
                 .processor(tradeRentBackfillProcessor)
                 .writer(tradeRentBackfillWriter)
@@ -54,8 +57,8 @@ public class TradeRentBackfillJobConfig {
 
     @Bean
     @StepScope
-    public ItemReader<MolitRentApiItemResponse> tradeRentBackfillReader(
-            MolitRentClient client,
+    public ItemReader<RentApiItem> tradeRentBackfillReader(
+            RentApiClient client,
             RegionRepository regionRepository,
             @Value("#{jobParameters['fromYmd']}") String fromYmd,
             @Value("#{jobParameters['toYmd']}") String toYmd
@@ -68,14 +71,14 @@ public class TradeRentBackfillJobConfig {
                 : toYmd;
 
         List<String> sggCds = regionRepository.findDistinctSggCode();
-        List<String> dealYmds = buildDealYmds(fromYmd, toYmd);
+        List<String> dealYmds = buildDealYmds(from, to);
 
         return new TradeRentReader(client, sggCds, dealYmds);
     }
 
     @Bean
-    public ItemProcessor<MolitRentApiItemResponse, TradeRentWriteRequest> tradeRentBackfillProcessor() {
-        return new TradeProcessor();
+    public ItemProcessor<RentApiItem, TradeRentWriteRequest> tradeRentBackfillProcessor() {
+        return  tradeProcessor;
     }
     @Bean
     public ItemWriter<TradeRentWriteRequest> tradeRentBackfillWriter(TradeRentWriter writer){

@@ -171,7 +171,7 @@ public class GeoService {
         // 검색결과가 null인경우
         if (response == null || response.documents().isEmpty()) {
             log.error("API 요청 결과가 존재하지 않습니다. dongJibun={}", dongJibun);
-            throw new BusinessException(GeoErrorCode.RESPONSE_NOT_FOUND);
+            return null;
         }
 
         // 동 + 지번 조합이라고 무조건 한 개의 데이터가 보장되는 것은 아니기 때문에 list로 받아야한다.

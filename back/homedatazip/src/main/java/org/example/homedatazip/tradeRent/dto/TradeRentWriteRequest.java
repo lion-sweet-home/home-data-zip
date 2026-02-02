@@ -7,6 +7,7 @@ import java.time.LocalDate;
 public record TradeRentWriteRequest(
         String sggCd,
         String aptSeq,
+        String aptName,
         String umdNm,
         String jibun,      // "232" 같은 원문
         String jibunKey,   // "창신동 232"
@@ -17,7 +18,8 @@ public record TradeRentWriteRequest(
         Integer floor,
         String contractTerm,
         String contractType,
-        String useRRRight
+        Boolean useRRRight,
+        Integer buildYear
 ) {
     public ApartmentGetOrCreateRequest toApartmentGetOrCreateRequest() {
         return ApartmentGetOrCreateRequest.from(this);

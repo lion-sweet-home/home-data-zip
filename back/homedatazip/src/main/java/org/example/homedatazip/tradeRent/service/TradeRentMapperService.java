@@ -1,7 +1,7 @@
 package org.example.homedatazip.tradeRent.service;
 
 import org.example.homedatazip.apartment.entity.Apartment;
-import org.example.homedatazip.tradeRent.dto.MolitRentApiItemResponse;
+import org.example.homedatazip.tradeRent.dto.RentApiItem;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
 
 import java.time.LocalDate;
@@ -9,23 +9,23 @@ import java.time.LocalDate;
 public class TradeRentMapperService {
     private TradeRentMapperService(){}
 
-    public static TradeRent toEntity(Apartment apt, MolitRentApiItemResponse item){
-        long deposit = parseLong(item.deposit());
-        int monthlyRent = parseInt(item.monthlyRent());
-        double exclusiveArea = parseDouble(item.excluUseAr());
-        int floor = parseInt(item.floor());
+    public static TradeRent toEntity(Apartment apt, RentApiItem item){
+        long deposit = parseLong(item.getDeposit());
+        int monthlyRent = parseInt(item.getMonthlyRent());
+        double exclusiveArea = parseDouble(item.getExcluUseAr());
+        int floor = parseInt(item.getFloor());
 
-        int y = parseInt(item.dealYear());
-        int m = parseInt(item.dealMonth());
-        int d = parseInt(item.dealDay());
+        int y = parseInt(item.getDealYear());
+        int m = parseInt(item.getDealMonth());
+        int d = parseInt(item.getDealDay());
 
         LocalDate dealDate = LocalDate.of(y, m, d);
-        Boolean renewalRequested = parseRenewal(item.contractType(), item.useRRRight());
+        Boolean renewalRequested = parseRenewal(item.getContractType(), item.getUseRRRight());
 
-        String rentTerm = normalize(item.contractTerm());
+        String rentTerm = normalize(item.getContractTerm());
         if (rentTerm == null) rentTerm = "-";
 
-        String sggCd = normalize(item.sggCd());
+        String sggCd = normalize(item.getSggCd());
         if (sggCd == null) throw new IllegalArgumentException("sggCd is required");
 
         return TradeRent.builder()

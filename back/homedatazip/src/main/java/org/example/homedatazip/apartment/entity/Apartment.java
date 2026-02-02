@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.example.homedatazip.data.Region;
 import org.example.homedatazip.global.geocode.dto.CoordinateInfoResponse;
+import org.example.homedatazip.tradeRent.dto.ApartmentGetOrCreateRequest;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 
 @Entity
@@ -58,12 +59,36 @@ public class Apartment {
                 .region(response.region())
                 .build();
     }
+    public static Apartment createByRent(ApartmentGetOrCreateRequest item, CoordinateInfoResponse response) {
+
+        return Apartment.builder()
+                .aptName(item.aptName())
+                .roadAddress(response.roadAddress())
+                .jibunAddress(response.jibunAddress())
+                .latitude(response.latitude())
+                .longitude(response.longitude())
+                .buildYear(item.buildYear())
+                .aptSeq(item.aptSeq())
+                .region(response.region())
+                .build();
+    }
 
     public void update(ApartmentTradeSaleItem item) {
         Integer newBuildYear = Integer.parseInt(item.getBuildYear());
 
         if (!this.aptName.equals(item.getAptNm())) {
             this.aptName = item.getAptNm();
+        }
+        if (!this.buildYear.equals(newBuildYear)) {
+            this.buildYear = newBuildYear;
+        }
+    }
+
+    public void updateByRent(ApartmentGetOrCreateRequest item) {
+        Integer newBuildYear = item.buildYear();
+
+        if (item.aptName() != null && !item.aptName().equals(this.aptName)) {
+            this.aptName = item.aptName();
         }
         if (!this.buildYear.equals(newBuildYear)) {
             this.buildYear = newBuildYear;

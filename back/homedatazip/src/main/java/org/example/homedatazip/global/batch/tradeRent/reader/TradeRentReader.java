@@ -1,8 +1,8 @@
 package org.example.homedatazip.global.batch.tradeRent.reader;
 
 import org.example.homedatazip.apartment.dto.ApiResponse;
-import org.example.homedatazip.tradeRent.api.MolitRentClient;
-import org.example.homedatazip.tradeRent.dto.MolitRentApiItemResponse;
+import org.example.homedatazip.tradeRent.api.RentApiClient;
+import org.example.homedatazip.tradeRent.dto.RentApiItem;
 import org.springframework.batch.item.*;
 
 import java.util.Iterator;
@@ -10,14 +10,14 @@ import java.util.List;
 import java.util.Objects;
 
 
-public class TradeRentReader implements ItemStreamReader<MolitRentApiItemResponse> {
+public class TradeRentReader implements ItemStreamReader<RentApiItem> {
 
     private static final String CTX_SGG_IDX = "trBackfill.sggIdx";
     private static final String CTX_YMD_IDX = "trBackfill.ymdIdx";
     private static final String CTX_PAGE_NO = "trBackfill.pageNo";
     private static final String CTX_CURSOR = "trBackfill.cursor";
 
-    private final MolitRentClient client;
+    private final RentApiClient client;
     private final List<String> sggCds;
     private final List<String> dealYmds;
 
@@ -27,9 +27,9 @@ public class TradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
     private int maxPage;
     private int cursorInPage;
 
-    private Iterator<MolitRentApiItemResponse> iter;
+    private Iterator<RentApiItem> iter;
 
-    public TradeRentReader(MolitRentClient client, List<String> sggCds, List<String> dealYmds) {
+    public TradeRentReader(RentApiClient client, List<String> sggCds, List<String> dealYmds) {
         this.client = Objects.requireNonNull(client, "client must not be null");
         this.sggCds = Objects.requireNonNull(sggCds, "sggCds must not be null");
         this.dealYmds = Objects.requireNonNull(dealYmds, "dealYmds must not be null");
@@ -42,7 +42,7 @@ public class TradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
 
 
     @Override
-    public MolitRentApiItemResponse read() {
+    public RentApiItem read() {
         while (true) {
             if (iter != null && iter.hasNext()) {
                 cursorInPage++;
@@ -85,9 +85,9 @@ public class TradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
         String sgg = sggCds.get(sggIdx);
         String ymd = dealYmds.get(ymdIdx);
 
-        ApiResponse<MolitRentApiItemResponse> res = client.fetch(sgg, ymd, pageNo);
+        ApiResponse<RentApiItem> res = client.fetch(sgg, ymd, pageNo);
         if (res == null || res.body() == null || res.body().items() == null) {
-            iter = List.<MolitRentApiItemResponse>of().iterator();
+            iter = List.<RentApiItem>of().iterator();
             return;
         }
 
@@ -95,14 +95,14 @@ public class TradeRentReader implements ItemStreamReader<MolitRentApiItemRespons
         Integer numOfRows = res.body().numOfRows();
         maxPage = computeMaxPage(totalCount, numOfRows);
 
-        List<MolitRentApiItemResponse> items = res.body().items().safeItem();
-        Iterator<MolitRentApiItemResponse> it = items.iterator();
+        List<RentApiItem> items = res.body().items().safeItem();
+        Iterator<RentApiItem> it = items.iterator();
 
         int skip = cursorInPage;
         cursorInPage = 0;
         for (int i = 0; i < skip && it.hasNext(); i++) it.next();
 
-        it = iter;
+        iter = it;
     }
 
     private static int computeMaxPage(Integer totalCount, Integer numOfRows) {

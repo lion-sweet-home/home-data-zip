@@ -6,9 +6,9 @@ import java.util.List;
 
 @ConfigurationProperties(prefix = "spring.batch.trade-rent")
 public class TradeRentBatchProperties {
-    private boolean enabled = true;
-    private List<Integer> daysOfMonth = List.of(25, 26, 27);
-    private int windowMonths = 2;
+    private boolean enabled ;
+    private List<Integer> daysOfMonth;
+    private int windowMonths ;
 
     public boolean isEnabled() { return enabled; }
     public List<Integer> getDaysOfMonth() { return daysOfMonth; }
