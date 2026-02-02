@@ -58,7 +58,9 @@ public class Subscription {
     // ---- 도메인 메서드 ----
 
     public boolean hasAccess(LocalDate today) {
-        return isActive && endDate != null && !endDate.isBefore(today)
+        return isActive
+                && endDate != null
+                && !endDate.isBefore(today)
                 && (status == SubscriptionStatus.ACTIVE || status == SubscriptionStatus.CANCELED);
     }
 
@@ -79,7 +81,18 @@ public class Subscription {
         this.isActive = true;
     }
 
+    /**
+     * 배치 결제 성공 시 기간 갱신
+     * - 기본: endDate + 1개월
+     * - 안전: endDate가 null이면 startDate 기준으로 잡아줌
+     */
     public void extendOneMonth() {
+        if (this.endDate == null) {
+            // 방어코드: endDate가 비어있으면 startDate 기반으로라도 세팅
+            LocalDate base = (this.startDate != null) ? this.startDate : LocalDate.now();
+            this.endDate = base.plusMonths(1);
+            return;
+        }
         this.endDate = this.endDate.plusMonths(1);
     }
 
@@ -114,12 +127,17 @@ public class Subscription {
     }
 
     public static Subscription createInitial(User user) {
+        // 초기 생성이라도 today로 박아두고, EXPIRED + isActive=false로 접근 막기
+        LocalDate today = LocalDate.now();
+
         return Subscription.builder()
                 .subscriber(user)
                 .name("기본 요금제")
                 .price(0L)
                 .status(SubscriptionStatus.EXPIRED)
                 .isActive(false)
+                .startDate(today)
+                .endDate(today)
                 .build();
     }
 
@@ -132,8 +150,6 @@ public class Subscription {
     }
 
     public boolean hasBillingKey() {
-
         return this.billingKey != null && !this.billingKey.isBlank();
     }
-
 }

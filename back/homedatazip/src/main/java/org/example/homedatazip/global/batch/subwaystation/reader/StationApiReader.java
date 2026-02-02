@@ -1,0 +1,94 @@
+package org.example.homedatazip.global.batch.subwaystation.reader;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemStreamException;
+import org.springframework.batch.item.ItemStreamReader;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * OpenAPI 지하철 역 목록을 한 번 호출 후, read() 호출마다 한 건씩 반환.
+ */
+@Component
+@StepScope
+public class StationApiReader implements ItemStreamReader<SubwayStationSourceSync> {
+
+    private final WebClient webClient;
+    private final String apiUrl;
+    private final ObjectMapper objectMapper;
+
+    private List<SubwayStationSourceSync> items;
+    private int index;
+
+    public StationApiReader(
+            WebClient webClient,
+            @Value("${subway.openapi.url}") String apiUrl,
+            ObjectMapper objectMapper
+    ) {
+        this.webClient = webClient;
+        this.apiUrl = apiUrl;
+        this.objectMapper = objectMapper;
+    }
+
+    @Override
+    public void open(ExecutionContext executionContext) throws ItemStreamException {
+        if (apiUrl == null || apiUrl.isBlank()) {
+            throw new ItemStreamException("subway.openapi.url 이 필수입니다.");
+        }
+        String body = webClient.get()
+                .uri(apiUrl)
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+        if (body == null || body.isBlank()) {
+            items = List.of();
+        } else {
+            try {
+                String json = extractJsonFromBody(body);
+                items = objectMapper.readValue(json, new TypeReference<List<SubwayStationSourceSync>>() {});
+            } catch (Exception e) {
+                throw new ItemStreamException("OpenAPI 응답 JSON 파싱 실패: " + apiUrl, e);
+            }
+        }
+        index = 0;
+    }
+
+    @Override
+    public SubwayStationSourceSync read() {
+        if (items == null || index >= items.size()) {
+            return null;
+        }
+        return items.get(index++);
+    }
+
+    @Override
+    public void close() throws ItemStreamException {
+        items = null;
+        index = 0;
+    }
+
+    /**
+     * 응답이 HTML(<pre>...</pre> 안에 JSON)이면 <pre> 내용만 추출, 아니면 그대로 반환.
+     */
+    private static String extractJsonFromBody(String body) {
+        if (body == null || body.isBlank()) return body;
+        String trimmed = body.trim();
+        if (trimmed.startsWith("<")) {
+            Pattern pre = Pattern.compile("<pre[^>]*>([\\s\\S]*?)</pre>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            Matcher m = pre.matcher(trimmed);
+            if (m.find()) {
+                return m.group(1).trim();
+            }
+        }
+        return body;
+    }
+}

@@ -132,9 +132,7 @@ public class SubscriptionService {
         sub.registerBillingKey(res.billingKey());
     }
 
-    /**
-     * 첫 결제 = 구독 시작 (billingKey 결제 1회)
-     */
+
     @Transactional
     public void startSubscription(Long userId) {
         Subscription sub = getSubscription(userId);
@@ -143,10 +141,25 @@ public class SubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
         }
 
+        LocalDate today = LocalDate.now();
+
+        // 이미 자동결제 ON (ACTIVE)이면 멱등 처리
         if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
             return;
         }
 
+        // (핵심) 취소 상태(CANCELED)인데 만료일이 남아있으면
+        //    -> 즉시 결제 없이 autoPay만 다시 켠다 (배치가 endDate+1일에 결제)
+        if (sub.getStatus() == SubscriptionStatus.CANCELED) {
+            LocalDate endDate = sub.getEndDate(); // Subscription에 endDate getter가 있어야 함
+            if (endDate != null && !endDate.isBefore(today)) {
+                sub.activateAutoPay(); // status ACTIVE로 변경 (배치 대상 포함)
+                return;
+            }
+            // 만료일이 이미 지났으면 아래 "즉시 결제" 로직으로 떨어짐
+        }
+
+        // 즉시 결제 케이스만
         String orderId = "SUB_START_" + UUID.randomUUID();
 
         PaymentLog log = paymentLogRepository.save(
@@ -172,6 +185,7 @@ public class SubscriptionService {
                 LocalDateTime.now()
         );
 
+        // 결제 성공 → 구독 시작(기간 갱신)
         sub.start(LocalDate.now(), PRICE);
     }
 
@@ -184,11 +198,16 @@ public class SubscriptionService {
     }
 
     /**
-     * 자동결제 ON
+     * 자동결제 ON (수동 리액티브 API)
+     * - 프론트가 "구독하기"를 쓰면 사실상 startSubscription()이 알아서 처리함
      */
     @Transactional
     public void reactivateAutoPay(Long userId) {
-        getSubscription(userId).activateAutoPay();
+        Subscription sub = getSubscription(userId);
+        if (!sub.hasBillingKey()) {
+            throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
+        }
+        sub.activateAutoPay();
     }
 
     public SubscriptionMeResponse getMySubscription(Long userId) {

@@ -74,7 +74,7 @@ public class ApartmentService {
             reqByAptSeq.putIfAbsent(it.aptSeq(), it);
         }
 
-        List<String> aptSeqs = new ArrayList<>();
+        List<String> aptSeqs = new ArrayList<>(reqByAptSeq.keySet());
         if (aptSeqs.isEmpty()) {
             log.warn("유효한 aptSeq가 없습니다. (items 내 aptSeq null/blank 가능)");
             return new HashMap<>();
@@ -122,17 +122,11 @@ public class ApartmentService {
                     continue;
                 }
                 aptMap.put(req.aptSeq(), newApt);
+                newApartments.add(newApt);
             }else{
                 found.updateByRent(req);
             }
-
-            if(!newApartments.isEmpty()){
-                apartmentRepository.saveAll(newApartments);
-            }
-
-
         }
-
 
         // 아파트 DB 저장
         if (!newApartments.isEmpty()) {
