@@ -33,7 +33,8 @@ public enum PaymentErrorCode implements ErrorCode {
     TOSS_INVALID_RESPONSE(HttpStatus.BAD_GATEWAY, "PAY_502_4", "토스 응답 형식이 올바르지 않습니다."),
 
     // 500
-    BATCH_RECURRING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY_500_1", "정기결제 배치 실행에 실패했습니다.");
+    BATCH_RECURRING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "PAY_500_1", "정기결제 배치 실행에 실패했습니다."),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "SUB_500_2", "단건 결제는 불가능합니다.");
 
     private final HttpStatus status;
     private final String code;

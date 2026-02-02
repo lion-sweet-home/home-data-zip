@@ -25,10 +25,12 @@ public class SubscriptionBatchService {
             throw new BusinessException(SubscriptionErrorCode.BATCH_DATE_REQUIRED);
         }
 
+        LocalDate expireBefore = today.minusDays(1);
+
         List<Subscription> targets =
                 subscriptionRepository.findAllByIsActiveTrueAndEndDateIsNotNullAndStatusInAndEndDateLessThan(
                         List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED),
-                        today
+                        expireBefore
                 );
 
         for (Subscription s : targets) {
