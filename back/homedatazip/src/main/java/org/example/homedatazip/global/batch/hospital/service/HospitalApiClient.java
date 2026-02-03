@@ -46,7 +46,7 @@ public class HospitalApiClient {
                 numOfRows
         );
 
-        log.info("API 호출: pageNo={}, numOfRows={}", pageNo, numOfRows);
+        log.info("🌐 API 호출: pageNo={}, numOfRows={}", pageNo, numOfRows);
 
         try {
             Thread.sleep(API_CALL_DELAY_MS);
@@ -61,7 +61,7 @@ public class HospitalApiClient {
 
             return xmlMapper.readValue(xmlResponse, HospitalApiResponse.class);
         } catch (Exception e) {
-            log.error("API 호출 또는 파싱 실패: {}", e.getMessage());
+            log.error("❌ API 호출 또는 파싱 실패: {}", e.getMessage());
             throw new RuntimeException("Hospital API 호출 실패", e);
         }
     }
