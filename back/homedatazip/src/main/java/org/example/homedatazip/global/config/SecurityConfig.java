@@ -35,6 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
 
                         //.requestMatchers("/api/bus-stations/**").permitAll()
+                        .requestMatchers("/api/hospitals/**").permitAll()
 
                         // 지하철역 부분 검색
                         .requestMatchers("/api/subway/stations/**").permitAll()
