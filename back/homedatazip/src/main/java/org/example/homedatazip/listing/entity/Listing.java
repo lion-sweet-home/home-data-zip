@@ -59,7 +59,7 @@ public class Listing extends BaseTimeEntity {
     @Column(name = "monthly_rent")
     private Integer monthlyRent;
 
-    @Column(name = "contact_phone", nullable = false, length = 30)
+    @Column(name = "contact_phone", nullable = true, length = 30)
     private String contactPhone;
 
     @Column(length = 2000)
