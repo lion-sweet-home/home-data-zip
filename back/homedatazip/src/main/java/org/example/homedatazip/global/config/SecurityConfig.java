@@ -29,7 +29,7 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        // 로그인 사용자 전용 (me)
+                        // 로그인 사용자 전용 (favorite)
                         .requestMatchers("/api/users/me/**").authenticated()
                         // 회원가입·로그인 등
                         .requestMatchers("/api/users/**").permitAll()
