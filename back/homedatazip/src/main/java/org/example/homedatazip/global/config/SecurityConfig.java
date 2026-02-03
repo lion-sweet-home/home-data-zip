@@ -34,7 +34,12 @@ public class SecurityConfig {
                         // 로그인
                         .requestMatchers("/api/auth/**").permitAll()
 
-                        //.requestMatchers("/api/bus-stations/**").permitAll()
+                        .requestMatchers("/api/bus-stations/**").permitAll()
+
+                        .requestMatchers("/api/apartments/**").permitAll()
+
+                        // 지하철역 부분 검색
+                        .requestMatchers("/api/subway/stations/**").permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
