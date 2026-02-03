@@ -39,7 +39,7 @@ public class ApartmentService {
             String seq = item.getAptSeq();
             if (!aptMap.containsKey(seq)) {
                 CoordinateInfoResponse response = geoService.convertCoordinateInfo(
-                        item.getAptDong(), item.getJibun(), item.getSggCd(), item.getAptNm(),
+                        item.getUmdNm(), item.getJibun(), item.getSggCd(), item.getAptNm(),
                         item.getRoadNm(), item.getRoadNmBonbun(), item.getRoadNmBubun()
                 );
 
