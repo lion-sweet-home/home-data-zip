@@ -111,3 +111,7 @@ seoul:
     key: ${SEOUL_OPENAPI_KEY}
     type: json
     service: ${SEOUL_OPENAPI_SERVICE}
+
+subway-distance:
+  sync:
+    cron: ${APARTMENT_SUBWAY_DISTANCE_SYNC_CRON:0 0 3 * * ?}
