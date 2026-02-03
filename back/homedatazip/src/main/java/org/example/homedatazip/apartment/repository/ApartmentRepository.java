@@ -24,6 +24,35 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
     // [추가] 존재 여부만 빠르게 확인하기 위한 메서드
     boolean existsByAptSeq(String aptSeq);
 
+
+    //조회성능을 위한 시구동을 통한 region fetch Join + 아파트 Get + null체크
+    //deposit || MonthlyRent 필터선택 후 조회시 추가 필터
+    @Query("""
+        select a
+        from Apartment a
+        where a.region.sido = :sido
+          and a.region.gugun = :gugun
+          and a.region.dong like concat(:dongPrefix, '%')
+          and exists (
+              select 1
+              from TradeRent tr
+              where tr.apartment = a
+                and (:minDeposit = 0 or tr.deposit >= :minDeposit)
+                and (:maxDeposit = 0 or tr.deposit <= :maxDeposit)
+                and (:minMonthlyRent = 0 or tr.monthlyRent >= :minMonthlyRent)
+                and (:maxMonthlyRent = 0 or tr.monthlyRent <= :maxMonthlyRent)
+          )
+        """)
+    List<Apartment> findAllWithRentByRegionAndRentRange(
+            @Param("sido") String sido,
+            @Param("gugun") String gugun,
+            @Param("dongPrefix") String dongPrefix,
+            @Param("minDeposit") long minDeposit,
+            @Param("maxDeposit") long maxDeposit,
+            @Param("minMonthlyRent") int minMonthlyRent,
+            @Param("maxMonthlyRent") int maxMonthlyRent
+    );
+
     @Modifying
     @Transactional
     @Query(value = """
