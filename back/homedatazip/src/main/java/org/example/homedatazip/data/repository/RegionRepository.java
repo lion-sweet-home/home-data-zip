@@ -26,7 +26,8 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
     List<String> findDistinctGugunBySido(String sido);
 
     // 시와 구를 조건으로 검색한 동 리스트
-    List<Region> findBySidoAndGugun(String sido, String gugun);
+    @Query("SELECT DISTINCT r.dong FROM Region r WHERE r.sido = :sido AND r.gugun = :gugun")
+    List<String> findBySidoAndGugun(String sido, String gugun);
 
     // 특정 법정동 코드 존재 여부 확인
     Optional<Region> findByLawdCode(String lawdCode);
