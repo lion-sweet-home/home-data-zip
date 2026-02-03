@@ -1,5 +1,6 @@
 package org.example.homedatazip.hospital.repository;
 
+import org.example.homedatazip.data.Region;
 import org.example.homedatazip.hospital.entity.Hospital;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,18 +11,19 @@ import java.util.Optional;
 
 public interface HospitalRepository extends JpaRepository<Hospital, Long> {
 
+    Optional<Hospital> findByHospitalId(String hospitalId);
+
     @Query("""
-            select h.typeName, count(h) from Hospital h
-            where h.gu = :gu and h.dong = :dong
-            group by h.typeName
-            order by count(h) desc 
+            select count(h) from Hospital h
+            where h.region.sido = :sido
+            and h.region.gugun = :gugun
+            and h.region.dong = :dong
             """)
-    List<Object[]> countByTypeNameAndGuAndDong(
-            @Param("gu") String gu,
+    Long countByRegion(
+            @Param("sido") String sido,
+            @Param("gugun") String gugun,
             @Param("dong") String dong
     );
 
-    Long countByGuAndDong(String gu, String dong);
-
-    Optional<Hospital> findByHospitalId(String hospitalId);
+    List<Hospital> findByRegion(Region region);
 }
