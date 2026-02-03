@@ -148,7 +148,7 @@ public class SubscriptionService {
             return;
         }
 
-        // (핵심) 취소 상태(CANCELED)인데 만료일이 남아있으면
+        // 취소 상태(CANCELED)인데 만료일이 남아있으면
         //    -> 즉시 결제 없이 autoPay만 다시 켠다 (배치가 endDate+1일에 결제)
         if (sub.getStatus() == SubscriptionStatus.CANCELED) {
             LocalDate endDate = sub.getEndDate(); // Subscription에 endDate getter가 있어야 함
