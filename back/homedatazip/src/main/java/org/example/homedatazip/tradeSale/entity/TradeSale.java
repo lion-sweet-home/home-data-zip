@@ -30,7 +30,7 @@ public class TradeSale {
     @ManyToOne
     private Apartment apartment;
 
-    private Integer dealAmount;
+    private Long dealAmount;
 
     private Double exclusiveArea;
     private Integer floor;
@@ -44,7 +44,7 @@ public class TradeSale {
 
     private String sggCd;                // 지역 코드
 
-    public TradeSale(Apartment apartment, Integer dealAmount, Double exclusiveArea,
+    public TradeSale(Apartment apartment, Long dealAmount, Double exclusiveArea,
                      Integer floor, String aptDong, LocalDate dealDate,
                      String sggCd, Boolean canceled) {
         this.apartment = apartment;
@@ -60,7 +60,7 @@ public class TradeSale {
     public static TradeSale from(ApartmentTradeSaleItem item, Apartment apartment) {
         return new TradeSale(
                 apartment,
-                Integer.parseInt(item.getDealAmount().trim().replace(",", "")),
+                Long.parseLong(item.getDealAmount().trim().replace(",", "")),
                 Double.parseDouble(item.getExcluUseAr().trim()),
                 Integer.parseInt(item.getFloor().trim()),
                 item.getAptDong(),

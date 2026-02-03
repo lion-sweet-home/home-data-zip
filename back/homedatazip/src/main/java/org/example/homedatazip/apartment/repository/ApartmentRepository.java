@@ -1,4 +1,3 @@
-
 package org.example.homedatazip.apartment.repository;
 
 import org.example.homedatazip.apartment.entity.Apartment;
