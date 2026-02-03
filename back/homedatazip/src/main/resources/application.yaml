@@ -100,6 +100,14 @@ batch:
   backoff:
     external-api: 2000
 
+subway:
+  # OpenAPI 지하철 역 목록 URL
+  openapi:
+    url: ${SUBWAY_OPENAPI_URL:}
+    # Quartz 실행 주기, 기본: 매일 새벽 2시
+    sync:
+      cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
+
 seoul:
   openapi:
     base-url: http://openapi.seoul.go.kr:8088
@@ -107,15 +115,10 @@ seoul:
     type: json
     service: ${SEOUL_OPENAPI_SERVICE}
 
-# OpenAPI 지하철 역 목록 URL (Quartz - 매일 2시)
-subway:
+school:
   openapi:
-    url: ${SUBWAY_OPENAPI_URL:}
+    url: "http://api.data.go.kr/openapi/tn_pubr_public_elesch_mskul_lc_api?serviceKey=22f87a72e6467cf7864f3c20a1e458fcedc13c89df038038d360745f3c53b457&type=json&numOfRows=100"
+    username: root
+    password: root1234
     sync:
-      cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
-
-# 아파트 - 지하철 거리 (Quartz - 매일 3시)
-apartment:
-  subway-distance:
-    sync:
-      cron: ${APARTMENT_SUBWAY_DISTANCE_SYNC_CRON:0 0 3 * * ?}
+      cron: "0/10 * * * * ?" # 테스트를 위해 10초마다 실행
