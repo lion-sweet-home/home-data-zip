@@ -8,7 +8,7 @@ import java.util.Set;
 public class TradeRentRegionFilter {
     private TradeRentRegionFilter() {}
 
-    private static final Set<String> ALLOWED_SIDO_PREFIX = Set.of("11", "28", "41");
+    private static final Set<String> ALLOWED_SIDO_PREFIX = Set.of("11");
 
     public static boolean isAllowedBySggcd(String sggCode) {
         if (sggCode == null) return false;

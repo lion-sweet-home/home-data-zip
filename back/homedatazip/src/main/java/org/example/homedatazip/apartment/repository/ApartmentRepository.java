@@ -39,4 +39,6 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
                       @Param("year") Integer year,
                       @Param("seq") String seq,
                       @Param("regionId") Long regionId);
+
+    List<Apartment> findByRegionIdOrderByAptNameAsc(Long regionId);
 }
