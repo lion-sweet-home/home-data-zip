@@ -2,10 +2,13 @@ package org.example.homedatazip.school.entity;
 
 import jakarta.persistence.*;
 import lombok.Getter;
+import lombok.Setter;
 import org.example.homedatazip.data.Region;
 
 @Entity
 @Getter
+@Setter
+@Table(name = "School")
 public class School {
 
     @Id
@@ -25,3 +28,6 @@ public class School {
     @ManyToOne
     private Region region;
 }
+// 주현님이 하는것처럼 아파트를 끌고 하버사인 으로 거리계산을 하고 중간테이블을 만들어라
+// 하버사인은 구현이 안되어있으니 각자 개발
+
