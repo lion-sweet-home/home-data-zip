@@ -45,6 +45,9 @@ public class SecurityConfig {
                         // 지하철역 부분 검색
                         .requestMatchers("/api/subway/stations/**").permitAll()
 
+                        // 매매, 추후 create,me는 seller만 가능
+                        .requestMatchers("/api/listings/**").permitAll()
+
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .requestMatchers("/api/test/**").permitAll()

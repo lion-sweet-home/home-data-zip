@@ -16,9 +16,13 @@ public enum ListingErrorCode implements ErrorCode {
     MONTHLY_RENT_INVALID(HttpStatus.BAD_REQUEST, "LST_400_4", "전월세 monthlyRent는 0 이상이어야 합니다. (전세=0)"),
     TRADE_TYPE_REQUIRED(HttpStatus.BAD_REQUEST, "LST_400_5", "거래유형(tradeType)은 필수입니다."),
 
+    // 403
+    FORBIDDEN(HttpStatus.FORBIDDEN, "LST_403_1", "해당 매물에 대한 권한이 없습니다."),
+
     // 404
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "LST_404_1", "사용자 정보를 찾을 수 없습니다."),
-    APARTMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "LST_404_2", "아파트 정보를 찾을 수 없습니다.");
+    APARTMENT_NOT_FOUND(HttpStatus.NOT_FOUND, "LST_404_2", "아파트 정보를 찾을 수 없습니다."),
+    LISTING_NOT_FOUND(HttpStatus.NOT_FOUND, "LST_404_3", "매물 정보를 찾을 수 없습니다.");
 
     private final HttpStatus status;
     private final String code;
