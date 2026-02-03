@@ -88,11 +88,11 @@ public class HospitalBatchConfig {
                 if (iterator == null || !iterator.hasNext()) {
                     // 모든 데이터 처리 완료 체크
                     if (processedCount >= totalCount && totalCount != -1) {
-                        log.info("모든 데이터 처리 완료: {}", processedCount);
+                        log.info("✅ 모든 데이터 처리 완료: {}", processedCount);
                         return null; // 종료 신호
                     }
 
-                    log.info("{} 페이지 로딩 중... (pageNo={}, numOfRows={})",
+                    log.info("📄 {} 페이지 로딩 중... (pageNo={}, numOfRows={})",
                             currentPage,
                             currentPage,
                             pageSize
@@ -103,14 +103,14 @@ public class HospitalBatchConfig {
                             = hospitalApiClient.fetchHospital(currentPage, pageSize);
 
                     if (!response.isSuccess()) {
-                        log.error("API 응답 오류: {}", response.getHeader().getResultMsg());
+                        log.error("🚨 API 응답 오류: {}", response.getHeader().getResultMsg());
                         return null;
                     }
 
                     // 첫 호출 시 totalCount 설정
                     if (totalCount == -1) {
                         totalCount = response.getTotalCount();
-                        log.info("전체 데이터 건수: {}", totalCount);
+                        log.info("📊 전체 데이터 건수: {}", totalCount);
                     }
 
                     // 데이터가 없는 경우 종료
@@ -138,7 +138,7 @@ public class HospitalBatchConfig {
         return row -> {
             // 필수 데이터 검증
             if (row.getHospitalId() == null || row.getName() == null) {
-                log.warn("데이터 누락- ID: {}, 이름: {}",
+                log.warn("⚠️ 데이터 누락- ID: {}, 이름: {}",
                         row.getHospitalId(),
                         row.getName()
                 );
@@ -147,6 +147,7 @@ public class HospitalBatchConfig {
 
             // 지역 필터링 (서울, 인천, 경기만 저장)
             if (!isTargetRegion(row.getAddress())) {
+                log.debug("⏭️ 저장하지 않는 지역 - {}", row.getAddress());
                 return null; // 해당 데이터는 저장하지 않음
             }
 
@@ -154,15 +155,24 @@ public class HospitalBatchConfig {
             Region region = null;
 
             if (row.getLatitude() != null && row.getLongitude() != null) {
-                region = geoService.convertAddressInfo(
-                        row.getLatitude(),
-                        row.getLongitude()
-                );
+                try {
+                    region = geoService.convertAddressInfo(
+                            row.getLatitude(),
+                            row.getLongitude()
+                    );
+                } catch (BatchSkipException e) {
+                    // BatchSkipException 발생 시 예외를 잡아 null을 반환
+                    log.warn("⏭️ Region 조회 실패 (스킵) - Hospital: {}, 사유: {}",
+                            row.getName(),
+                            e.getMessage()
+                    );
+                    return null; // null 반환으로 필터링
+                }
             }
 
             // Region 조회 실패 시 로그
             if (region == null) {
-                log.warn("Region 조회 실패 - Hospital: {}, 위도: {}, 경도: {}",
+                log.warn("⚠️ Region 조회 실패 - Hospital: {}, 위도: {}, 경도: {}",
                         row.getName(),
                         row.getLatitude(),
                         row.getLongitude()
@@ -201,7 +211,7 @@ public class HospitalBatchConfig {
     @Bean
     public ItemWriter<Hospital> hospitalItemWriter() {
         return items -> {
-            log.info("{} 건 저장/업데이트 중", items.size());
+            log.info("💾 {} 건 저장/업데이트 중", items.size());
 
             for (Hospital hospital : items) {
                 hospitalRepository.findByHospitalId(hospital.getHospitalId())
