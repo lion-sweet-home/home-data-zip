@@ -80,6 +80,9 @@ payment:
 api:
   data-go-kr:
     service-key: ${DATA_GO_KR_SERVICE_KEY}
+  data:
+    hospital:
+      key: ${HOSPITAL_SERVICE_KEY}
 
 rent-api:
   base-url: "http://apis.data.go.kr/1613000/RTMSDataSvcAptRent"
