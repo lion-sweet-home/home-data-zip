@@ -156,7 +156,7 @@ public class HospitalBatchConfig {
 
             if (row.getLatitude() != null && row.getLongitude() != null) {
                 try {
-                    region = geoService.convertAddressInfo(
+                    region = geoService.convertAddressInfoInNewTransaction(
                             row.getLatitude(),
                             row.getLongitude()
                     );
