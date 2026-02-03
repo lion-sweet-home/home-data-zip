@@ -63,9 +63,9 @@ public class SubwayStationMapTasklet implements Tasklet {
             station.setLongitude(medianLon);
             station = stationRepository.save(station);
 
-            // 대표 위/경도 → 역지오코딩 → Region 설정 (실패 시 region=null 유지)
+            // 대표 위/경도 → 역지오코딩(REQUIRES_NEW) → Region 설정 (실패 시 region=null 유지, Step 트랜잭션 유지)
             try {
-                Region region = geoService.convertAddressInfo(medianLat, medianLon);
+                Region region = geoService.convertAddressInfoInNewTransaction(medianLat, medianLon);
                 station.setRegion(region);
                 stationRepository.save(station);
             } catch (Exception e) {

@@ -1,6 +1,5 @@
 package org.example.homedatazip.apartment.service;
 
-
 import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

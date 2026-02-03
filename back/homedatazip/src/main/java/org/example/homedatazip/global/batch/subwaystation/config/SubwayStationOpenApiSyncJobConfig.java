@@ -1,5 +1,6 @@
 package org.example.homedatazip.global.batch.subwaystation.config;
 
+import org.example.homedatazip.global.exception.BatchSkipException;
 import org.example.homedatazip.subway.dto.SubwayStationSourceSync;
 import org.example.homedatazip.global.batch.subwaystation.processor.StationApiToSourceSyncProcessor;
 import org.example.homedatazip.global.batch.subwaystation.reader.StationApiReader;
@@ -37,6 +38,8 @@ public class SubwayStationOpenApiSyncJobConfig {
                 .reader(stationApiReader)
                 .processor(stationApiToSourceSyncProcessor)
                 .writer(subwayStationSourceUpsertWriter)
+                .faultTolerant()
+                .skip(BatchSkipException.class)
                 .build();
     }
 
