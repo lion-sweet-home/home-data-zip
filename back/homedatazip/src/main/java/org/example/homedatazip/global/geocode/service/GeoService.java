@@ -39,8 +39,11 @@ public class GeoService {
         }
 
         // 지역 정보 조회 및 기본 검증
-        Region region = regionRepository.findBySggCode(sggCode)
-                .stream().findFirst().orElse(null);
+        Region region = regionRepository.findBySggCodeAndDong(sggCode, dong)
+                .orElseGet(() -> {
+                    log.warn("동 매칭 실패: {} {}, '구' 단위로 대체함", sggCode, dong);
+                    return regionRepository.findBySggCode(sggCode).stream().findFirst().orElse(null);
+                });
 
         if (region == null) {
             log.warn(">>> [SKIPPED] 지역 정보(Region)를 찾을 수 없습니다. sggCode={}", sggCode);
