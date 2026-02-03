@@ -1,4 +1,4 @@
-package org.example.homedatazip.listing.entity;
+package org.example.homedatazip.listing.type;
 
 public enum TradeType {
     SALE,
