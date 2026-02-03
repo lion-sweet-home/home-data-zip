@@ -32,9 +32,6 @@ public class Hospital {
     private Region region; // 지역
     private String address; // 상세 주소
 
-    private String gu;
-    private String dong;
-
     /**
      * API 응답 -> Entity
      */
@@ -47,18 +44,12 @@ public class Hospital {
             Double latitude,
             Double longitude
     ) {
-        // 주소에서 구/동 추출
-        String gu = extractGu(address);
-        String dong = extractDong(address);
-
         return Hospital.builder()
                 .hospitalId(hospitalId)
                 .name(name)
                 .typeName(typeName)
                 .region(region)
                 .address(address)
-                .gu(gu)
-                .dong(dong)
                 .latitude(latitude)
                 .longitude(longitude)
                 .build();
@@ -81,55 +72,5 @@ public class Hospital {
         this.address = address;
         this.latitude = latitude;
         this.longitude = longitude;
-        this.gu = extractGu(address);
-        this.dong = extractDong(address);
-    }
-
-    /**
-     * 주소에서 '구' 추출
-     */
-    private static String extractGu(String address) {
-        if (address == null || address.isEmpty()) {
-            return null;
-        }
-
-        String[] parts = address.split(" ");
-
-        for (String part : parts) {
-            if (part.endsWith("구")) {
-                return part;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 주소에서 '동' 추출
-     */
-    private static String extractDong(String address) {
-        if (address == null || address.isEmpty()) {
-            return null;
-        }
-
-        // 괄호 위치 찾기
-        int startIndex = address.indexOf("(");
-        int endIndex = address.indexOf(")");
-
-        // 괄호가 존재한다면 (__동, __)
-        if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
-            String dongInfo = address.substring(startIndex + 1, endIndex);
-
-            // ["__동", "__"]
-            String[] parts = dongInfo.split(",");
-
-            for (String part : parts) {
-                part = part.trim();
-
-                if (part.endsWith("동")) {
-                    return part;
-                }
-            }
-        }
-        return null;
     }
 }
