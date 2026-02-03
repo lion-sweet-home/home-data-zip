@@ -10,6 +10,7 @@ import org.example.homedatazip.global.exception.domain.GeoErrorCode;
 import org.example.homedatazip.global.exception.domain.RegionErrorCode;
 import org.example.homedatazip.global.geocode.dto.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
@@ -249,6 +250,15 @@ public class GeoService {
                     log.error("지역을 찾을 수 없습니다. bCode={}", bCode);
                     return new BatchSkipException(RegionErrorCode.REGION_NOT_FOUND);
                 });
+    }
+
+    /**
+     * 역지오코딩을 별도 트랜잭션(REQUIRES_NEW)에서 실행.
+     * 배치 Step 트랜잭션이 rollback-only가 되지 않도록 호출용.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Region convertAddressInfoInNewTransaction(Double latitude, Double longitude) {
+        return convertAddressInfo(latitude, longitude);
     }
 
 }

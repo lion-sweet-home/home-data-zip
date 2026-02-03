@@ -5,6 +5,7 @@ import org.example.homedatazip.global.batch.apartment.tasklet.ApartmentSubwayDis
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +24,7 @@ public class ApartmentSubwayDistanceJobConfig {
     @Bean
     public Job apartmentSubwayDistanceJob() {
         return new JobBuilder("apartmentSubwayDistanceJob", jobRepository)
+                .incrementer(new RunIdIncrementer())
                 .start(apartmentSubwayDistanceStep())
                 .build();
     }
