@@ -10,7 +10,7 @@ import org.example.homedatazip.subway.entity.SubwayStation;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(
-        name = "apartment_subway_stations",
+        name = "apartment_subway_distances",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_apt_subway", columnNames = {"apartment_id", "subway_station_id"})
         },
@@ -20,7 +20,7 @@ import org.example.homedatazip.subway.entity.SubwayStation;
                 @Index(name = "idx_apt_subway_station_distance", columnList = "subway_station_id, distance_km")
         }
 )
-public class ApartmentSubwayStation {
+public class ApartmentSubwayDistance {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -37,14 +37,14 @@ public class ApartmentSubwayStation {
     @Column(nullable = false, name = "distance_km")
     private Double distanceKm;
 
-    private ApartmentSubwayStation(Apartment apartment, SubwayStation subwayStation, Double distanceKm) {
+    private ApartmentSubwayDistance(Apartment apartment, SubwayStation subwayStation, Double distanceKm) {
         this.apartment = apartment;
         this.subwayStation = subwayStation;
         this.distanceKm = distanceKm;
     }
 
-    public static ApartmentSubwayStation of(Apartment apartment, SubwayStation subwayStation, double distanceKm) {
-        return new ApartmentSubwayStation(apartment, subwayStation, distanceKm);
+    public static ApartmentSubwayDistance of(Apartment apartment, SubwayStation subwayStation, double distanceKm) {
+        return new ApartmentSubwayDistance(apartment, subwayStation, distanceKm);
     }
 
     public void updateDistance(double distanceKm) {

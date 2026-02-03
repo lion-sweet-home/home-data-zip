@@ -3,9 +3,9 @@ package org.example.homedatazip.global.batch.apartment.tasklet;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.entity.Apartment;
-import org.example.homedatazip.apartment.entity.ApartmentSubwayStation;
+import org.example.homedatazip.apartment.entity.ApartmentSubwayDistance;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
-import org.example.homedatazip.apartment.repository.ApartmentSubwayStationRepository;
+import org.example.homedatazip.apartment.repository.ApartmentSubwayDistanceRepository;
 import org.example.homedatazip.global.util.HaversineUtils;
 import org.example.homedatazip.subway.entity.SubwayStation;
 import org.example.homedatazip.subway.repository.SubwayStationRepository;
@@ -19,7 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 아파트–지하철역 거리(하버사인) 계산 후 10km 이내만 apartment_subway_stations 에 적재.
+ * 아파트–지하철역 거리(하버사인) 계산 후 10km 이내만 apartment_subway_distances 에 적재.
  * 기존 데이터는 전부 삭제 후 재적재(Full Refresh).
  */
 @Slf4j
@@ -32,7 +32,7 @@ public class ApartmentSubwayDistanceTasklet implements Tasklet {
 
     private final ApartmentRepository apartmentRepository;
     private final SubwayStationRepository subwayStationRepository;
-    private final ApartmentSubwayStationRepository apartmentSubwayStationRepository;
+    private final ApartmentSubwayDistanceRepository apartmentSubwayDistanceRepository;
 
     @Override
     public RepeatStatus execute(StepContribution contribution, ChunkContext chunkContext) {
@@ -47,23 +47,23 @@ public class ApartmentSubwayDistanceTasklet implements Tasklet {
             return RepeatStatus.FINISHED;
         }
 
-        apartmentSubwayStationRepository.deleteAllInBatch();
+        apartmentSubwayDistanceRepository.deleteAllInBatch();
 
-        List<ApartmentSubwayStation> toInsert = new ArrayList<>();
+        List<ApartmentSubwayDistance> toInsert = new ArrayList<>();
         for (Apartment apt : apartments) {
             for (SubwayStation station : stations) {
                 double distanceKm = HaversineUtils.distanceKm(
                         apt.getLatitude(), apt.getLongitude(),
                         station.getLatitude(), station.getLongitude());
                 if (distanceKm <= MAX_RADIUS_KM) {
-                    toInsert.add(ApartmentSubwayStation.of(apt, station, distanceKm));
+                    toInsert.add(ApartmentSubwayDistance.of(apt, station, distanceKm));
                 }
             }
         }
 
         for (int i = 0; i < toInsert.size(); i += SAVE_CHUNK_SIZE) {
             int end = Math.min(i + SAVE_CHUNK_SIZE, toInsert.size());
-            apartmentSubwayStationRepository.saveAll(toInsert.subList(i, end));
+            apartmentSubwayDistanceRepository.saveAll(toInsert.subList(i, end));
         }
 
         log.info("아파트–지하철 거리 적재 완료: {}건 (아파트 {}개, 역 {}개)", toInsert.size(), apartments.size(), stations.size());
