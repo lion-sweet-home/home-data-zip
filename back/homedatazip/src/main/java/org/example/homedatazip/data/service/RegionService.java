@@ -75,7 +75,7 @@ public class RegionService {
     }
 
     // 선택한 구/군 에서 동 목록 보기
-    public List<Region> findDongList(String sido, String gugun) {
+    public List<String> findDongList(String sido, String gugun) {
         return regionRepository.findBySidoAndGugun(sido, gugun);
     }
 }
