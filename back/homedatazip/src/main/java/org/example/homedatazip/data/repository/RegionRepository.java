@@ -37,4 +37,7 @@ public interface RegionRepository extends JpaRepository<Region, Long> {
 
     // sggCode와 dong이 모두 일치하는 단건 조회
     Optional<Region> findBySggCodeAndDong(String sggCode, String dong);
+
+    // 시, 구, 동으로 Region 찾기
+    Optional<Region> findBySidoAndGugunAndDong(String sido, String gugun, String dong);
 }
