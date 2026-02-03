@@ -18,7 +18,7 @@ public class TradeRentReader implements ItemStreamReader<RentApiItem> {
     private static final String CTX_PAGE_NO = "trBackfill.pageNo";
     private static final String CTX_CURSOR = "trBackfill.cursor";
 
-    private static final Set<String> ALLOWED_SIDO_PREFIX = Set.of("11", "28", "41");
+    private static final Set<String> ALLOWED_SIDO_PREFIX = Set.of("11");
 
     private final RentApiClient client;
     private final List<String> sggCds;

@@ -1,6 +1,7 @@
 package org.example.homedatazip.data.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.data.repository.RegionRepository;
 import org.example.homedatazip.data.service.RegionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +17,7 @@ import java.util.List;
 public class RegionController {
 
     private final RegionService regionService;
+    private final RegionRepository regionRepository;
 
     @GetMapping("/sido")
     public ResponseEntity<List<String>> getSidoList() {
@@ -32,4 +34,19 @@ public class RegionController {
 
         return ResponseEntity.ok(regionService.findDongList(sido, gugun));
     }
+
+    //regionID 프론트에서 바로 확보
+    @GetMapping("/dong-options")
+    public ResponseEntity<List<DongOptionResponse>> getDongOptions(
+            @RequestParam String sido,
+            @RequestParam String gugun
+    ) {
+        List<DongOptionResponse> result = regionRepository.findRegionsBySidoAndGugun(sido, gugun).stream()
+                .map(r -> new DongOptionResponse(r.getId(), r.getDong()))
+                .toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    public record DongOptionResponse(Long regionId, String dong) {}
 }
