@@ -55,6 +55,22 @@ public class SseEmitterService {
         }
     }
 
+    // 읽지 않은 메시지 카운트 전송
+    public void sendUnreadCount(Long userId, long count) {
+        SseEmitter emitter = emitters.get(userId);
+        if (emitter != null) {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("unreadCount")
+                        .data(count));
+                log.info("카운트 전송 성공: userId={}", userId);
+            } catch (IOException e) {
+                log.error("카운트 전송 실패: userId={}", userId);
+                emitters.remove(userId);
+            }
+        }
+    }
+
     // SSE 연결 종료
     public void removeEmitter(Long userId) {
         SseEmitter emitter = emitters.remove(userId);
