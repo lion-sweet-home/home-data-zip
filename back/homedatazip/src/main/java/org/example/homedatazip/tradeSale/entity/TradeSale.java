@@ -16,7 +16,7 @@ import java.time.LocalDate;
         indexes = {
                 @Index(
                         name = "idx_trade_sale_apt_date",
-                        columnList = "apartment_id, dealDate"
+                        columnList = "apartment_id, deal_date"
                 )
         }
 )

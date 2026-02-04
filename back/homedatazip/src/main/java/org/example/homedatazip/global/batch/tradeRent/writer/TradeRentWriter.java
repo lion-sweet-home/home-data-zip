@@ -6,6 +6,7 @@ import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.apartment.service.ApartmentService;
 import org.example.homedatazip.global.batch.tradeRent.Filter.TradeRentRegionFilter;
+import org.example.homedatazip.monthAvg.service.MonthAvgRebuildService;
 import org.example.homedatazip.tradeRent.dto.ApartmentGetOrCreateRequest;
 import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
@@ -29,23 +30,30 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
     private final TradeRentBulkRepository tradeRentBulkRepository;
 
     private static final boolean USE_UPSERT = false;
+    private final MonthAvgRebuildService monthAvgRebuildService;
 
     @Override
     @Transactional
     public void write(Chunk<? extends TradeRentWriteRequest> chunk) throws Exception {
         List<? extends TradeRentWriteRequest> items = chunk.getItems();
+
         if (items == null || items.isEmpty()) return;
+
         List<TradeRentWriteRequest> listForFilteringRegion = new ArrayList<>(items.size());
+
         int filteredOut = 0;
+
         for (TradeRentWriteRequest it : items) {
             if (it == null) continue;
+
             if (!TradeRentRegionFilter.isAllowedBySggcd(it.sggCd())) {
                 filteredOut++;
                 continue;
             }
+
             listForFilteringRegion.add(it);
         }
-        if (items.isEmpty()) {
+        if (listForFilteringRegion.isEmpty()) {
             log.info("지역 필터로 모두 스킵 - 입력:{}건, 제외:{}건", items.size(), filteredOut);
             return;
         }
@@ -53,7 +61,7 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
         List<ApartmentGetOrCreateRequest> dtos = new ArrayList<>();
         List<TradeRent> tradeRents = new ArrayList<>();
 
-        for(TradeRentWriteRequest item : items){
+        for(TradeRentWriteRequest item : listForFilteringRegion){
             ApartmentGetOrCreateRequest dto = item.toApartmentGetOrCreateRequest();
             dtos.add(dto);
         }
@@ -66,7 +74,7 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
         int skippedAptMissingCount = 0;
         int skippedRequiredMissingCount = 0;
         
-        for (TradeRentWriteRequest item : items) {
+        for (TradeRentWriteRequest item : listForFilteringRegion) {
             Apartment apt = aptMap.get(item.aptSeq());
             if (apt == null) {
                 log.debug("아파트 없음 스킵 - aptSeq: {}", item.aptSeq());
@@ -107,21 +115,22 @@ public class TradeRentWriter implements ItemWriter<TradeRentWriteRequest> {
 
         if (tradeRents.isEmpty()) {
             log.info("저장할 TradeRent 없음 - 입력:{}건, 아파트없음:{}건, 필수값누락:{}건",
-                    items.size(), skippedAptMissingCount, skippedRequiredMissingCount);
+                    listForFilteringRegion.size(), skippedAptMissingCount, skippedRequiredMissingCount);
             return;
         }
 
         if (USE_UPSERT) {
             int[] r = tradeRentBulkRepository.bulkUpsert(tradeRents);
             log.info("TradeRent Upsert 완료 - 입력:{}건, 아파트없음:{}건, 필수값누락:{}건, 저장시도:{}건, 신규:{}건, 업데이트:{}건",
-                    items.size(), skippedAptMissingCount, skippedRequiredMissingCount,
+                    listForFilteringRegion.size(), skippedAptMissingCount, skippedRequiredMissingCount,
                     tradeRents.size(), r[0], r[1]);
         } else {
             int[] r = tradeRentBulkRepository.bulkInsertIgnore(tradeRents);
             log.info("TradeRent InsertIgnore 완료 - 입력:{}건, 아파트없음:{}건, 필수값누락:{}건, 저장시도:{}건, 저장:{}건, DB중복스킵:{}건",
-                    items.size(), skippedAptMissingCount, skippedRequiredMissingCount,
+                    listForFilteringRegion.size(), skippedAptMissingCount, skippedRequiredMissingCount,
                     tradeRents.size(), r[0], r[1]);
         }
+        monthAvgRebuildService.rebuildRentFor(tradeRents);
     }
 
     private static String normalizeRentTerm(String contractTerm) {

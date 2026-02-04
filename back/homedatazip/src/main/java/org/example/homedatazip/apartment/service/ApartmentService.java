@@ -107,7 +107,9 @@ public class ApartmentService {
                             req.aptSeq(), req.umdNm(), req.jibun());
                     continue;
                 }
-                CoordinateInfoResponse response = geoService.convertCoordinateInfo(req.umdNm(), req.jibun());
+                CoordinateInfoResponse response = geoService.convertCoordinateInfo(
+                        req.umdNm(), req.jibun(),req.sggCd(),req.aptName(),
+                        req.roadNm(),req.roadBonBun(),req.roadBonBun());
                 if (response == null) {
                     geoSkipped++;
                     log.warn("좌표 변환 스킵(응답 null) - aptSeq:{}, umdNm:{}, jibun:{}",
