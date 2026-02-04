@@ -45,6 +45,12 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/test/**").permitAll()
 
+                        // 테스트용 클라이언트 페이지
+                        // todo: 나중에 삭제 예정
+                        .requestMatchers("/test-chat.html").permitAll()
+                        // 웹소켓 연결점
+                        .requestMatchers("/ws-stomp/**").permitAll()
+
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
