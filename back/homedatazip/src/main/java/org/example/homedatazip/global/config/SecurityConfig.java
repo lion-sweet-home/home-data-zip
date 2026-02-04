@@ -49,6 +49,12 @@ public class SecurityConfig {
                         // 매매, 추후 create,me는 seller만 가능
                         .requestMatchers("/api/listings/**").permitAll()
 
+                        // 구독, 추후 로그인한 사람에 한해 가능
+                        .requestMatchers(
+                                "/api/subscriptions/billing/success",
+                                "/api/subscriptions/billing/fail"
+                        ).permitAll()
+
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .requestMatchers("/api/test/**").permitAll()

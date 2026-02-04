@@ -53,6 +53,10 @@ public class SubscriptionService {
         registerBillingKey(userId, req.customerKey(), req.authKey());
     }
 
+    /**
+     * ✅ authKey(bln_...)로 toss 서버에 billingKey 발급 요청 후 저장
+     * - bln_ 으로 시작한다고 billingKey가 아니다. (그건 authKey다)
+     */
     @Transactional
     public void registerBillingKey(Long userId, String customerKey, String authKey) {
         if (customerKey == null || customerKey.isBlank()) {
@@ -67,11 +71,10 @@ public class SubscriptionService {
         Subscription sub = subscriptionRepository.findBySubscriber_Id(user.getId())
                 .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
 
-        String billingKey = authKey.startsWith("bln_")
-                ? authKey
-                : tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey()).billingKey();
+        // ✅ 무조건 billingKey 발급 API 호출
+        var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
 
-        sub.registerBillingKey(billingKey);
+        sub.registerBillingKey(res.billingKey());
     }
 
     public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
