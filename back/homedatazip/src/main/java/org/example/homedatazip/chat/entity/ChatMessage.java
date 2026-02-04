@@ -28,15 +28,19 @@ public class ChatMessage extends BaseTimeEntity {
     @Column(length = 2000, nullable = false)
     private String content;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean isRead = false;
+    @Enumerated(value = EnumType.STRING)
+    private MessageType type;
 
-    public static ChatMessage create(ChatRoom chatRoom, User sender, String content) {
+    @Column(nullable = false)
+    private boolean isRead;
+
+    public static ChatMessage create(ChatRoom chatRoom, User sender, String content, MessageType type, boolean isRead) {
         return ChatMessage.builder()
                 .chatRoom(chatRoom)
                 .sender(sender)
                 .content(content)
+                .type(type)
+                .isRead(isRead)
                 .build();
     }
 

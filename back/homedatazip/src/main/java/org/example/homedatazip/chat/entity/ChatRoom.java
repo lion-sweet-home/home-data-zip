@@ -28,6 +28,12 @@ public class ChatRoom extends BaseTimeEntity {
     @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
 
+    @Builder.Default
+    private boolean buyerExited = false;
+
+    @Builder.Default
+    private boolean sellerExited = false;
+
     public static ChatRoom create(User buyer, Listing listing) {
         return ChatRoom.builder()
                 .buyer(buyer)
