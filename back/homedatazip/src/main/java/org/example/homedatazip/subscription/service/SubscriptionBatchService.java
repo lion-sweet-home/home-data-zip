@@ -41,16 +41,14 @@ public class SubscriptionBatchService {
                         expireBefore
                 );
 
-        // SELLER 역할 존재 확인
         roleRepository.findByRoleType(RoleType.SELLER)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.ROLE_NOT_FOUND));
 
         for (Subscription s : targets) {
             s.expire();
 
-            // SELLER 회수
             User user = s.getSubscriber();
-            user.removeRole(RoleType.SELLER); // User에 이 메서드가 있어야 함
+            user.removeRole(RoleType.SELLER);
         }
 
         return targets.size();
