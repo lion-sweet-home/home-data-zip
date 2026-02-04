@@ -27,4 +27,7 @@ public interface UserNotificationRepository extends JpaRepository<UserNotificati
     // 사용자 알림 조회 (읽음 처리, 삭제 시 사용)
     @Query("SELECT un FROM UserNotification un WHERE un.user.id = :userId AND un.id = :userNotificationId")
     java.util.Optional<UserNotification> findByUserIdAndId(@Param("userId") Long userId, @Param("userNotificationId") Long userNotificationId);
+
+    // 안 읽은 공지 개수
+    long countByUserIdAndReadAtIsNull(Long userId);
 }
