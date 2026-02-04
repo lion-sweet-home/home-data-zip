@@ -5,6 +5,7 @@ import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.NotificationErrorCode;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
+import org.example.homedatazip.notification.dto.UnreadCountResponse;
 import org.example.homedatazip.notification.dto.UserNotificationResponse;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.notification.service.UserNotificationService;
@@ -77,6 +78,14 @@ public class UserNotificationController {
         List<UserNotificationResponse> responses = userNotificationService.getUnreadNotifications(userDetails.getUserId());
 
         return ResponseEntity.ok(responses);
+    }
+
+    // 안 읽은 공지 개수
+    @GetMapping("/unread-count")
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        UnreadCountResponse response = userNotificationService.getUnreadCount(userDetails.getUserId());
+        return ResponseEntity.ok(response);
     }
 
     // 읽음 처리

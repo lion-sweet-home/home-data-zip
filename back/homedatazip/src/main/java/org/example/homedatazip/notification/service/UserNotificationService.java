@@ -3,6 +3,7 @@ package org.example.homedatazip.notification.service;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.NotificationErrorCode;
+import org.example.homedatazip.notification.dto.UnreadCountResponse;
 import org.example.homedatazip.notification.dto.UserNotificationResponse;
 import org.example.homedatazip.notification.entity.Notification;
 import org.example.homedatazip.notification.entity.UserNotification;
@@ -71,6 +72,13 @@ public class UserNotificationService {
         return notifications.stream()
                 .map(UserNotificationResponse::from)
                 .toList();
+    }
+
+    // 안 읽은 공지 개수 (배지/카운트용)
+    @Transactional(readOnly = true)
+    public UnreadCountResponse getUnreadCount(Long userId) {
+        long count = userNotificationRepository.countByUserIdAndReadAtIsNull(userId);
+        return new UnreadCountResponse(count);
     }
 
     // 읽음 처리
