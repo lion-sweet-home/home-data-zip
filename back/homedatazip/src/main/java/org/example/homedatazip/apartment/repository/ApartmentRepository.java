@@ -24,10 +24,40 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
     // [추가] 존재 여부만 빠르게 확인하기 위한 메서드
     boolean existsByAptSeq(String aptSeq);
 
+
+    //조회성능을 위한 시구동을 통한 region fetch Join + 아파트 Get + null체크
+    //deposit || MonthlyRent 필터선택 후 조회시 추가 필터
+    @Query("""
+        select a
+        from Apartment a
+        where a.region.sido = :sido
+          and a.region.gugun = :gugun
+          and a.region.dong like concat(coalesce(:dongPrefix, ''), '%')
+          and exists (
+              select 1
+              from TradeRent tr
+              where tr.apartment = a
+                and (coalesce(:minDeposit, 0) = 0 or tr.deposit >= coalesce(:minDeposit, 0))
+                and (coalesce(:maxDeposit, 0) = 0 or tr.deposit <= coalesce(:maxDeposit, 0))
+                and (coalesce(:minMonthlyRent, 0) = 0 or tr.monthlyRent >= coalesce(:minMonthlyRent, 0))
+                and (coalesce(:maxMonthlyRent, 0) = 0 or tr.monthlyRent <= coalesce(:maxMonthlyRent, 0))
+          )
+        """)
+    List<Apartment> findAllWithRentByRegionAndRentRange(
+            @Param("sido") String sido,
+            @Param("gugun") String gugun,
+            @Param("dongPrefix") String dongPrefix,
+            @Param("minDeposit") long minDeposit,
+            @Param("maxDeposit") long maxDeposit,
+            @Param("minMonthlyRent") int minMonthlyRent,
+            @Param("maxMonthlyRent") int maxMonthlyRent
+    );
+
     @Modifying
     @Transactional
     @Query(value = """
-    INSERT IGNORE INTO apartments 
+
+            INSERT IGNORE INTO apartments 
     (apt_name, road_address, jibun_address, latitude, longitude, build_year, apt_seq, region_id) 
     VALUES (:name, :road, :jibun, :lat, :lon, :year, :seq, :regionId)
     """, nativeQuery = true)

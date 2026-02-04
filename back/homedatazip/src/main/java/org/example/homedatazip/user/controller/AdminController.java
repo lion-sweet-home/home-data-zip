@@ -14,7 +14,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -102,5 +104,19 @@ public class AdminController {
                 = adminService.getListingsCount(userDetails.getUserId());
 
         return ResponseEntity.ok().body(listingCount);
+    }
+
+    /**
+     * 스케줄러 수동 실행 (테스트용)
+     * 특정 날짜의 결제 내역을 정산에 반영
+     */
+    @PostMapping("/settlement/process")
+    public ResponseEntity<String> processSettlement(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam String date
+    ) {
+        // 관리자 검증은 Service에서 처리됨
+        adminService.processSettlement(userDetails.getUserId(), LocalDate.parse(date));
+        return ResponseEntity.ok("정산 처리 완료: " + date);
     }
 }

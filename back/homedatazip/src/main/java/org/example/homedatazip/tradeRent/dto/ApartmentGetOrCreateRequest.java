@@ -31,6 +31,7 @@ public record ApartmentGetOrCreateRequest(
 
 
 
+
     private static String blankToNull(String s) {
         if (s == null) return null;
         String t = s.trim();

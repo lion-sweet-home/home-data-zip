@@ -3,6 +3,7 @@ package org.example.homedatazip.tradeSale.service;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.service.ApartmentService;
+import org.example.homedatazip.monthAvg.service.MonthAvgRebuildService;
 import org.example.homedatazip.tradeSale.Repository.ApartmentTradeSaleRepository;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 import org.example.homedatazip.tradeSale.entity.TradeSale;
@@ -18,6 +19,7 @@ public class ApartmentTradeSaleService {
 
     private final ApartmentService apartmentService;
     private final ApartmentTradeSaleRepository apartmentTradeSaleRepository;
+    private final MonthAvgRebuildService monthAvgRebuildService;
 
     @Transactional
     public void processChunk(List<ApartmentTradeSaleItem> items) {
@@ -32,6 +34,8 @@ public class ApartmentTradeSaleService {
 
         if (!tradeSales.isEmpty()) {
             apartmentTradeSaleRepository.saveAll(tradeSales);
+            monthAvgRebuildService.rebuildSaleFor(tradeSales);
+
         }
     }
 }

@@ -49,3 +49,18 @@ Content-Type: application/json
 
 ### 6. 관리자가 유저 하드 삭제
 DELETE http://localhost:8080/api/admin/{{deleteUserId}}
+
+###
+@baseUrl = http://localhost:8080
+@accessToken =
+### 관심 매물 등록 (로그인 필요)
+POST {{baseUrl}}/api/users/me/favorites/1
+Authorization: Bearer {{accessToken}}
+
+### 관심 매물 해제 (로그인 필요)
+DELETE {{baseUrl}}/api/users/me/favorites/1
+Authorization: Bearer {{accessToken}}
+
+### 관심 매물 목록 전체 (로그인 필요)
+GET {{baseUrl}}/api/users/me/favorites
+Authorization: Bearer {{accessToken}}

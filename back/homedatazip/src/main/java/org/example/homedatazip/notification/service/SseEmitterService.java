@@ -6,6 +6,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -39,7 +40,7 @@ public class SseEmitterService {
         return emitter;
     }
 
-    // 알림 전송 (
+    // 알림 전송
     public void sendNotification(Long userId, Object data) {
         SseEmitter emitter = emitters.get(userId);
         if (emitter != null) {
@@ -67,6 +68,23 @@ public class SseEmitterService {
             } catch (IOException e) {
                 log.error("카운트 전송 실패: userId={}", userId);
                 emitters.remove(userId);
+            }
+        }
+    }
+
+    // Heartbeat: 모든 연결에 comment만 전송 (연결되어 있는지 확인)
+    public void sendHeartbeatToAll() {
+        Set<Long> userIds = Set.copyOf(emitters.keySet());
+        for (Long userId : userIds) {
+            SseEmitter emitter = emitters.get(userId);
+            if (emitter != null) {
+                try {
+                    emitter.send(SseEmitter.event().comment(""));
+                } catch (IOException e) {
+                    log.debug("Heartbeat 실패, 연결 제거: userId={}", userId);
+                    emitters.remove(userId);
+                    emitter.complete();
+                }
             }
         }
     }
