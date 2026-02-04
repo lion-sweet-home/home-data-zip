@@ -25,10 +25,14 @@ public class TradeRentGetService {
     @Transactional(readOnly = true)
     public RentGetMarkerResponse getListRentsByAptId(RentGetMarkerRequest dto){
 
+        System.out.println("[marker] request dto = " + dto);
+
         List<Apartment> apts = apartmentRepository.findAllWithRentByRegionAndRentRange(
                 dto.sido(), dto.gugun() , dto.dong(),
                 dto.minDeposit(), dto.maxDeposit(),
                 dto.minMonthlyRent(),  dto.maxMonthlyRent());
+
+        System.out.println("[marker] result size = " + apts.size());
 
         return RentGetMarkerResponse.map(apts);
     }

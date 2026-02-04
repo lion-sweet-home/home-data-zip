@@ -32,15 +32,15 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
         from Apartment a
         where a.region.sido = :sido
           and a.region.gugun = :gugun
-          and a.region.dong like concat(:dongPrefix, '%')
+          and a.region.dong like concat(coalesce(:dongPrefix, ''), '%')
           and exists (
               select 1
               from TradeRent tr
               where tr.apartment = a
-                and (:minDeposit = 0 or tr.deposit >= :minDeposit)
-                and (:maxDeposit = 0 or tr.deposit <= :maxDeposit)
-                and (:minMonthlyRent = 0 or tr.monthlyRent >= :minMonthlyRent)
-                and (:maxMonthlyRent = 0 or tr.monthlyRent <= :maxMonthlyRent)
+                and (coalesce(:minDeposit, 0) = 0 or tr.deposit >= coalesce(:minDeposit, 0))
+                and (coalesce(:maxDeposit, 0) = 0 or tr.deposit <= coalesce(:maxDeposit, 0))
+                and (coalesce(:minMonthlyRent, 0) = 0 or tr.monthlyRent >= coalesce(:minMonthlyRent, 0))
+                and (coalesce(:maxMonthlyRent, 0) = 0 or tr.monthlyRent <= coalesce(:maxMonthlyRent, 0))
           )
         """)
     List<Apartment> findAllWithRentByRegionAndRentRange(
@@ -56,7 +56,8 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
     @Modifying
     @Transactional
     @Query(value = """
-    INSERT IGNORE INTO apartments 
+
+            INSERT IGNORE INTO apartments 
     (apt_name, road_address, jibun_address, latitude, longitude, build_year, apt_seq, region_id) 
     VALUES (:name, :road, :jibun, :lat, :lon, :year, :seq, :regionId)
     """, nativeQuery = true)

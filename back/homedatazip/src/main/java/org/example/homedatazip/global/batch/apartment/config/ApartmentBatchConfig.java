@@ -79,6 +79,8 @@ public class ApartmentBatchConfig {
                 .faultTolerant() // 내결함성 기능 활성화
                 .skip(BatchSkipException.class)
                 .retry(BatchRetryException.class)
+                .retry(org.springframework.dao.DeadlockLoserDataAccessException.class)
+                .retry(org.springframework.dao.CannotAcquireLockException.class)
                 .retryLimit(3) // 3번까지 다시 시도
                 .backOffPolicy(fixedBackOffPolicy) // BackOff 설정 : 재시도 사이의 대기시간
                 .build();
@@ -90,6 +92,7 @@ public class ApartmentBatchConfig {
             List<ApartmentTradeSaleItem> items = new ArrayList<>(chunk.getItems());
             log.info(">>>> Writer에 넘어온 아이템 개수: {}", items.size());
             apartmentTradeSaleService.processChunk(items);
+
         };
     }
 

@@ -11,16 +11,17 @@ import org.springframework.web.bind.annotation.*;
 
 
 @RestController
-@RequestMapping("api/rent")
+@RequestMapping("/api/rent")
 @RequiredArgsConstructor
 public class TradeRentGetController {
 
     private final TradeRentGetService tradeRentGetService;
 
     @GetMapping
-    public ResponseEntity<RentGetMarkerResponse> getMarkerRent(@RequestParam @Valid RentGetMarkerRequest request){
-        RentGetMarkerResponse listRentsByAptId = tradeRentGetService.getListRentsByAptId(request);
-        return ResponseEntity.ok(listRentsByAptId);
+    public ResponseEntity<RentGetMarkerResponse> getMarkerRent(
+            @ModelAttribute @Valid RentGetMarkerRequest request
+    ) {
+        return ResponseEntity.ok(tradeRentGetService.getListRentsByAptId(request));
     }
 
     @GetMapping("/{apt-id}")
