@@ -71,4 +71,15 @@ public class User extends BaseTimeEntity {
     public String getCustomerKey() {
         return "CUSTOMER_" + this.id;
     }
+
+    // 구독을 위한 메서드 추가
+    public void addRole(Role role) {
+        if (hasRole(role.getRoleType())) return;
+        this.roles.add(UserRole.create(this, role));
+    }
+
+    public void removeRole(RoleType roleType) {
+        this.roles.removeIf(ur -> ur.getRole().getRoleType() == roleType);
+    }
+
 }

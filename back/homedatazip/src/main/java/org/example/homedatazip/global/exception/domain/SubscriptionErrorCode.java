@@ -12,6 +12,7 @@ public enum SubscriptionErrorCode implements ErrorCode {
     // 404
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "SUB_404_1", "구독 정보를 찾을 수 없습니다."),
     SUBSCRIBER_NOT_FOUND(HttpStatus.NOT_FOUND, "SUB_404_2", "구독자 정보를 찾을 수 없습니다."),
+    ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, "SUB_404_3", "필요한 권한(Role)을 찾을 수 없습니다."),
 
     // 400 - 상태/정책
     ALREADY_SUBSCRIBED(HttpStatus.BAD_REQUEST, "SUB_400_1", "이미 구독 중입니다."),
