@@ -25,7 +25,8 @@ public class SubscriptionBatchService {
 
     /**
      * 만료 처리 (EXPIRED)
-     * - ACTIVE/CANCELED 이면서 endDate < (today-1) 인 구독들을 EXPIRED 처리
+     * - ACTIVE/CANCELED 이면서 endDate < today 인 구독들을 EXPIRED 처리
+     * - 정책: "ACTIVE 동안만 SELLER 유지" => EXPIRED 되는 순간 SELLER 회수
      */
     @Transactional
     public int expire(LocalDate today) {
@@ -33,20 +34,21 @@ public class SubscriptionBatchService {
             throw new BusinessException(SubscriptionErrorCode.BATCH_DATE_REQUIRED);
         }
 
-        LocalDate expireBefore = today.minusDays(1);
+        // SELLER 역할 확인
+        roleRepository.findByRoleType(RoleType.SELLER)
+                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.ROLE_NOT_FOUND));
+
 
         List<Subscription> targets =
                 subscriptionRepository.findAllByIsActiveTrueAndEndDateIsNotNullAndStatusInAndEndDateLessThan(
                         List.of(SubscriptionStatus.ACTIVE, SubscriptionStatus.CANCELED),
-                        expireBefore
+                        today
                 );
 
-        roleRepository.findByRoleType(RoleType.SELLER)
-                .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.ROLE_NOT_FOUND));
-
         for (Subscription s : targets) {
-            s.expire();
+            s.expire(); // status=EXPIRED, isActive=false
 
+            // SELLER 회수
             User user = s.getSubscriber();
             user.removeRole(RoleType.SELLER);
         }

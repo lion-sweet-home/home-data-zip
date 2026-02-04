@@ -10,8 +10,8 @@ import org.example.homedatazip.payment.client.dto.TossBillingPaymentResponse;
 import org.example.homedatazip.payment.entity.PaymentLog;
 import org.example.homedatazip.payment.repository.PaymentLogRepository;
 import org.example.homedatazip.role.Role;
-import org.example.homedatazip.role.repository.RoleRepository;
 import org.example.homedatazip.role.RoleType;
+import org.example.homedatazip.role.repository.RoleRepository;
 import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.subscription.repository.SubscriptionRepository;
@@ -39,7 +39,6 @@ public class SubscriptionService {
     private final UserRepository userRepository;
     private final PaymentLogRepository paymentLogRepository;
     private final TossPaymentClient tossPaymentClient;
-
     private final RoleRepository roleRepository;
 
     @Value("${payment.toss.billing-success-url}")
@@ -48,21 +47,11 @@ public class SubscriptionService {
     @Value("${payment.toss.billing-fail-url}")
     private String failUrl;
 
-    /**
-     * 토스 successUrl 콜백용 (JWT 없음)
-     */
     @Transactional
     public void successBillingAuthByCustomerKey(BillingAuthSuccessRequest req) {
-        String customerKey = req.customerKey();
-        String authKey = req.authKey();
-
-        Long userId = parseUserIdFromCustomerKey(customerKey);
-
-        registerBillingKey(userId, customerKey, authKey);
+        Long userId = parseUserIdFromCustomerKey(req.customerKey());
+        registerBillingKey(userId, req.customerKey(), req.authKey());
     }
-
-
-     // 테스트 용 : billingKey 등록 처리
 
     @Transactional
     public void registerBillingKey(Long userId, String customerKey, String authKey) {
@@ -76,11 +65,7 @@ public class SubscriptionService {
         User user = getUser(userId);
 
         Subscription sub = subscriptionRepository.findBySubscriber_Id(user.getId())
-                .orElseGet(() ->
-                        subscriptionRepository.save(
-                                Subscription.createInitial(user)
-                        )
-                );
+                .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
 
         String billingKey = authKey.startsWith("bln_")
                 ? authKey
@@ -89,12 +74,8 @@ public class SubscriptionService {
         sub.registerBillingKey(billingKey);
     }
 
-
-     // 카드 등록 시작
-
     public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
         User user = getUser(userId);
-
         return new BillingKeyIssueResponse(
                 user.getCustomerKey(),
                 PLAN_NAME,
@@ -104,9 +85,6 @@ public class SubscriptionService {
         );
     }
 
-    /**
-     * 로그인 상태 API용
-     */
     @Transactional
     public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
         User user = getUser(userId);
@@ -119,18 +97,15 @@ public class SubscriptionService {
         var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
 
         Subscription sub = subscriptionRepository.findBySubscriber_Id(userId)
-                .orElseGet(() ->
-                        subscriptionRepository.save(
-                                Subscription.createInitial(user)
-                        )
-                );
+                .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
 
         sub.registerBillingKey(res.billingKey());
     }
 
     /**
-     * 첫 결제
-     * ACTIVE 되는 순간 SELLER 부여
+     * 첫 결제 = 구독 시작
+     * - 결제 성공해야 ACTIVE + SELLER
+     * - CANCELED인데 기간 남아있으면(권한 남아있음) 결제 없이 ACTIVE 복구 + SELLER
      */
     @Transactional
     public void startSubscription(Long userId) {
@@ -157,7 +132,6 @@ public class SubscriptionService {
             }
         }
 
-        // 즉시 결제 케이스
         String orderId = "SUB_START_" + UUID.randomUUID();
 
         PaymentLog log = paymentLogRepository.save(
@@ -183,21 +157,15 @@ public class SubscriptionService {
                 LocalDateTime.now()
         );
 
-        // 결제 성공 → 구독 시작(기간 갱신, status ACTIVE)
-        sub.start(LocalDate.now(), PRICE);
-
-
-        grantSeller(sub.getSubscriber());
+        sub.start(today, PRICE);          // status ACTIVE + 기간 세팅
+        grantSeller(sub.getSubscriber()); // SELLER 부여
     }
 
-    // 자동결제 OFF
     @Transactional
     public void cancelAutoPay(Long userId) {
-        getSubscription(userId).cancelAutoPay();
+        getSubscription(userId).cancelAutoPay(); // status CANCELED, 권한(endDate까지) 유지
     }
 
-
-    // 자동결제 ON
     @Transactional
     public void reactivateAutoPay(Long userId) {
         Subscription sub = getSubscription(userId);
@@ -206,21 +174,26 @@ public class SubscriptionService {
             throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
         }
 
-        sub.activateAutoPay();           // status ACTIVE
-        grantSeller(sub.getSubscriber()); //  SELLER 부여
+        if (sub.getStatus() == SubscriptionStatus.EXPIRED) {
+            // 결제 없이 ACTIVE 복구 금지
+            throw new BusinessException(SubscriptionErrorCode.CANNOT_REACTIVATE_EXPIRED);
+        }
+
+        // 여기서 가능한 케이스는 사실상 CANCELED
+        sub.activateAutoPay();            // status ACTIVE
+        grantSeller(sub.getSubscriber()); // SELLER 부여
     }
 
-    // 내 구독 조회
     public SubscriptionMeResponse getMySubscription(Long userId) {
         return SubscriptionMeResponse.from(getSubscription(userId));
     }
+
+    // ===== private =====
 
     private Subscription getSubscription(Long userId) {
         return subscriptionRepository.findBySubscriber_Id(userId)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIPTION_NOT_FOUND));
     }
-
-    // ===== private =====
 
     private void grantSeller(User user) {
         if (user.hasRole(RoleType.SELLER)) return;

@@ -74,12 +74,21 @@ public class User extends BaseTimeEntity {
 
     // 구독을 위한 메서드 추가
     public void addRole(Role role) {
-        if (hasRole(role.getRoleType())) return;
+        if (role == null) return;
+
+        boolean exists = this.roles.stream()
+                .anyMatch(ur -> ur.getRole().getRoleType() == role.getRoleType());
+
+        if (exists) return;
+
         this.roles.add(UserRole.create(this, role));
     }
 
     public void removeRole(RoleType roleType) {
+        if (roleType == null) return;
+
         this.roles.removeIf(ur -> ur.getRole().getRoleType() == roleType);
     }
+
 
 }
