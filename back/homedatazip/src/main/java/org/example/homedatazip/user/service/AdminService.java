@@ -7,6 +7,7 @@ import org.example.homedatazip.role.RoleType;
 import org.example.homedatazip.settlement.dto.SettlementResponse;
 import org.example.homedatazip.settlement.entity.Settlement;
 import org.example.homedatazip.settlement.repository.SettlementRepository;
+import org.example.homedatazip.settlement.scheduler.SettlementScheduler;
 import org.example.homedatazip.user.dto.UserResponse;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
@@ -123,5 +124,16 @@ public class AdminService {
         roleValidation.validateAdmin(userId);
 
         return listingRepository.count();
+    }
+
+    /**
+     * 수동 정산 (테스트용)
+     */
+    private final SettlementScheduler settlementScheduler;
+
+    @Transactional
+    public void processSettlement(Long userId, LocalDate targetDate) {
+        roleValidation.validateAdmin(userId);
+        settlementScheduler.processSettlement(targetDate);
     }
 }
