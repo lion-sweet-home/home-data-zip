@@ -20,8 +20,8 @@ public record ChatMessageResponse(
     public static ChatMessageResponse create(ChatMessage message) {
         return ChatMessageResponse.builder()
                 .messageId(message.getId())
-                .senderId(message.getSender().getId()) // n+1 위험
-                .senderNickname(message.getSender().getNickname()) // n+1 위험
+                .senderId(message.getSender().getId()) // n+1 위험, 유저 삭제 시 NullPointerException 발생 위험
+                .senderNickname(message.getSender().getNickname()) // n+1 위험, 유저 삭제 시 NullPointerException 발생 위험
                 .content(message.getContent())
                 .createdAt(message.getCreatedAt())
                 .type(message.getType())

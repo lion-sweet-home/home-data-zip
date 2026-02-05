@@ -22,4 +22,14 @@ public interface ChatRoomRepository extends JpaRepository<ChatRoom, Long> {
         )
 """)
     boolean existsParticipant(@Param("roomId") Long roomId, @Param("email") String email);
+
+    // ChatRoom을 가져올때 구매자, 매물, 판매자 다 가져오도록 함.
+    @Query("""
+        select cr from ChatRoom cr
+        join fetch cr.buyer
+        join fetch cr.listing l
+        join fetch l.user
+        where cr.id = :roomId
+""")
+    Optional<ChatRoom> findByIdWithUsers(@Param("roomId") Long roomId);
 }

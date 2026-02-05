@@ -74,10 +74,9 @@ public class ChatService {
     }
 
     // 방 상세 정보 + 메시지 내역 조회
-    @Transactional(readOnly = true)
     public ChatRoomDetailResponse getRoomDetail(Long roomId, Long userId, Pageable pageable) {
         log.info("방 정보 + 메시지 내역 조회 - roomId={}, userId={}", roomId, userId);
-        ChatRoom chatRoom = chatRoomRepository.findById(roomId)
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithUsers(roomId)
                 .orElseThrow(() -> {
                     log.error("채팅방이 존재하지 않습니다. roomId={}", roomId);
                     return new BusinessException(ChatErrorCode.CHAT_ROOM_NOT_FOUND);
@@ -115,7 +114,7 @@ public class ChatService {
                     return new BusinessException(UserErrorCode.USER_NOT_FOUND);
                 });
 
-        ChatRoom chatRoom = chatRoomRepository.findById(request.roomId())
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithUsers(request.roomId())
                 .orElseThrow(() -> {
                     log.error("채팅방을 찾을 수 없습니다. - roomId={}", request.roomId());
                     return new BusinessException(ChatErrorCode.CHAT_ROOM_NOT_FOUND);

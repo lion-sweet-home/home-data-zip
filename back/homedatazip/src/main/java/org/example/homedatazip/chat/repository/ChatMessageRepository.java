@@ -21,7 +21,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     // 내가 읽지 않은 메시지가 총 몇 개인지 반환
     @Query("""
         select count(cm) from ChatMessage cm
-        where cm.chatRoom.buyer.id = :userId or cm.chatRoom.listing.user.id = :userId
+        where (cm.chatRoom.buyer.id = :userId or cm.chatRoom.listing.user.id = :userId)
         and cm.sender.id != :userId
         and cm.isRead = false
 """)

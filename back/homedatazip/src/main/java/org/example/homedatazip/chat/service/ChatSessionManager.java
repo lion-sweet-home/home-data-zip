@@ -1,5 +1,6 @@
 package org.example.homedatazip.chat.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -7,6 +8,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
+@Slf4j
 public class ChatSessionManager {
 
     // 특정 방에 누가 있는지 확인하는 map - < roomId / email >
@@ -43,6 +45,7 @@ public class ChatSessionManager {
     // 특정 방에 특정 유저가 있는지 확인 (읽음처리/SSE 판단)
     public boolean isUserInRoom(Long roomId, String email) {
         Set<String> participants = roomParticipant.get(roomId);
+        log.info("세션 관리 체크 - roomId={}, email={}, 참여자={}", roomId, email, participants);
         return participants != null && participants.contains(email);
     }
 }
