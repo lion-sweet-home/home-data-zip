@@ -1,5 +1,8 @@
 package org.example.homedatazip.monthAvg.dto;
 
+import org.example.homedatazip.monthAvg.entity.MonthAvg;
+
+
 import java.util.List;
 
 public record AreaTypeResponse (
@@ -11,12 +14,14 @@ public record AreaTypeResponse (
             Double exclusive
     ){
 
-        private static AreaOption from(Long areaTypeIds){
-            return new AreaOption(getAreaKey(areaTypeIds), getExclusive(areaTypeIds));
+        private static AreaOption from(Long m){
+            return new AreaOption(getAreaKey(m), getExclusive(m)
+
+            );
         }
     }
 
-    public static AreaTypeResponse map(Long aptId, List<Long> areaTypeIds){
+    public static AreaTypeResponse map(List<Long> areaTypeIds, Long aptId){
         return new AreaTypeResponse(
                 aptId,
                 areaTypeIds.stream().map(AreaOption::from).toList()
@@ -27,7 +32,7 @@ public record AreaTypeResponse (
     }
 
     private static Double getExclusive(Long areaTypeId){
-        double v =  getAreaKey(areaTypeId) / 10.0;
+        double v =  getAreaKey(areaTypeId) / 100.0;
         return v;
     }
 }

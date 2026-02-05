@@ -1,6 +1,5 @@
 package org.example.homedatazip.tradeRent.dto.detailList;
 
-import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
 
 import java.util.List;
@@ -23,6 +22,6 @@ public record RentDetailList5Response(
 
     /** 0.1㎡ 키(예: 421) -> 42.1㎡ */
     private static double toExclusive(long areaKey10) {
-        return areaKey10 / 10.0;
+        return areaKey10 / 100.0;
     }
 }

@@ -22,7 +22,7 @@ public interface TradeRentRepository extends JpaRepository<TradeRent,Long> {
     @Query("""
         select tr from TradeRent tr
         where tr.apartment.id = :aptId
-          and function('round', tr.exclusiveArea * 10) = :areaKey10
+          and tr.exclusiveArea * 100 = :areaKey10
         order by tr.dealDate desc
     """)
     List<TradeRent> findByAptAndExclusiveKey10(

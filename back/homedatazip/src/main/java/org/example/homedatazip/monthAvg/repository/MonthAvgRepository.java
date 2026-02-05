@@ -13,7 +13,7 @@ import java.util.List;
 public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
 
     @Query("""
-    select MonthTotalTradeResponse(
+    select new org.example.homedatazip.monthAvg.dto.MonthTotalTradeResponse(
         :aptId,
         m.yyyymm,
         sum(coalesce(m.jeonseCount, 0)),

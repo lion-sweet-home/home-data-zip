@@ -27,7 +27,7 @@ public record MonthTotalTradeAreaResponse(
     }
     private static Double getExclusive(MonthAvg monthAvg){
         Long areaKey1 = getAreaKey(monthAvg);
-        double v = areaKey1 / 10.0;
+        double v = areaKey1 / 100.0;
         return v;
     }
 

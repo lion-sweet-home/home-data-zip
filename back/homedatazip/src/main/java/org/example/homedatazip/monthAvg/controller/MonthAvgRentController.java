@@ -1,11 +1,11 @@
 package org.example.homedatazip.monthAvg.controller;
 
+import jakarta.websocket.server.PathParam;
 import lombok.RequiredArgsConstructor;
-import org.example.homedatazip.monthAvg.dto.AreaTypeResponse;
-import org.example.homedatazip.monthAvg.dto.MonthTotalTradeAreaResponse;
-import org.example.homedatazip.monthAvg.dto.MonthTotalTradeResponse;
+import org.example.homedatazip.monthAvg.dto.*;
 import org.example.homedatazip.monthAvg.service.MonthAvgRentService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -42,5 +42,23 @@ public class MonthAvgRentController {
 
         AreaTypeResponse aptAreaKey = monthAvgRentService.getAptAreaKey(aptId);
         return ResponseEntity.ok(aptAreaKey);
+    }
+
+    //면적카드 선택시 나오는 최신 평균 거래가 (6개월)
+    @GetMapping("/detail/area-exclusive/avg/recent")
+    public ResponseEntity<AreaTypeMonthAvgResponse> monthsAvg(@PathVariable Long aptId,
+                                                              @RequestParam Long areaKey){
+
+        AreaTypeMonthAvgResponse monthsAvg = monthAvgRentService.getMonthsAvg(aptId, areaKey);
+        return ResponseEntity.ok(monthsAvg);
+    }
+
+    //평수별, 월별 평균값 데이터 호출
+    @GetMapping("/detail/area-excluesive/avg")
+    public ResponseEntity<List<RentDetailAvg>> rentAreaTypeAvg(@PathVariable long aptId,
+                                                               @RequestParam long areaKey,
+                                                               @RequestParam(name = "period", required = false) String periodRow){
+        List<RentDetailAvg> rentAreaTypeAvg = monthAvgRentService.getRentAreaTypeAvg(aptId, areaKey, periodRow);
+        return ResponseEntity.ok(rentAreaTypeAvg);
     }
 }

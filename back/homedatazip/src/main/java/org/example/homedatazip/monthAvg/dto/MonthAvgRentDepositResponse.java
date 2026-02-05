@@ -27,7 +27,7 @@ public record MonthAvgRentDepositResponse(
         return new MonthAvgRentDepositResponse(
                 monthAvg.getId(),
                 monthAvg.getAptId(),
-                (monthAvg.getAreaTypeId() % 1_000_000) / 10.0,
+                (monthAvg.getAreaTypeId() % 1_000_000) / 100.0,
                 monthAvg.getYyyymm(),
                 jeonseAvg,
                 wolseAvg,

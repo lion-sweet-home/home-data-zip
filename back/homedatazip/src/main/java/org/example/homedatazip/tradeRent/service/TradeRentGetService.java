@@ -68,16 +68,14 @@ public class TradeRentGetService {
         return RentDetailList5Response.from(top5,aptId,areaKey10);
     }
 
-    //Detail 평형기준 월별 보증금, 월세 평균
 
-    //Detail
 
 
     private int key10(double exclusive){
-        return (int) Math.round(exclusive * 10);
+        return (int) Math.round(exclusive * 100);
     }
     private double toExclusive(Long areaType){
-        return (areaType % 1_000_000) / 10.0;
+        return (areaType % 1_000_000) / 100.0;
     }
     private Long getAreaType(Long aptId, double exclusive){
         return (aptId * 1_000_000) + key10(exclusive);
