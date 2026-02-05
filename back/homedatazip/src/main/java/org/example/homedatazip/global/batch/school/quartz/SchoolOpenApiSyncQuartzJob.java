@@ -24,7 +24,7 @@ public class SchoolOpenApiSyncQuartzJob extends QuartzJobBean {
                 .toJobParameters();
 
         try {
-            // 실제로 배치를 실행하는 순간!
+            // 실제로 배치를 실행하는 순간
             jobLauncher.run(schoolOpenApiSyncJob, jobParameters);
         } catch (Exception e) {
             e.printStackTrace();

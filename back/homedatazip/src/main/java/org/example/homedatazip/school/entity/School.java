@@ -1,14 +1,15 @@
 package org.example.homedatazip.school.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 import org.example.homedatazip.data.Region;
 
 @Entity
 @Getter
-@Setter
-@Table(name = "School")
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "school")
 public class School {
 
     @Id
@@ -17,7 +18,6 @@ public class School {
 
     @Column(unique = true)
     private String schoolId;
-
     private String name;
     private String schoolLevel;       // 초/중/고 구분
     private String roadAddress;       // 소재지 도로명 주소
@@ -25,9 +25,28 @@ public class School {
     private Double latitude;
     private Double longitude;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
     private Region region;
-}
-// 주현님이 하는것처럼 아파트를 끌고 하버사인 으로 거리계산을 하고 중간테이블을 만들어라
-// 하버사인은 구현이 안되어있으니 각자 개발
 
+    public static School from(
+            String schoolId,
+            String name,
+            String schoolLevel,
+            String roadAddress,
+            Double latitude,
+            Double longitude,
+            Region region
+    ) {
+        return School.builder()
+                .schoolId(schoolId)
+                .name(name)
+                .schoolLevel(schoolLevel)
+                .roadAddress(roadAddress)
+                .latitude(latitude)
+                .longitude(longitude)
+                .region(region)
+                .build();
+    }
+}
+// 지하철이랑 똑같이 아파트-학교 거리 하기 < 앞으로 할일,,,

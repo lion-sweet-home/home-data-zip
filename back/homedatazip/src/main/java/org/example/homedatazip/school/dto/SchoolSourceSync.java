@@ -8,11 +8,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * record를 사용한 학교 데이터 수집용 DTO
  */
-public record SchoolSourceSync(
+public record  SchoolSourceSync(
         @JsonProperty("학교ID") String schoolId,
         @JsonProperty("학교명") String schoolName,
         @JsonProperty("학교급구분") String schoolLevel,
-        @JsonProperty("소재지지번주소") String jibunAddress,
         @JsonProperty("소재지도로명주소") String roadAddress,
         @JsonProperty("위도") Double latitude,
         @JsonProperty("경도") Double longitude

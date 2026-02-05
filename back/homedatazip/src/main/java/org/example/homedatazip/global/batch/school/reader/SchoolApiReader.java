@@ -18,27 +18,30 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SchoolApiReader implements ItemReader<SchoolSourceSync> {
 
-    @Value("${DATA_GO_KR_SERVICE_KEY}")
+    @Value("${school.openapi.key}")
     private String serviceKey;
 
     private final RestTemplate restTemplate = new RestTemplate();
     private Iterator<SchoolSourceSync> itemIterator;
+    private int pageNo = 1;
+    private int numOfRows = 1000;
 
     @Override
     public SchoolSourceSync read() {
-        if (itemIterator == null) {
-            List<SchoolSourceSync> items = fetchSchoolsFromApi();
+        if (itemIterator == null|| !itemIterator.hasNext()) {
+            List<SchoolSourceSync> items = fetchSchoolsFromApi(pageNo);
             itemIterator = items.iterator();
+            pageNo++;
         }
         return itemIterator.hasNext() ? itemIterator.next() : null;
     }
 
-    private List<SchoolSourceSync> fetchSchoolsFromApi() {
+    private List<SchoolSourceSync> fetchSchoolsFromApi(int pageNo) {
         log.info("학교 OpenAPI 데이터 호출 시작...");
         List<SchoolSourceSync> schoolList = new ArrayList<>();
 
-        String url = "http://api.data.go.kr/openapi/tn_pubr_public_schul_inst_api?serviceKey="
-                + serviceKey + "&type=json&numOfRows=100";
+        String url = "http://api.data.go.kr/openapi/tn_pubr_public_elesch_mskul_lc_api?serviceKey="
+                + serviceKey + "&pageNo=" + pageNo + "&numOfRows=" + numOfRows + "&type=json";
 
         try {
             // 1. API 호출
@@ -53,11 +56,10 @@ public class SchoolApiReader implements ItemReader<SchoolSourceSync> {
                 for (Map<String, String> item : items) {
                     // 에러 해결: 요구하는 7개의 파라미터를 모두 채워줍니다.
                     SchoolSourceSync school = new SchoolSourceSync(
-                            item.get("schulNm"),      // 1. 학교명 (String)
-                            item.get("schulSeNm"),    // 2. 학교급구분 (String)
+                            item.get("schoolId"),
+                            item.get("schoolNm"),      // 1. 학교명 (String)
+                            item.get("schoolSe"),    // 2. 학교급구분 (String)
                             item.get("rdnmadr"),      // 3. 소재지도로명주소 (String)
-                            item.get("atptOfcdcNm"),  // 4. 시도교육청명 (String)
-                            item.get("juOfcdcNm"),    // 5. 시군구교육지원청명 (String)
                             Double.parseDouble(item.getOrDefault("latitude", "0.0")),  // 6. 위도 (Double)
                             Double.parseDouble(item.getOrDefault("longitude", "0.0")) // 7. 경도 (Double)
                     );
@@ -65,9 +67,10 @@ public class SchoolApiReader implements ItemReader<SchoolSourceSync> {
                 }
                 log.info("성공적으로 {}건의 학교 데이터를 변환하여 담았습니다!", schoolList.size());
             }
+        } catch (NullPointerException e) {
+            log.info("school Open API 호출 끝: {}", e.getMessage());
         } catch (Exception e) {
             log.error("API 호출 또는 데이터 변환 중 에러 발생: {}", e.getMessage());
-            e.printStackTrace();
         }
 
         return schoolList;
