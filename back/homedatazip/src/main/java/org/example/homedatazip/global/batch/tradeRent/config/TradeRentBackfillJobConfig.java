@@ -73,11 +73,20 @@ public class TradeRentBackfillJobConfig {
             @Value("#{jobParameters['toYmd']}") String toYmd
     ) {
 
-        String from = (fromYmd == null || fromYmd.isBlank()) ? "202201" : fromYmd;
+        var zone = java.time.ZoneId.of("Asia/Seoul");
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMM");
+
+        YearMonth defaultTo = java.time.YearMonth.now(zone).minusMonths(1);
+        YearMonth defaultFrom = defaultTo.minusMonths(5);
+
+        String from = (fromYmd == null || fromYmd.isBlank())
+                ? defaultFrom.format(fmt)
+                : fromYmd;
+
         String to = (toYmd == null || toYmd.isBlank())
-                ? java.time.YearMonth.now(java.time.ZoneId.of("Asia/Seoul")).minusMonths(1)
-                .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMM"))
+                ? defaultTo.format(fmt)
                 : toYmd;
+
 
         List<String> sggCds = regionRepository.findDistinctSggCode();
         List<String> dealYmds = buildDealYmds(from, to);

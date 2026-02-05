@@ -49,9 +49,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/test/**").permitAll()
 
-
-
-                        // 전월세 조회
+                        //전월세 조회
                         .requestMatchers("/api/rent/**").permitAll()
 
                         // 테스트용 클라이언트 페이지
