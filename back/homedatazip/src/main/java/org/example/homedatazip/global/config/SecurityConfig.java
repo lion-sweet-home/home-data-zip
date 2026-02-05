@@ -49,6 +49,8 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/test/**").permitAll()
 
+
+
                         //전월세 조회
                         .requestMatchers("/api/rent/**").permitAll()
 

@@ -3,48 +3,34 @@ package org.example.homedatazip.tradeRent.dto;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
 
 import java.time.LocalDate;
-import java.util.List;
 
 public record RentFromAptResponse(
-        List<RentResponse> rents
+        Long id,
+
+        Long apartmentId,
+        String apartmentName,
+
+        Long deposit,
+        Integer monthlyRent,
+
+        Integer floor,
+        Double exclusiveArea,
+        LocalDate dealDate
 ){
+    public static RentFromAptResponse from(TradeRent tradeRent){
+        return new RentFromAptResponse(
+                tradeRent.getId(),
 
-    public static RentFromAptResponse map(List<TradeRent> tradeRents){
+                tradeRent.getApartment().getId(),
+                tradeRent.getApartment().getAptName(),
 
-        List<RentResponse> list = tradeRents.stream()
-                .map(RentResponse::from)
-                .toList();
+                tradeRent.getDeposit(),
+                tradeRent.getMonthlyRent(),
 
-        return new RentFromAptResponse(list);
-    }
-
-    public record RentResponse(
-            Long id,
-
-            Long apartmentId,
-            String apartmentName,
-
-            Long deposit,
-            Integer monthlyRent,
-
-            Integer floor,
-            Double exclusiveArea,
-            LocalDate dealDate
-    ){
-        public static RentResponse from(TradeRent tradeRent){
-            return new RentResponse(
-                    tradeRent.getId(),
-
-                    tradeRent.getApartment().getId(),
-                    tradeRent.getApartment().getAptName(),
-
-                    tradeRent.getDeposit(),
-                    tradeRent.getMonthlyRent(),
-
-                    tradeRent.getFloor(),
-                    tradeRent.getExclusiveArea(),
-                    tradeRent.getDealDate()
-            );
-        }
+                tradeRent.getFloor(),
+                tradeRent.getExclusiveArea(),
+                tradeRent.getDealDate()
+        );
     }
 }
+
