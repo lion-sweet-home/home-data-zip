@@ -6,7 +6,10 @@ import org.example.homedatazip.chat.service.ChatSessionManager;
 import org.example.homedatazip.global.config.CustomUserDetailsService;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.ChatErrorCode;
+import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.global.jwt.util.JwtTokenizer;
+import org.example.homedatazip.user.entity.User;
+import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -30,18 +33,20 @@ public class StompHandler implements ChannelInterceptor {
     private final ChatSessionManager chatSessionManager;
     private final ChatAuthService chatAuthService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final UserRepository userRepository;
 
     // 순환참조 방지를 위해 생성자에 @Lazy를 붙여 진짜 사용할때 주입받는 방식으로 변경.
     public StompHandler(JwtTokenizer jwtTokenizer,
                         CustomUserDetailsService customUserDetailsService,
                         ChatSessionManager chatSessionManager,
                         ChatAuthService chatAuthService,
-                        @Lazy SimpMessagingTemplate messagingTemplate) {
+                        @Lazy SimpMessagingTemplate messagingTemplate, UserRepository userRepository) {
         this.jwtTokenizer = jwtTokenizer;
         this.customUserDetailsService = customUserDetailsService;
         this.chatSessionManager = chatSessionManager;
         this.chatAuthService = chatAuthService;
         this.messagingTemplate = messagingTemplate;
+        this.userRepository = userRepository;
     }
 
     @Override
@@ -127,9 +132,12 @@ public class StompHandler implements ChannelInterceptor {
                 log.info("웹 소켓 구독 요청 - roomId={}, email={}", roomId, email);
                 chatSessionManager.addParticipant(sessionId, roomId, email);
 
+                User user = userRepository.findByEmail(email)
+                        .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
                 // 읽음 신호 발행 - 내가 방에 들어갔을 때 상대방이 자신의 채팅 옆에 1이 사라질수 있도록 알려준다.
                 messagingTemplate.convertAndSend("/sub/chat/room/" + roomId,
-                        Map.of("type", "READ_ALL", "roomId", roomId));
+                        Map.of("type", "READ_ALL", "readerNickname", user.getNickname()));
 
             } else if (StompCommand.DISCONNECT == accessor.getCommand()) {
                 chatSessionManager.removeParticipant(sessionId);

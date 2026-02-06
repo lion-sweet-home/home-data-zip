@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.chat.dto.ChatMessageRequest;
 import org.example.homedatazip.chat.dto.ChatMessageResponse;
 import org.example.homedatazip.chat.dto.ChatRoomDetailResponse;
+import org.example.homedatazip.chat.dto.ChatRoomListResponse;
 import org.example.homedatazip.chat.entity.ChatMessage;
 import org.example.homedatazip.chat.entity.ChatRoom;
 import org.example.homedatazip.chat.entity.MessageType;
@@ -24,6 +25,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -37,6 +40,26 @@ public class ChatService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatSessionManager chatSessionManager;
     private final SseEmitterService sseEmitterService;
+
+    // 채팅방 리스트 조회
+    public List<ChatRoomListResponse> getRooms(Long userId) {
+        List<ChatRoom> rooms = chatRoomRepository.findAllByUserId(userId);
+
+        return rooms.stream()
+                .map(room -> {
+                    // 특정 방에서 내가 읽지 않은 메시지 개수
+                    long unReadCount = chatMessageRepository.countByChatRoomAndIsReadFalseAndSenderIdNot(room, userId);
+
+                    return ChatRoomListResponse.create(
+                            room.getId(),
+                            room.getListing().getApartment().getAptName(),
+                            room.getLastMessage(),
+                            room.getLastMessageTime(),
+                            unReadCount
+                    );
+                })
+                .toList();
+    }
 
     // 채팅방 입장
     public Long enterRoom(Long userId, Long listingId) {
@@ -128,14 +151,16 @@ public class ChatService {
 
         // 입장 혹은 퇴장시 채팅 내용 변경
         String content = request.content();
-        if (request.type() == MessageType.ENTER) {
-            content = sender.getNickname() + "님이 입장하셨습니다.";
-        } else if (request.type() == MessageType.LEAVE) {
-            content = sender.getNickname() + "님이 퇴장하셨습니다.";
-        }
+        // if (request.type() == MessageType.ENTER) {                   todo: 나중에 다시 구현 예정
+        //     content = sender.getNickname() + "님이 입장하셨습니다.";
+        // } else if (request.type() == MessageType.LEAVE) {
+        //     content = sender.getNickname() + "님이 퇴장하셨습니다.";
+        // }
 
         ChatMessage chatMessage = ChatMessage.create(chatRoom, sender, content, request.type(), isRead);
-        chatMessageRepository.save(chatMessage);
+        ChatMessage save = chatMessageRepository.save(chatMessage);
+
+        chatRoom.updateLastMessage(save.getContent(), save.getCreatedAt());
 
         // 상대방이 방에 없다면
         if (!isRead) {
@@ -150,6 +175,28 @@ public class ChatService {
         messagingTemplate.convertAndSend("/sub/chat/room/" + request.roomId(), response);
 
         log.info("메시지 전송 완료 - roomId={}", request.roomId());
+
+    }
+
+    // 채팅방 나가기 - 유저 탈퇴나 삭제 시에도 해당
+    public void exitChatRoom(Long roomId, Long userId) {
+        ChatRoom chatRoom = chatRoomRepository.findByIdWithUsers(roomId)
+                .orElseThrow(() -> {
+                    log.error("채팅방을 찾을 수 없습니다. - roomId={}", roomId);
+                    return new BusinessException(ChatErrorCode.CHAT_ROOM_NOT_FOUND);
+                });
+
+        // 구매자 나가기
+        if (chatRoom.getBuyer().getId().equals(userId)) {
+            chatRoom.exitBuyer();
+        } else {
+            chatRoom.exitSeller();
+        }
+
+        // 두명 다 나갔다면 채팅방 삭제
+        if (chatRoom.isBuyerExited() && chatRoom.isSellerExited()) {
+            chatRoomRepository.delete(chatRoom);
+        }
 
     }
 

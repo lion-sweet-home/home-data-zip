@@ -6,6 +6,8 @@ import org.example.homedatazip.common.BaseTimeEntity;
 import org.example.homedatazip.listing.entity.Listing;
 import org.example.homedatazip.user.entity.User;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @Table(name = "chat_rooms", uniqueConstraints = {
@@ -34,10 +36,33 @@ public class ChatRoom extends BaseTimeEntity {
     @Builder.Default
     private boolean sellerExited = false;
 
+    @Column()
+    private String lastMessage; // 마지막 메시지 내용
+
+    @Column()
+    private LocalDateTime lastMessageTime; // 마지막 메시지 시간
+
     public static ChatRoom create(User buyer, Listing listing) {
         return ChatRoom.builder()
                 .buyer(buyer)
                 .listing(listing)
                 .build();
+    }
+
+    public void updateLastMessage(String lastMessage, LocalDateTime lastMessageTime) {
+        this.lastMessage = lastMessage;
+        this.lastMessageTime = lastMessageTime;
+    }
+
+    public void exitBuyer() {
+        this.buyerExited = true;
+    }
+
+    public void exitSeller() {
+        this.sellerExited = true;
+    }
+
+    public boolean isBuyer(Long userId) {
+        return buyer.getId().equals(userId);
     }
 }

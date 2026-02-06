@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.example.homedatazip.common.BaseTimeEntity;
 import org.example.homedatazip.user.entity.User;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Entity
 @Getter
@@ -19,6 +21,7 @@ public class ChatMessage extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "chat_room_id",nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE) // 채팅방이 삭제되면 자동으로 메시지들도 DB에서 삭제처리
     private ChatRoom chatRoom;
 
     @ManyToOne(fetch = FetchType.LAZY)

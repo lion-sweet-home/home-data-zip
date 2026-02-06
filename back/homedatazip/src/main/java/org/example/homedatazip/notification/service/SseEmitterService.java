@@ -61,12 +61,19 @@ public class SseEmitterService {
         SseEmitter emitter = emitters.get(userId);
         if (emitter != null) {
             try {
+                // 전체 안읽은 개수 전송
                 emitter.send(SseEmitter.event()
                         .name("unreadCount")
                         .data(count));
-                log.info("카운트 전송 성공: userId={}", userId);
+
+                // 리스트 갱신 신호 전송
+                emitter.send(SseEmitter.event()
+                        .name("roomListUpdate")
+                        .data("refresh"));
+
+                log.info("전체 카운트 및 리스트 갱신 신호 전송 성공: userId={}", userId);
             } catch (IOException e) {
-                log.error("카운트 전송 실패: userId={}", userId);
+                log.error("전체 카운트 및 리스트 갱신 신호 전송 실패: userId={}", userId);
                 emitters.remove(userId);
             }
         }

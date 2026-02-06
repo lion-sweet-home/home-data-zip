@@ -1,6 +1,7 @@
 package org.example.homedatazip.chat.repository;
 
 import org.example.homedatazip.chat.entity.ChatMessage;
+import org.example.homedatazip.chat.entity.ChatRoom;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -25,7 +26,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
         and cm.sender.id != :userId
         and cm.isRead = false
 """)
-    long countTotalUnreadMessages(@Param("userId") Long userId);
+    long countTotalUnreadMessages(Long userId);
 
     // 특정 채팅방에 입장했을 때 받은 메시지들 읽음 처리
     @Modifying(clearAutomatically = true)
@@ -35,5 +36,8 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
         and cm.sender.id != :userId
         and cm.isRead = false
 """)
-    void markAsReadByRoomIdAndReceiverId(@Param("roomId") Long roomId, @Param("userId") Long userId);
+    void markAsReadByRoomIdAndReceiverId(Long roomId, Long userId);
+
+    // 특정 방에서 내가 안읽은 메시지 개수 조회
+    long countByChatRoomAndIsReadFalseAndSenderIdNot(ChatRoom chatRoom, Long senderId);
 }
