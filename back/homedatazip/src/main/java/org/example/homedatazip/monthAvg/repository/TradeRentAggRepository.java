@@ -28,7 +28,7 @@ public interface TradeRentAggRepository extends Repository<TradeRent, Long> {
             SELECT
                 tr.apartment_id AS aptId,
                 DATE_FORMAT(tr.deal_date, '%Y%m') AS yyyymm,
-                ROUND(tr.exclusive_area * 10) AS areaKey,
+                tr.exclusive_area * 100 AS areaKey,
                 tr.deposit AS deposit,
                 tr.monthly_rent AS monthlyRent
             FROM trade_rent tr

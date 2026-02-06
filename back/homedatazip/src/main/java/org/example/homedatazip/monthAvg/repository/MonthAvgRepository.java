@@ -1,6 +1,7 @@
 // file: src/main/java/org/example/homedatazip/monthavg/repository/MonthAvgRepository.java
 package org.example.homedatazip.monthAvg.repository;
 
+import org.example.homedatazip.monthAvg.dto.MonthTotalTradeResponse;
 import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -11,10 +12,23 @@ import java.util.List;
 
 public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
 
-    List<MonthAvg> findAllByAptIdAndYyyymmBetweenOrderByYyyymmAsc(
-            long aptId,
-            String minYyyymm,
-            String maxYyyymm
+    @Query("""
+    select new org.example.homedatazip.monthAvg.dto.MonthTotalTradeResponse(
+        :aptId,
+        m.yyyymm,
+        sum(coalesce(m.jeonseCount, 0)),
+        sum(coalesce(m.wolseCount, 0))
+    )
+    from MonthAvg m
+    where m.aptId = :aptId
+      and m.yyyymm between :minYyyymm and :maxYyyymm
+    group by m.yyyymm
+    order by m.yyyymm asc
+""")
+    List<MonthTotalTradeResponse> findMonthlyTotals(
+            @Param("aptId") long aptId,
+            @Param("minYyyymm") String minYyyymm,
+            @Param("maxYyyymm") String maxYyyymm
     );
 
     List<MonthAvg> findAllByAptIdAndAreaTypeIdAndYyyymmBetweenOrderByYyyymmAsc(
@@ -61,7 +75,7 @@ public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
             @Param("wolseCount") int wolseCount
     );
 
-    // ✅ Sale만 갱신 (전/월세 컬럼/카운트는 UPDATE에서 건드리지 않음)
+    // Sale만 갱신 (전/월세 컬럼/카운트는 UPDATE에서 건드리지 않음)
     @Modifying
     @Query(value = """
         INSERT INTO month_avg (
@@ -92,4 +106,14 @@ public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
             @Param("saleDealAmountSum") long saleDealAmountSum,
             @Param("saleCount") int saleCount
     );
+
+    //area_type_id 리스트로 호출
+    @Query("""
+        select distinct m.areaTypeId
+        from MonthAvg m
+        where m.aptId = :aptId
+        order by m.areaTypeId
+    """)
+    List<Long> findDistinctAreaTypeIdsByAptId(@Param("aptId") long aptId);
+
 }
