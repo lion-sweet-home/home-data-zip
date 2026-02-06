@@ -1,11 +1,15 @@
 package org.example.homedatazip.school.entity;
 
 import jakarta.persistence.*;
-import lombok.Getter;
+import lombok.*;
 import org.example.homedatazip.data.Region;
 
 @Entity
 @Getter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@Table(name = "school")
 public class School {
 
     @Id
@@ -14,7 +18,6 @@ public class School {
 
     @Column(unique = true)
     private String schoolId;
-
     private String name;
     private String schoolLevel;       // 초/중/고 구분
     private String roadAddress;       // 소재지 도로명 주소
@@ -22,6 +25,27 @@ public class School {
     private Double latitude;
     private Double longitude;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "region_id")
     private Region region;
+
+    public static School from(
+            String schoolId,
+            String name,
+            String schoolLevel,
+            String roadAddress,
+            Double latitude,
+            Double longitude,
+            Region region
+    ) {
+        return School.builder()
+                .schoolId(schoolId)
+                .name(name)
+                .schoolLevel(schoolLevel)
+                .roadAddress(roadAddress)
+                .latitude(latitude)
+                .longitude(longitude)
+                .region(region)
+                .build();
+    }
 }
