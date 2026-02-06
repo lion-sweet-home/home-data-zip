@@ -23,6 +23,4 @@ public interface ApartmentSubwayDistanceRepository extends JpaRepository<Apartme
     List<ApartmentSubwayDistance> findBySubwayStationIdAndDistanceKmLessThanEqualOrderByDistanceKmAscWithApartment(
             @Param("stationId") Long stationId, @Param("maxDistanceKm") double maxDistanceKm);
 
-    /** (아파트, 역) 쌍으로 조회 - 배치 upsert 시 기존 행 여부 확인용 */
-    Optional<ApartmentSubwayDistance> findByApartmentIdAndSubwayStationId(Long apartmentId, Long subwayStationId);
 }
