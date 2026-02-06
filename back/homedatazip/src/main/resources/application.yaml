@@ -107,6 +107,16 @@ seoul:
     type: json
     service: ${SEOUL_OPENAPI_SERVICE}
 
+# job으로 실행하기 쿼츠x
+school:
+  openapi:
+    key: ${SCHOOL_OPENAPI_KEY}
+    url: "http://api.data.go.kr/openapi/tn_pubr_public_elesch_mskul_lc_api?serviceKey=22f87a72e6467cf7864f3c20a1e458fcedc13c89df038038d360745f3c53b457&type=json&numOfRows=100"
+    username: root
+    password: root1234
+    #sync:
+     # cron: "0 24 17 * * ?" # 테스트를 위해 10초마다 실행
+
 # OpenAPI 지하철 역 목록 URL (Quartz - 매일 2시)
 subway:
   openapi:
