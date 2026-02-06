@@ -1,6 +1,8 @@
 package org.example.homedatazip.payment.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.global.exception.BusinessException;
@@ -13,13 +15,11 @@ import org.example.homedatazip.payment.dto.TossPaymentConfirmRequest;
 import org.example.homedatazip.payment.dto.TossPaymentConfirmResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-import jakarta.annotation.PostConstruct;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -29,20 +29,23 @@ import java.util.Base64;
 @RequiredArgsConstructor
 public class TossPaymentClient {
 
-    @PostConstruct
-    void checkKeys() {
-        String masked = (secretKey == null) ? "null" :
-                (secretKey.length() <= 8 ? secretKey : secretKey.substring(0, 8) + "...");
-        log.info("[TOSS] secretKey prefix={}", masked);
-    }
-
-
     @Value("${payment.toss.secret-key}")
     private String secretKey;
+
+    private final ObjectMapper objectMapper;
 
     private final WebClient webClient = WebClient.builder()
             .baseUrl("https://api.tosspayments.com")
             .build();
+
+    @PostConstruct
+    void init() {
+        String masked = (secretKey == null) ? "null"
+                : (secretKey.length() <= 8 ? secretKey : secretKey.substring(0, 8) + "...");
+        log.info("[TOSS] secretKey prefix={}", masked);
+
+        objectMapper.registerModule(new JavaTimeModule());
+    }
 
     public TossPaymentConfirmResponse approve(String paymentKey, String orderId, Long amount) {
         TossPaymentConfirmRequest payload = new TossPaymentConfirmRequest(paymentKey, orderId, amount);
@@ -56,12 +59,10 @@ public class TossPaymentClient {
                         resp.bodyToMono(String.class)
                                 .defaultIfEmpty("")
                                 .flatMap(body -> {
-                                    // 성공/실패 모두 body 로그 찍기
                                     if (resp.statusCode().is2xxSuccessful()) {
                                         log.info("[TOSS] approve success. body={}", body);
                                         try {
-                                            ObjectMapper om = new ObjectMapper();
-                                            return Mono.just(om.readValue(body, TossPaymentConfirmResponse.class));
+                                            return Mono.just(objectMapper.readValue(body, TossPaymentConfirmResponse.class));
                                         } catch (Exception e) {
                                             log.error("[TOSS] approve parse failed. body={}", body, e);
                                             return Mono.error(new BusinessException(PaymentErrorCode.TOSS_APPROVE_FAILED));
@@ -101,8 +102,7 @@ public class TossPaymentClient {
                                     if (resp.statusCode().is2xxSuccessful()) {
                                         log.info("[TOSS] billing pay success. orderId={}, body={}", orderId, body);
                                         try {
-                                            ObjectMapper om = new ObjectMapper();
-                                            return Mono.just(om.readValue(body, TossBillingPaymentResponse.class));
+                                            return Mono.just(objectMapper.readValue(body, TossBillingPaymentResponse.class));
                                         } catch (Exception e) {
                                             log.error("[TOSS] billing pay parse failed. orderId={}, body={}", orderId, body, e);
                                             return Mono.error(new BusinessException(PaymentErrorCode.TOSS_APPROVE_FAILED));
@@ -116,7 +116,6 @@ public class TossPaymentClient {
                 )
                 .block();
     }
-
 
     /**
      * 빌링키 발급 (카드등록 완료 후 authKey -> billingKey 교환)
@@ -132,9 +131,10 @@ public class TossPaymentClient {
                 .onStatus(HttpStatusCode::isError, resp ->
                         resp.bodyToMono(String.class)
                                 .defaultIfEmpty("")
-                                .flatMap(body -> Mono.error(
-                                        new BusinessException(PaymentErrorCode.TOSS_BILLING_KEY_ISSUE_FAILED)
-                                ))
+                                .flatMap(body -> {
+                                    log.error("[TOSS] billing key issue failed. status={}, body={}", resp.statusCode(), body);
+                                    return Mono.error(new BusinessException(PaymentErrorCode.TOSS_BILLING_KEY_ISSUE_FAILED));
+                                })
                 )
                 .bodyToMono(TossBillingKeyIssueResponse.class)
                 .block();
@@ -144,5 +144,4 @@ public class TossPaymentClient {
         return "Basic " + Base64.getEncoder()
                 .encodeToString((secretKey + ":").getBytes(StandardCharsets.UTF_8));
     }
-
 }

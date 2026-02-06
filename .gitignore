@@ -38,6 +38,7 @@ out/
 .vscode/
 
 /front/
+/front_test/
 
 # env
 .env

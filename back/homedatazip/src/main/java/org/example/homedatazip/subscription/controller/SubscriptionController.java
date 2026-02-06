@@ -17,9 +17,6 @@ public class SubscriptionController {
 
     private final SubscriptionService subscriptionService;
 
-    /**
-     * 1. 카드 등록 시작 (프론트에서 Toss Billing 인증 시작용)
-     */
     @PostMapping("/billing/issue")
     public ResponseEntity<BillingKeyIssueResponse> issueBilling(
             @AuthenticationPrincipal CustomUserDetails principal,
@@ -30,10 +27,7 @@ public class SubscriptionController {
         );
     }
 
-    /**
-     * 2. 카드 등록 성공(authKey) → billingKey 저장 (JWT 없음)
-     * 토스에서 successUrl로 리다이렉트 들어오는 요청이라 Authorization 헤더가 없다.
-     */
+
     @GetMapping("/billing/success")
     public ResponseEntity<Void> billingSuccess(
             @RequestParam String customerKey,
@@ -48,9 +42,7 @@ public class SubscriptionController {
                 .build();
     }
 
-    /**
-     * 2-1. 카드 등록 실패 (JWT 없음)
-     */
+
     @GetMapping("/billing/fail")
     public ResponseEntity<Void> billingFail(
             @RequestParam(required = false) String customerKey
@@ -60,9 +52,7 @@ public class SubscriptionController {
                 .build();
     }
 
-    /**
-     * 3. 첫 결제 = 구독 시작 (billingKey 결제 1회)
-     */
+
     @PostMapping("/start")
     public ResponseEntity<Void> startSubscription(
             @AuthenticationPrincipal CustomUserDetails principal
@@ -71,9 +61,7 @@ public class SubscriptionController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * 자동결제 OFF (다음 결제부터 중단)
-     */
+
     @PostMapping("/auto-pay/cancel")
     public ResponseEntity<Void> cancelAutoPay(
             @AuthenticationPrincipal CustomUserDetails principal
@@ -82,9 +70,7 @@ public class SubscriptionController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * 자동결제 ON
-     */
+
     @PostMapping("/auto-pay/reactivate")
     public ResponseEntity<Void> reactivateAutoPay(
             @AuthenticationPrincipal CustomUserDetails principal
@@ -93,9 +79,7 @@ public class SubscriptionController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * 내 구독 조회
-     */
+
     @GetMapping("/me")
     public ResponseEntity<SubscriptionMeResponse> getMySubscription(
             @AuthenticationPrincipal CustomUserDetails principal
