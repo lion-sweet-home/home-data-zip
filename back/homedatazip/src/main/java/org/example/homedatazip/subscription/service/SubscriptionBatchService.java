@@ -25,8 +25,6 @@ public class SubscriptionBatchService {
 
     /**
      * 만료 처리 (EXPIRED)
-     * - ACTIVE/CANCELED 이면서 endDate < today 인 구독들을 EXPIRED 처리
-     * - 정책: "ACTIVE 동안만 SELLER 유지" => EXPIRED 되는 순간 SELLER 회수
      */
     @Transactional
     public int expire(LocalDate today) {
