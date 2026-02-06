@@ -36,6 +36,7 @@ public class SecurityConfig {
                         // 로그인
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // 버스정류장
                         .requestMatchers("/api/bus-stations/**").permitAll()
 
                         .requestMatchers("/api/apartments/**").permitAll()
@@ -44,6 +45,15 @@ public class SecurityConfig {
 
                         // 지하철역 부분 검색
                         .requestMatchers("/api/subway/stations/**").permitAll()
+
+                        // 매매, 추후 create,me는 seller만 가능
+                        .requestMatchers("/api/listings/**").permitAll()
+
+                        // 구독, 추후 로그인한 사람에 한해 가능
+                        .requestMatchers(
+                                "/api/subscriptions/billing/success",
+                                "/api/subscriptions/billing/fail"
+                        ).permitAll()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

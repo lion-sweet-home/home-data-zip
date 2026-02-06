@@ -31,7 +31,7 @@ public class BusStationIngestService {
 
         Region region;
         try {
-            region = geoService.convertAddressInfo(lat, lon); // ✅ 여기서 lawdCode 매핑 끝
+            region = geoService.convertAddressInfo(lat, lon);
         } catch (Exception e) {
             // 카카오 호출 실패/Region 못찾음 등
             log.warn("Region 매핑 실패 - nodeId={}, lat={}, lon={}, err={}",
