@@ -102,6 +102,15 @@ public class AuthService {
         cookieProvider.clearRefreshCookie(response, false);
     }
 
+    /** 소셜 로그인 성공 시: User 기준으로 JWT 발급 + 쿠키 설정 */
+    @Transactional(readOnly = true)
+    public void issueTokenForOAuthUser(User user, HttpServletResponse response) {
+        List<String> roles = stringFromUserRole(user);
+        String refreshToken = jwtTokenizer.createRefreshToken(user.getEmail(), roles);
+        Duration ttl = getRefreshTokenTtl();
+        refreshTokenRedisRepository.save(user.getId(), refreshToken, ttl);
+        addCookieAndSetHeader(response, refreshToken, null);
+    }
 
     private User findUserByEmail(String email){
         return userRepository.findByEmail(email)

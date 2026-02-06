@@ -61,16 +61,15 @@ public class SubwayStationMapTasklet implements Tasklet {
             station.setStationName(stationName);
             station.setLatitude(medianLat);
             station.setLongitude(medianLon);
-            station = stationRepository.save(station);
 
             // 대표 위/경도 → 역지오코딩(REQUIRES_NEW) → Region 설정 (실패 시 region=null 유지, Step 트랜잭션 유지)
             try {
                 Region region = geoService.convertAddressInfoInNewTransaction(medianLat, medianLon);
                 station.setRegion(region);
-                stationRepository.save(station);
             } catch (Exception e) {
                 log.warn("역지오코딩 실패 - 역명={}, lat={}, lon={}: {}", stationName, medianLat, medianLon, e.getMessage());
             }
+            station = stationRepository.save(station);
 
             for (SubwayStationSource source : sources) {
                 source.setStation(station);
@@ -82,6 +81,7 @@ public class SubwayStationMapTasklet implements Tasklet {
     }
 
     private static double median(List<Double> values) {
+        // TODO: global exception 처리
         if (values == null || values.isEmpty()) {
             throw new IllegalArgumentException("위/경도 값이 비어있음");
         }
