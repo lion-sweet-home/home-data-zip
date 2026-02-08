@@ -1,8 +1,10 @@
 package org.example.homedatazip.apartment.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.apartment.dto.AptSummaryResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
+import org.example.homedatazip.apartment.service.ApartmentService;
 import org.example.homedatazip.busstation.dto.NearbyBusStationReponse;
 import org.example.homedatazip.busstation.service.BusStationService;
 import org.example.homedatazip.data.dto.ApartmentOptionResponse;
@@ -19,6 +21,7 @@ public class ApartmentController {
 
     private final ApartmentRepository apartmentRepository;
     private final BusStationService busStationService;
+    private final ApartmentService apartmentService;
 
     @GetMapping
     public ResponseEntity<List<ApartmentOptionResponse>> apartments(@RequestParam Long regionId) {
@@ -45,5 +48,16 @@ public class ApartmentController {
                 "count", list.size(),
                 "items", list
         ));
+    }
+
+    /**
+     * 아파트 키워드로 검색
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<AptSummaryResponse>> searchByKeyword(
+            @RequestParam String keyword
+    ) {
+        return ResponseEntity.ok()
+                .body(apartmentService.searchByKeyword(keyword));
     }
 }
