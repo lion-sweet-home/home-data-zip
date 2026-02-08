@@ -1,4 +1,4 @@
-package org.example.homedatazip.global.batch.hospital.service;
+package org.example.homedatazip.global.batch.hospital.reader;
 
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.RequiredArgsConstructor;
