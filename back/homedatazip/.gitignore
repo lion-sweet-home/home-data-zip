@@ -53,3 +53,6 @@ src/main/resources/data.sql
 
 ###Test폴더
 ../test/
+
+### test용 html
+src/main/resources/static/*.html
