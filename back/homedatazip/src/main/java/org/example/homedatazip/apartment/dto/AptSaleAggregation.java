@@ -2,41 +2,17 @@ package org.example.homedatazip.apartment.dto;
 
 public record AptSaleAggregation(
         Long aptId,
-
-        // 6개월 집계
-        Long sixMonthAmountSum,
-        Long sixMonthSaleCount,
-
-        // 전전월 집계
-        Long twoMonthsAgoAmountSum,
-        Long twoMonthsAgoSaleCount,
+        Long areaTypeId,
 
         // 전월 집계
         Long lastMonthAmountSum,
-        Long lastMonthSaleCount
+        Long lastMonthSaleCount,
+
+        // 비교 대상월(과거 중 거래가 있는 최신 월)
+        String compareYyyymm,
+        Long compareMonthAmountSum,
+        Long compareMonthSaleCount
 ) {
-
-    /**
-     * 6개월 평균 거래가
-     */
-    public Long getSixMonthAvgAmount() {
-        if (sixMonthSaleCount == null || sixMonthSaleCount == 0) {
-            return null;
-        }
-
-        return sixMonthAmountSum / sixMonthSaleCount;
-    }
-
-    /**
-     * 전전월 평균 거래가
-     */
-    public Long getTwoMonthsAgoAvgAmount() {
-        if (twoMonthsAgoSaleCount == null || twoMonthsAgoSaleCount == 0) {
-            return null;
-        }
-
-        return twoMonthsAgoAmountSum / twoMonthsAgoSaleCount;
-    }
 
     /**
      * 전월 평균 거래가
@@ -50,19 +26,30 @@ public record AptSaleAggregation(
     }
 
     /**
+     * 비교 대상월 평균 거래가
+     */
+    public Long getCompareMonthAvgAmount() {
+        if (compareMonthSaleCount == null || compareMonthSaleCount == 0) {
+            return null;
+        }
+
+        return compareMonthAmountSum / compareMonthSaleCount;
+    }
+
+    /**
      * 등락률 계산
      * <br/>
      * (전월 평균 거래가 - 전전월 평균 거래가) / 전전월 평균 거래가 * 100
      */
     public Double getPriceChangeRate() {
         Long lastMonthAvg = getLastMonthAvgAmount();
-        Long twoMonthsAgoAvg = getTwoMonthsAgoAvgAmount();
+        Long compareMonthAvg = getCompareMonthAvgAmount();
 
-        if (lastMonthAvg == null || twoMonthsAgoAvg == null || twoMonthsAgoAvg == 0) {
+        if (lastMonthAvg == null || compareMonthAvg == null || compareMonthAvg == 0) {
             return null;
         }
 
-        return ((lastMonthAvg.doubleValue() - twoMonthsAgoAvg.doubleValue())
-                / twoMonthsAgoAvg.doubleValue()) * 100;
+        return ((lastMonthAvg.doubleValue() - compareMonthAvg.doubleValue())
+                / compareMonthAvg.doubleValue()) * 100;
     }
 }
