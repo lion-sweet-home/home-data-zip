@@ -28,7 +28,7 @@ public class ApartmentIdPartitioner implements Partitioner {
 
         List<String> dealYmds = new ArrayList<>();
         LocalDate now = LocalDate.now();
-        for (int i = 1; i < 6; i++) {
+        for (int i = 1; i < 48; i++) {
             dealYmds.add(now.minusMonths(i).format(DateTimeFormatter.ofPattern("yyyyMM")));
         }
 
