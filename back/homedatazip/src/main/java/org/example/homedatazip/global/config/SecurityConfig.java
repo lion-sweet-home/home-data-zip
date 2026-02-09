@@ -46,6 +46,9 @@ public class SecurityConfig {
                         // 지하철역 부분 검색
                         .requestMatchers("/api/subway/stations/**").permitAll()
 
+                        // 학교 지역 검색·반경 내 아파트
+                        .requestMatchers("/api/schools/**").permitAll()
+
                         // 매매, 추후 create,me는 seller만 가능
                         .requestMatchers("/api/listings/**").permitAll()
 
