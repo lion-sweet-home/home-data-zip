@@ -72,4 +72,9 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long>, Apa
                       @Param("regionId") Long regionId);
 
     List<Apartment> findByRegionIdOrderByAptNameAsc(Long regionId);
+
+    // 키워드 검색용 (키워드로 시작하는 아파트 검색)
+    List<Apartment> findByAptNameStartsWith(String aptName);
+
+    List<Apartment> findByAptNameContaining(String aptName);
 }
