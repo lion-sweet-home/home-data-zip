@@ -62,6 +62,10 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/test/**").permitAll()
 
+
+
+                        .requestMatchers("/api/regions/**", "/api/apartment/trade-sale/**").permitAll()
+
                         //전월세 조회
                         .requestMatchers("/api/rent/**").permitAll()
 
