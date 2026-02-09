@@ -2,6 +2,8 @@ package org.example.homedatazip.user.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.homedatazip.chat.entity.ChatRoom;
+import org.example.homedatazip.chat.repository.ChatRoomRepository;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.user.dto.UserSearchRequest;
@@ -20,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AdminUserService {
 
     private final UserRepository userRepository;
+    private final ChatRoomRepository chatRoomRepository;
 
     @Transactional(readOnly = true)
     public Page<UserSearchResponse> searchUsers(UserSearchRequest request, Pageable pageable) {
@@ -43,6 +46,20 @@ public class AdminUserService {
                     log.error("회원을 찾을 수 없습니다. userId={}", userId);
                     return new BusinessException(UserErrorCode.USER_NOT_FOUND);
                 });
+
+        // 유저가 참여 중인 모든 채팅방에서 퇴장 처리
+        for (ChatRoom chatRoom : chatRoomRepository.findAllByUserId(userId)) {
+            if (chatRoom.isBuyer(userId)) {
+                chatRoom.exitBuyer();
+            } else {
+                chatRoom.exitSeller();
+            }
+
+            // 둘 다 나갔다면 채팅방 삭제
+            if (chatRoom.isBuyerExited() && chatRoom.isSellerExited()) {
+                chatRoomRepository.delete(chatRoom);
+            }
+        }
 
         // 유저 삭제 - 매물, 관심매물, 토큰도 같이 삭제됨.
         userRepository.delete(user);
