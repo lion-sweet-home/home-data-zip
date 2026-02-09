@@ -156,7 +156,7 @@ public class ApartmentService {
      * 2. 키워드로 시작하는 아파트 목록 조회
      * 3. 아파트 ID 추출 및 기간 설정
      * 4. 집계 데이터 조회
-     * 5. 응답 DTO 생성
+     * 5. 응답 DTO 생성 (전월 거래량 내림차순 정렬)
      */
     public List<AptSummaryResponse> searchByKeyword(String keyword) {
         // 1. 키워드 유효성 검증
@@ -179,43 +179,39 @@ public class ApartmentService {
                 apartments.size()
         );
 
-        // 3. 아파트 ID 추출 및 기간 설정
-        List<Long> aptIds = apartments.stream()
-                .map(Apartment::getId)
-                .toList();
-
-        // 전월, 전전월, 6개월 전
-        String lastMonth = Yyyymm.lastMonthYyyymm(LocalDate.now());
-        String twoMonthsAgo = Yyyymm.minYyyymmForMonths(lastMonth, 2);
-        String sixMonthsAgo = Yyyymm.minYyyymmForMonths(lastMonth, 6);
-
-        log.debug("📅 조회기간 - 전월: {}, 전전월: {}, 6개월 전: {}",
-                lastMonth,
-                twoMonthsAgo,
-                sixMonthsAgo
-        );
-
-        // 4. 집계 데이터 조회
-        Map<Long, AptSaleAggregation> aggregationMap = apartmentSearchRepository
-                .findSaleAggregationByAptIds(
-                        aptIds,
-                        sixMonthsAgo,
-                        twoMonthsAgo,
-                        lastMonth
-                )
-                .stream()
-                .collect(Collectors.toMap(
-                                AptSaleAggregation::aptId,
-                                aggregation -> aggregation
-                        )
+        // 아파트 정보 Map
+        Map<Long, Apartment> apartmentMap = apartments.stream()
+                .collect(Collectors
+                        .toMap(Apartment::getId, apt -> apt)
                 );
 
+        // 3. 아파트 ID 추출 및 기간 설정
+        List<Long> aptIds = new ArrayList<>(apartmentMap.keySet());
+
+        // 전월, 4년 전
+        String lastMonth = Yyyymm.lastMonthYyyymm(LocalDate.now());
+        String fourYearsAgo = Yyyymm.minYyyymmForMonths(lastMonth, 48);
+
+        log.debug("📅 조회기간 - 전월: {}, 4년 전: {}", lastMonth, fourYearsAgo);
+
+        // 4. 집계 데이터 조회
+        List<AptSaleAggregation> aggregations = apartmentSearchRepository
+                .findSaleAggregationByAptIds(aptIds, lastMonth, fourYearsAgo);
+
+        log.debug("📊 집계 데이터 조회 완료 - {}건", aggregations.size());
+
         // 5. 응답 DTO 생성
-        List<AptSummaryResponse> result = apartments.stream()
-                .map(apt -> createSummaryResponse(
-                                apt,
-                                aggregationMap.get(apt.getId())
-                        )
+        List<AptSummaryResponse> result = aggregations.stream()
+                .map(aggregation ->
+                        createSummaryResponse(
+                                apartmentMap.get(aggregation.aptId()),
+                                aggregation)
+                )
+                .sorted((a, b) -> {
+                            Integer countA = a.tradeCount() != null ? a.tradeCount() : 0;
+                            Integer countB = b.tradeCount() != null ? b.tradeCount() : 0;
+                            return countB.compareTo(countA);
+                        }
                 )
                 .toList();
 
@@ -228,7 +224,7 @@ public class ApartmentService {
     }
 
     /**
-     * 키워드 유효성 검증
+     * 키워드 유효성 검증 (공백, 글자수 체크)
      */
     private void validateKeyword(String keyword) {
         // 공백 체크
@@ -248,80 +244,57 @@ public class ApartmentService {
             Apartment apt,
             AptSaleAggregation aggregation
     ) {
-        Long aptId = apt.getId();
-        String gu = (apt.getRegion() != null)
+        String gu = (apt != null && apt.getRegion() != null)
                 ? apt.getRegion().getGugun()
                 : null;
 
-        // 집계 데이터가 없는 경우
-        if (aggregation == null) {
-            log.debug("⚠️ 거래 데이터 없음 - aptId: {}, aptName: {}",
-                    aptId,
-                    apt.getAptName()
+        String aptName = (apt != null)
+                ? apt.getAptName()
+                : null;
+
+        // 전월 거래량
+        Integer tradeCount = aggregation.lastMonthSaleCount() != null
+                ? aggregation.lastMonthSaleCount().intValue()
+                : 0;
+
+        // 전월 거래량이 0인 경우 - 평균 거래가 null, 등락률 null
+        if (tradeCount == 0) {
+            log.debug("⚠️ 전월 거래 없음 - aptId: {}, areaTypeId: {}",
+                    aggregation.aptId(),
+                    aggregation.areaTypeId()
             );
 
             return new AptSummaryResponse(
-                    aptId,
-                    apt.getAptName(),
+                    aggregation.aptId(),
+                    aptName,
                     gu,
+                    aggregation.areaTypeId(),
                     null,
                     null,
-                    null
+                    0
             );
         }
 
-        // 집계 데이터가 있는 경우
-        Long avgDealAmount = aggregation.getSixMonthAvgAmount();
-        Integer tradeCount
-                = Optional.ofNullable(aggregation.sixMonthSaleCount())
-                .map(Long::intValue)
-                .orElse(null);
+        // 전월 거래량이 있는 경우
+        Long avgDealAmount = aggregation.getLastMonthAvgAmount();
+        Double priceChangeRate = aggregation.getPriceChangeRate();
 
-        Double priceChangeRate
-                = calculatePriceChangeRate(aptId, apt.getAptName(), aggregation);
+        // 등락률 계산 불가
+        if (priceChangeRate == null && aggregation.compareYyyymm() == null) {
+            log.debug("⚠️ 등락률 계산 불가(비교 대상월 없음) - aptId: {}, areaTypeId: {}",
+                    aggregation.aptId(),
+                    aggregation.areaTypeId()
+            );
+        }
 
         return new AptSummaryResponse(
-                aptId,
-                apt.getAptName(),
+                aggregation.aptId(),
+                aptName,
                 gu,
+                aggregation.areaTypeId(),
                 avgDealAmount,
                 priceChangeRate,
                 tradeCount
         );
-    }
-
-    /**
-     * 등락률 계산
-     * <br/>
-     * (전월 평균 거래가 - 전전월 평균 거래가) / 전전월 평균 거래가 * 100
-     */
-    private Double calculatePriceChangeRate(
-            Long aptId,
-            String aptName,
-            AptSaleAggregation aggregation
-    ) {
-        if (
-                aggregation.twoMonthsAgoAmountSum() == null
-                        || aggregation.twoMonthsAgoSaleCount() == 0
-        ) {
-            log.debug("⚠️ 등락률 계산 불가(전전월 거래 없음) - aptId: {}, aptName: {}",
-                    aptId,
-                    aptName
-            );
-            return null;
-        }
-
-        if (
-                aggregation.lastMonthAmountSum() == null
-                        || aggregation.lastMonthSaleCount() == 0
-        ) {
-            log.debug("⚠️ 등락률 계산 불가(전월 거래 없음) - aptId: {}, aptName: {}",
-                    aptId,
-                    aptName
-            );
-            return null;
-        }
-
-        return aggregation.getPriceChangeRate();
     }
 }
