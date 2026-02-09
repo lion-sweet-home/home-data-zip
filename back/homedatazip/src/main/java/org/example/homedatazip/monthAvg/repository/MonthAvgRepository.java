@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
 
@@ -116,4 +117,8 @@ public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
     """)
     List<Long> findDistinctAreaTypeIdsByAptId(@Param("aptId") long aptId);
 
+
+    Optional<MonthAvg> findTopByAptIdOrderByYyyymmDesc(Long aptId);
+
+    List<MonthAvg> findAllByAptIdAndYyyymm(Long aptId, String yyyymm);
 }
