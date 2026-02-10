@@ -139,4 +139,26 @@ public class TradeSaleQueryRepository {
                 .fetch();
     }
 
+    public List<DongRankResponse> findDongRankByRegion(String sido, String gugun, int periodMonths) {
+        LocalDate startDate = LocalDate.now().minusMonths(periodMonths);
+
+        return queryFactory
+                .select(new QDongRankResponse(
+                        region.dong,
+                        tradeSale.count()
+                ))
+                .from(tradeSale)
+                .join(tradeSale.apartment, apartment)
+                .join(apartment.region, region)
+                .where(
+                        region.sido.eq(sido),
+                        region.gugun.eq(gugun),
+                        tradeSale.dealDate.goe(startDate),
+                        tradeSale.canceled.ne(true)
+                )
+                .groupBy(region.dong)
+                .orderBy(tradeSale.count().desc())
+                .fetch();
+    }
+
 }
