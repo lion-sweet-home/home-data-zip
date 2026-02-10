@@ -24,7 +24,7 @@ public class HospitalRegionReader implements ItemReader<Hospital> {
     private Iterator<Hospital> iterator;
 
     @Override
-    public Hospital read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+    public synchronized Hospital read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
         // iterator 소진 시 다음 조회
         if (iterator == null || !iterator.hasNext()) {
             List<Hospital> hospitals

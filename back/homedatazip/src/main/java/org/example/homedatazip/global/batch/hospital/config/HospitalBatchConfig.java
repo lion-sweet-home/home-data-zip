@@ -13,7 +13,9 @@ import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.item.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @Slf4j
@@ -61,6 +63,7 @@ public class HospitalBatchConfig {
                 .faultTolerant() // 내결함성 기능 활성화
                 .skipLimit(100) // 최대 100건 오류 허용
                 .skip(DataIntegrityViolationException.class) // 중복 키 오류 스킵
+                .taskExecutor(regionTaskExecutor())
                 .build();
     }
 
@@ -75,6 +78,20 @@ public class HospitalBatchConfig {
                 .reader(hospitalRegionReader)
                 .processor(hospitalRegionProcessor)
                 .writer(hospitalRegionWriter)
+                .taskExecutor(regionTaskExecutor())
                 .build();
+    }
+
+    /**
+     * 스레드 풀을 사용하여 여러 스레드가 chunk를 동시에 처리
+     */
+    @Bean
+    public TaskExecutor regionTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(5);
+        executor.setMaxPoolSize(10);
+        executor.setThreadNamePrefix("apt-batch-");
+        executor.initialize();
+        return executor;
     }
 }

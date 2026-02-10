@@ -35,7 +35,7 @@ public class HospitalApiReader implements ItemReader<HospitalApiResponse.Hospita
     }
 
     @Override
-    public HospitalApiResponse.HospitalItem read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
+    public synchronized HospitalApiResponse.HospitalItem read() throws Exception, UnexpectedInputException, ParseException, NonTransientResourceException {
         // 현재 페이지 소진 시 다음 페이지 로드
         if (iterator == null || !iterator.hasNext()) {
             // 모든 데이터 처리 완료 체크
