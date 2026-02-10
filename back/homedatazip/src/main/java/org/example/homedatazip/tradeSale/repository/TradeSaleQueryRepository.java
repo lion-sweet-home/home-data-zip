@@ -1,4 +1,4 @@
-package org.example.homedatazip.tradeSale.Repository;
+package org.example.homedatazip.tradeSale.repository;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;

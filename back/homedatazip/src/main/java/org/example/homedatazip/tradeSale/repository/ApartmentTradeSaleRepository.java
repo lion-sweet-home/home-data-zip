@@ -1,4 +1,4 @@
-package org.example.homedatazip.tradeSale.Repository;
+package org.example.homedatazip.tradeSale.repository;
 
 import org.example.homedatazip.tradeSale.entity.TradeSale;
 import org.springframework.data.jpa.repository.JpaRepository;
