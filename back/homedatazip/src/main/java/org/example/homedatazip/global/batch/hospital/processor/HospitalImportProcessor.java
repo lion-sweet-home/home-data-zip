@@ -26,7 +26,7 @@ public class HospitalImportProcessor implements ItemProcessor<HospitalApiRespons
             return null;
         }
 
-        // 지역 필터링 (서울, 인천, 경기만 저장)
+        // 지역 필터링 (서울, 인천만 저장)
         if (!isTargetRegion(row.getAddress())) {
             log.debug("⏭️ 저장하지 않는 지역 - {}", row.getAddress());
             return null; // 해당 데이터는 저장하지 않음
@@ -44,13 +44,12 @@ public class HospitalImportProcessor implements ItemProcessor<HospitalApiRespons
     }
 
     /**
-     * 서울, 인천, 경기 필터링
+     * 서울, 인천 필터링
      */
     private boolean isTargetRegion(String address) {
         if (address == null || address.isEmpty()) return false;
 
         return address.startsWith("서울")
-                || address.startsWith("인천")
-                || address.startsWith("경기");
+                || address.startsWith("인천");
     }
 }
