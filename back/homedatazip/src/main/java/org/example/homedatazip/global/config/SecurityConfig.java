@@ -36,6 +36,7 @@ public class SecurityConfig {
                         // 로그인
                         .requestMatchers("/api/auth/**").permitAll()
 
+                        // 버스정류장
                         .requestMatchers("/api/bus-stations/**").permitAll()
 
                         .requestMatchers("/api/apartments/**").permitAll()
@@ -45,14 +46,30 @@ public class SecurityConfig {
                         // 지하철역 부분 검색
                         .requestMatchers("/api/subway/stations/**").permitAll()
 
+                        // 학교 지역 검색·반경 내 아파트
+                        .requestMatchers("/api/schools/**").permitAll()
+
+                        // 매매, 추후 create,me는 seller만 가능
+                        .requestMatchers("/api/listings/**").permitAll()
+
+                        // 구독, 추후 로그인한 사람에 한해 가능
+                        .requestMatchers(
+                                "/api/subscriptions/billing/success",
+                                "/api/subscriptions/billing/fail"
+                        ).permitAll()
+
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
                         .requestMatchers("/api/test/**").permitAll()
 
-
-
                         //전월세 조회
                         .requestMatchers("/api/rent/**").permitAll()
+
+                        // 테스트용 클라이언트 페이지
+                        // todo: 나중에 삭제 예정
+                        .requestMatchers("/test-chat.html").permitAll()
+                        // 웹소켓 연결점
+                        .requestMatchers("/ws-stomp/**").permitAll()
 
                         .anyRequest().authenticated()
                 )

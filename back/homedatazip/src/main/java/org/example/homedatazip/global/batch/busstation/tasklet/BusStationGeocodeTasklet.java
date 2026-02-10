@@ -77,8 +77,7 @@ public class BusStationGeocodeTasklet implements Tasklet {
             log.info("[BUS-GEO] batch success={}, fail={}, skipped={}, processed={}",
                     success, fail, skipped, targets.size());
 
-            // ✅ 진행이 없을 때 바로 종료하면 “일시 장애”에 너무 약해서,
-            //    success=0이 연속 2번이면 종료로 완화
+
             if (success == 0) {
                 noProgressCount++;
                 log.warn("[BUS-GEO] no progress. count={}/{} (totalFail={}, totalSkipped={})",
