@@ -3,6 +3,8 @@ package org.example.homedatazip.data.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.data.repository.RegionRepository;
 import org.example.homedatazip.data.service.RegionService;
+import org.example.homedatazip.tradeSale.dto.DongRankResponse;
+import org.example.homedatazip.tradeSale.service.TradeSaleQueryService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,6 +20,7 @@ public class RegionController {
 
     private final RegionService regionService;
     private final RegionRepository regionRepository;
+    private final TradeSaleQueryService tradeSaleQueryService;
 
     @GetMapping("/sido")
     public ResponseEntity<List<String>> getSidoList() {
@@ -33,6 +36,15 @@ public class RegionController {
     public ResponseEntity<List<String>> getDongList(@RequestParam String sido, @RequestParam String gugun) {
 
         return ResponseEntity.ok(regionService.findDongList(sido, gugun));
+    }
+
+    @GetMapping("/dong/rank")
+    public ResponseEntity<List<DongRankResponse>> getDongRank(
+            @RequestParam String sido,
+            @RequestParam String gugun,
+            @RequestParam(defaultValue = "6") int periodMonths) {
+
+        return ResponseEntity.ok(tradeSaleQueryService.getDongRanking(sido, gugun, periodMonths));
     }
 
     //regionID 프론트에서 바로 확보
