@@ -23,4 +23,19 @@ public interface SchoolRepository extends JpaRepository<School, Long> {
             @Param("gugun") String gugun,
             @Param("dong") String dong
     );
+
+    /** 시도·구군(필수), 동(옵션), schoolLevel으로 학교 목록 조회 */
+    @Query("""
+            SELECT s FROM School s JOIN s.region r
+            WHERE r.sido = :sido AND r.gugun = :gugun
+            AND (:dong IS NULL OR :dong = '' OR r.dong LIKE CONCAT(:dong, '%'))
+            AND s.schoolLevel IN :schoolLevels
+            ORDER BY s.schoolLevel, s.name
+            """)
+    List<School> findByRegionSidoAndGugunAndDongOptionalWithSchoolLevel(
+            @Param("sido") String sido,
+            @Param("gugun") String gugun,
+            @Param("dong") String dong,
+            @Param("schoolLevels") List<String> schoolLevels
+    );
 }

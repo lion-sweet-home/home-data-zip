@@ -21,4 +21,16 @@ public interface ApartmentSchoolDistanceRepository extends JpaRepository<Apartme
     List<ApartmentSchoolDistance> findBySchoolIdAndDistanceKmLessThanEqualOrderByDistanceKmAscWithApartment(
             @Param("schoolId") Long schoolId, @Param("maxDistanceKm") double maxDistanceKm);
 
+    /** 아파트 기준: 반경(km) 이내 학교 목록 (school fetch, 거리 오름차순) */
+    @Query("SELECT asd FROM ApartmentSchoolDistance asd JOIN FETCH asd.school WHERE asd.apartment.id = :apartmentId AND asd.distanceKm <= :maxDistanceKm ORDER BY asd.distanceKm")
+    List<ApartmentSchoolDistance> findByApartmentIdWithSchool(
+            @Param("apartmentId") Long apartmentId, @Param("maxDistanceKm") double maxDistanceKm);
+
+    /** 아파트 기준: 반경(km) 이내 학교 목록 (school fetch, schoolLevel 필터, 거리 오름차순) */
+    @Query("SELECT asd FROM ApartmentSchoolDistance asd JOIN FETCH asd.school WHERE asd.apartment.id = :apartmentId AND asd.distanceKm <= :maxDistanceKm AND asd.school.schoolLevel IN :schoolLevels ORDER BY asd.distanceKm")
+    List<ApartmentSchoolDistance> findByApartmentIdWithSchoolAndLevels(
+            @Param("apartmentId") Long apartmentId,
+            @Param("maxDistanceKm") double maxDistanceKm,
+            @Param("schoolLevels") List<String> schoolLevels);
+
 }
