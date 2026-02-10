@@ -34,4 +34,12 @@ public interface SubwayStationSourceRepository extends JpaRepository<SubwayStati
             ORDER BY s.stationName, s.id
             """)
     List<SubwayStationSource> findByLineNameWithStation(@Param("lineName") String lineName);
+
+    /** 역 ID 목록으로 호선 정보 일괄 조회 */
+    @Query("""
+            SELECT s FROM SubwayStationSource s JOIN FETCH s.station st
+            WHERE st.id IN :stationIds
+            ORDER BY st.stationName, s.id
+            """)
+    List<SubwayStationSource> findByStationIdInWithStation(@Param("stationIds") List<Long> stationIds);
 }

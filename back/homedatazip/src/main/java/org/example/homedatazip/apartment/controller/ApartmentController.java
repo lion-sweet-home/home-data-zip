@@ -7,6 +7,10 @@ import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.apartment.service.ApartmentService;
 import org.example.homedatazip.busstation.dto.NearbyBusStationReponse;
 import org.example.homedatazip.busstation.service.BusStationService;
+import org.example.homedatazip.subway.dto.NearbySubwayResponse;
+import org.example.homedatazip.subway.service.SubwayStationService;
+import org.example.homedatazip.school.dto.NearbySchoolResponse;
+import org.example.homedatazip.school.service.SchoolService;
 import org.example.homedatazip.data.dto.ApartmentOptionResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,6 +26,8 @@ public class ApartmentController {
     private final ApartmentRepository apartmentRepository;
     private final BusStationService busStationService;
     private final ApartmentService apartmentService;
+    private final SubwayStationService subwayStationService;
+    private final SchoolService schoolService;
 
     @GetMapping
     public ResponseEntity<List<ApartmentOptionResponse>> apartments(@RequestParam Long regionId) {
@@ -48,6 +54,24 @@ public class ApartmentController {
                 "count", list.size(),
                 "items", list
         ));
+    }
+
+    /** 아파트 기준 가까운 지하철역 top 3 (거리 가까운 순) */
+    @GetMapping("/{apartmentId}/subways")
+    public ResponseEntity<List<NearbySubwayResponse>> nearbySubways(@PathVariable Long apartmentId) {
+        List<NearbySubwayResponse> list = subwayStationService.findNearbySubwaysByApartmentId(apartmentId);
+        return ResponseEntity.ok(list);
+    }
+
+    /** 아파트 기준 가까운 학교 top 3 (schoolLevel 옵션) */
+    @GetMapping("/{apartmentId}/schools")
+    public ResponseEntity<List<NearbySchoolResponse>> nearbySchools(
+            @PathVariable Long apartmentId,
+            @RequestParam(required = false) List<String> schoolLevel
+    ) {
+        List<String> levels = (schoolLevel != null) ? schoolLevel : List.of();
+        List<NearbySchoolResponse> list = schoolService.findNearbySchoolsByApartmentId(apartmentId, levels);
+        return ResponseEntity.ok(list);
     }
 
     /**
