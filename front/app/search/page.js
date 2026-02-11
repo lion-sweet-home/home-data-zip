@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { getSidoList, getGugunList, getDongList } from '../api/region';
 import { searchSubwayStations } from '../api/subway';
 import { searchSchoolsByRegion } from '../api/school';
 
 export default function SearchPage() {
+  const router = useRouter();
+
   // 매매/전월세 선택
   const [tradeType, setTradeType] = useState('매매'); // '매매' 또는 '전월세'
 
@@ -168,6 +171,58 @@ export default function SearchPage() {
       ...prev,
       [type]: !prev[type],
     }));
+  };
+
+  // 검색 버튼 클릭 핸들러
+  const handleSearch = () => {
+    if (searchConditionType === 'region') {
+      // 지역 검색: 시/도와 구/군은 필수
+      if (!selectedSido || !selectedGugun) {
+        alert('시/도와 구/군을 선택해주세요.');
+        return;
+      }
+
+      // 검색 파라미터를 쿼리 스트링으로 전달
+      const params = new URLSearchParams();
+      params.append('tradeType', tradeType);
+      params.append('sido', selectedSido);
+      params.append('gugun', selectedGugun);
+      if (selectedDong) params.append('dong', selectedDong);
+      if (tradeType === '매매') {
+        if (priceMin) params.append('priceMin', priceMin);
+        if (priceMax) params.append('priceMax', priceMax);
+      } else {
+        if (depositMin) params.append('depositMin', depositMin);
+        if (depositMax) params.append('depositMax', depositMax);
+        if (monthlyRentMin) params.append('monthlyRentMin', monthlyRentMin);
+        if (monthlyRentMax) params.append('monthlyRentMax', monthlyRentMax);
+      }
+      
+      // 학교 필터
+      const selectedSchoolTypes = Object.entries(schoolTypes)
+        .filter(([_, selected]) => selected)
+        .map(([type]) => type);
+      if (selectedSchoolTypes.length > 0) {
+        params.append('schoolTypes', selectedSchoolTypes.join(','));
+        if (schoolRadiusActive) params.append('schoolRadius', schoolRadius);
+      }
+
+      router.push(`/search/map?${params.toString()}`);
+    } else if (searchConditionType === 'subway') {
+      // 지하철역 검색: 역 선택 필수
+      if (!selectedSubwayStation) {
+        alert('지하철역을 선택해주세요.');
+        return;
+      }
+
+      const params = new URLSearchParams();
+      params.append('tradeType', tradeType);
+      params.append('subwayStationId', selectedSubwayStation.stationId);
+      params.append('subwayStationName', selectedSubwayStation.stationName);
+      if (subwayRadiusActive) params.append('subwayRadius', subwayRadius);
+
+      router.push(`/search/map?${params.toString()}`);
+    }
   };
 
   return (
@@ -544,6 +599,26 @@ export default function SearchPage() {
               </div>
             </div>
           )}
+
+          {/* 검색 버튼 */}
+          <div className="mt-6 pt-6 border-t">
+            <button
+              onClick={handleSearch}
+              disabled={
+                searchConditionType === 'region' 
+                  ? !selectedSido || !selectedGugun
+                  : !selectedSubwayStation
+              }
+              className={`w-full py-3 px-6 rounded-lg font-medium transition-colors ${
+                (searchConditionType === 'region' && selectedSido && selectedGugun) ||
+                (searchConditionType === 'subway' && selectedSubwayStation)
+                  ? 'bg-blue-600 text-white hover:bg-blue-700'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              검색하기
+            </button>
+          </div>
         </div>
       </div>
     </div>
