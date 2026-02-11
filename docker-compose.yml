@@ -18,7 +18,7 @@ services:
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_general_ci
-      - -performance-schema=OFF # 퍼포먼스 스키마 비활성화(EC2 메모리 절약용)
+      - --performance-schema=OFF # 퍼포먼스 스키마 비활성화(EC2 메모리 절약용)
     healthcheck: # 백엔드 실행 전 DB 준비 상태 확인
       test:
         [
