@@ -65,6 +65,11 @@ public class UserService {
         return userRepository.existsByNickname(nickname);
     }
 
+    public boolean isEmailAvailable(String email) {
+        // 이메일 중복 확인
+        return userRepository.existsByEmail(email);
+    }
+
 
     private void validateDuplicateUser(RegisterRequest request) {
         // 이메일 중복 확인

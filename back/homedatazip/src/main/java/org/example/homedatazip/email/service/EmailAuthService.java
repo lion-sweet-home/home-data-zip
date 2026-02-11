@@ -1,6 +1,7 @@
 package org.example.homedatazip.email.service;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
 import org.example.homedatazip.global.exception.BusinessException;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class EmailAuthService {
@@ -51,6 +53,7 @@ public class EmailAuthService {
         message.setTo(to);
         message.setSubject("[Homedatazip] 인증 코드");
         message.setText("인증 코드: " + code);
+        log.info("인증 코드: {}", code);
         mailSender.send(message);
     }
 }
