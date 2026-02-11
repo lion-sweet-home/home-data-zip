@@ -12,7 +12,7 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # 빌드된 JAR 파일 복사
-COPY --from=build /app/build/libs/*.jar app.jar
+COPY --from=build /app/build/libs/*SNAPSHOT.jar app.jar
 
 # 애플리케이션 실행
 EXPOSE 8080
