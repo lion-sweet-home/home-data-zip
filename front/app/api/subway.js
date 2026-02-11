@@ -6,33 +6,43 @@
 import { get, post } from './api';
 
 /**
- * 지하철역 목록 조회
+ * 지하철역 검색 (역명 또는 호선으로 검색)
  * 
- * @param {object} params - 조회 파라미터
- * @param {number} params.pageNo - 페이지 번호 (기본값: 1)
- * @param {number} params.numOfRows - 페이지당 항목 수 (기본값: 10)
- * @param {string} [params.keyword] - 검색 키워드 (역명, 주소 등)
- * @param {string} [params.line] - 노선명 (예: '1호선', '2호선', '분당선' 등)
- * @returns {Promise<{items: Array, totalCount: number}>} 지하철역 목록
+ * @param {object} params - 검색 파라미터
+ * @param {string} [params.stationName] - 역명 (예: '강남')
+ * @param {string} [params.lineName] - 호선명 (예: '2호선')
+ * @returns {Promise<Array>} 지하철역 목록
  * 
  * 사용 예시:
- * const data = await getSubwayStationList({
- *   pageNo: 1,
- *   numOfRows: 20,
- *   keyword: '강남',
- *   line: '2호선'
+ * const stations = await searchSubwayStations({
+ *   stationName: '강남',
+ *   lineName: '2호선'
  * });
  */
-export async function getSubwayStationList(params = {}) {
+export async function searchSubwayStations(params = {}) {
   const queryParams = new URLSearchParams();
   
-  if (params.pageNo) queryParams.append('pageNo', params.pageNo);
-  if (params.numOfRows) queryParams.append('numOfRows', params.numOfRows);
-  if (params.keyword) queryParams.append('keyword', params.keyword);
-  if (params.line) queryParams.append('line', params.line);
+  if (params.stationName) queryParams.append('stationName', params.stationName);
+  if (params.lineName) queryParams.append('lineName', params.lineName);
   
   const queryString = queryParams.toString();
   return get(`/subway/stations${queryString ? `?${queryString}` : ''}`);
+}
+
+/**
+ * 지하철역 반경 내 아파트 검색
+ * 
+ * @param {number} stationId - 지하철역 ID
+ * @param {number} distanceKm - 반경 (km)
+ * @returns {Promise<Array>} 반경 내 아파트 목록
+ * 
+ * 사용 예시:
+ * const apartments = await getApartmentsNearSubway(1, 2.0);
+ */
+export async function getApartmentsNearSubway(stationId, distanceKm) {
+  const queryParams = new URLSearchParams();
+  queryParams.append('distanceKm', distanceKm);
+  return get(`/subway/stations/${stationId}/apartments?${queryParams.toString()}`);
 }
 
 /**
@@ -73,28 +83,6 @@ export async function getNearbySubwayStations(params) {
   
   const queryString = queryParams.toString();
   return get(`/subway/stations/nearby?${queryString}`);
-}
-
-/**
- * 지하철역 검색
- * 
- * @param {object} searchParams - 검색 조건
- * @param {string} searchParams.keyword - 검색 키워드
- * @param {string} [searchParams.line] - 노선명
- * @param {number} [searchParams.latitude] - 위도 (거리순 정렬용)
- * @param {number} [searchParams.longitude] - 경도 (거리순 정렬용)
- * @returns {Promise<{items: Array, totalCount: number}>} 검색 결과
- * 
- * 사용 예시:
- * const results = await searchSubwayStations({
- *   keyword: '강남',
- *   line: '2호선',
- *   latitude: 37.5665,
- *   longitude: 126.9780
- * });
- */
-export async function searchSubwayStations(searchParams) {
-  return post('/subway/stations/search', searchParams);
 }
 
 /**
@@ -145,10 +133,10 @@ export async function getRoute(params) {
 
 // 기본 export
 export default {
-  getSubwayStationList,
+  searchSubwayStations,
+  getApartmentsNearSubway,
   getSubwayStationDetail,
   getNearbySubwayStations,
-  searchSubwayStations,
   getTransferInfo,
   getStationsByLine,
   getRoute,

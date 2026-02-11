@@ -67,45 +67,45 @@ export async function searchRegion(searchParams) {
 /**
  * 시도 목록 조회
  * 
- * @returns {Promise<Array>} 시도 목록
+ * @returns {Promise<Array<string>>} 시도 목록
  * 
  * 사용 예시:
  * const sidos = await getSidoList();
  */
 export async function getSidoList() {
-  return get('/region/sido');
+  return get('/regions/sido');
 }
 
 /**
- * 시군구 목록 조회
+ * 구/군 목록 조회
  * 
  * @param {string} sido - 시도명
- * @returns {Promise<Array>} 해당 시도의 시군구 목록
+ * @returns {Promise<Array<string>>} 해당 시도의 구/군 목록
  * 
  * 사용 예시:
- * const sigungus = await getSigunguList('서울특별시');
+ * const guguns = await getGugunList('서울특별시');
  */
-export async function getSigunguList(sido) {
+export async function getGugunList(sido) {
   const queryParams = new URLSearchParams();
   queryParams.append('sido', sido);
-  return get(`/region/sigungu?${queryParams.toString()}`);
+  return get(`/regions/gugun?${queryParams.toString()}`);
 }
 
 /**
  * 동 목록 조회
  * 
  * @param {string} sido - 시도명
- * @param {string} sigungu - 시군구명
- * @returns {Promise<Array>} 해당 시군구의 동 목록
+ * @param {string} gugun - 구/군명
+ * @returns {Promise<Array<string>>} 해당 구/군의 동 목록
  * 
  * 사용 예시:
  * const dongs = await getDongList('서울특별시', '강남구');
  */
-export async function getDongList(sido, sigungu) {
+export async function getDongList(sido, gugun) {
   const queryParams = new URLSearchParams();
   queryParams.append('sido', sido);
-  queryParams.append('sigungu', sigungu);
-  return get(`/region/dong?${queryParams.toString()}`);
+  queryParams.append('gugun', gugun);
+  return get(`/regions/dong?${queryParams.toString()}`);
 }
 
 /**
@@ -135,7 +135,7 @@ export default {
   getRegionByCode,
   searchRegion,
   getSidoList,
-  getSigunguList,
+  getGugunList,
   getDongList,
   getRegionByCoordinates,
 };

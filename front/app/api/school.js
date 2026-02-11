@@ -6,35 +6,50 @@
 import { get, post } from './api';
 
 /**
- * 학교 목록 조회
+ * 지역으로 학교 목록 조회
  * 
  * @param {object} params - 조회 파라미터
- * @param {number} params.pageNo - 페이지 번호 (기본값: 1)
- * @param {number} params.numOfRows - 페이지당 항목 수 (기본값: 10)
- * @param {string} [params.schoolType] - 학교 유형 ('초등학교' | '중학교' | '고등학교')
- * @param {string} [params.lawdCd] - 법정동 코드
- * @param {string} [params.keyword] - 검색 키워드 (학교명, 주소 등)
- * @returns {Promise<{items: Array, totalCount: number}>} 학교 목록
+ * @param {string} params.sido - 시도명 (필수)
+ * @param {string} params.gugun - 구/군명 (필수)
+ * @param {string} [params.dong] - 동명 (선택)
+ * @param {Array<string>} [params.schoolLevel] - 학교급 (선택: '초등학교', '중학교', '고등학교')
+ * @returns {Promise<Array>} 학교 목록
  * 
  * 사용 예시:
- * const data = await getSchoolList({
- *   pageNo: 1,
- *   numOfRows: 20,
- *   schoolType: '초등학교',
- *   lawdCd: '11680'
+ * const schools = await searchSchoolsByRegion({
+ *   sido: '서울특별시',
+ *   gugun: '강남구',
+ *   dong: '역삼동',
+ *   schoolLevel: ['초등학교', '중학교']
  * });
  */
-export async function getSchoolList(params = {}) {
+export async function searchSchoolsByRegion(params) {
   const queryParams = new URLSearchParams();
   
-  if (params.pageNo) queryParams.append('pageNo', params.pageNo);
-  if (params.numOfRows) queryParams.append('numOfRows', params.numOfRows);
-  if (params.schoolType) queryParams.append('schoolType', params.schoolType);
-  if (params.lawdCd) queryParams.append('lawdCd', params.lawdCd);
-  if (params.keyword) queryParams.append('keyword', params.keyword);
+  queryParams.append('sido', params.sido);
+  queryParams.append('gugun', params.gugun);
+  if (params.dong) queryParams.append('dong', params.dong);
+  if (params.schoolLevel && Array.isArray(params.schoolLevel)) {
+    params.schoolLevel.forEach(level => queryParams.append('schoolLevel', level));
+  }
   
-  const queryString = queryParams.toString();
-  return get(`/school${queryString ? `?${queryString}` : ''}`);
+  return get(`/schools?${queryParams.toString()}`);
+}
+
+/**
+ * 학교 반경 내 아파트 검색
+ * 
+ * @param {number} schoolId - 학교 ID
+ * @param {number} distanceKm - 반경 (km)
+ * @returns {Promise<Array>} 반경 내 아파트 목록
+ * 
+ * 사용 예시:
+ * const apartments = await getApartmentsNearSchool(1, 2.0);
+ */
+export async function getApartmentsNearSchool(schoolId, distanceKm) {
+  const queryParams = new URLSearchParams();
+  queryParams.append('distanceKm', distanceKm);
+  return get(`/schools/${schoolId}/apartments?${queryParams.toString()}`);
 }
 
 /**
@@ -137,7 +152,8 @@ export async function getSchoolStats(lawdCd) {
 
 // 기본 export
 export default {
-  getSchoolList,
+  searchSchoolsByRegion,
+  getApartmentsNearSchool,
   getSchoolDetail,
   getNearbySchools,
   searchSchools,
