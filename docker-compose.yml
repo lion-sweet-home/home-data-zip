@@ -1,0 +1,145 @@
+services:
+  # 1. Database 서비스
+  mysql:
+    image: mysql:8.0
+    container_name: home-db
+    restart: always # 자동 재시작
+    ports:
+      - ${MYSQL_PORT}:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql-data:/var/lib/mysql # 데이터 영속화 (컨테이너 삭제 시 데이터 유지)
+    networks:
+      - home-network
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_general_ci
+      - -performance-schema=OFF # 퍼포먼스 스키마 비활성화(EC2 메모리 절약용)
+    healthcheck: # 백엔드 실행 전 DB 준비 상태 확인
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-uroot",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  redis:
+    image: redis:7.0
+    container_name: home-redis
+    restart: always
+    ports:
+      - ${REDIS_PORT}:6379
+    volumes:
+      - redis-data:/data # 데이터 영속화
+    networks:
+      - home-network
+    healthcheck: # 백엔드 실행 전 Redis 준비 상태 확인
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # 2. Backend 서비스
+  backend:
+    build:
+      context: ./back/homedatazip # 백엔드 도커파일 경로
+      dockerfile: Dockerfile
+    container_name: home-be
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - home-network
+    depends_on:
+      #  mysql과 redis 서비스가 준비된 후(healthy)에 백엔드 서비스 시작
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment: # 백엔드 환경 변수 설정
+      EC2_HOST: ${EC2_HOST}
+      # Database
+      DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+      DATASOURCE_USERNAME: ${MYSQL_USER}
+      DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+
+      # Mail
+      MAIL_HOST: ${MAIL_HOST}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+
+      # Redis
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+
+      # JWT
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXP_SEC: ${JWT_ACCESS_EXP_SEC}
+      JWT_REFRESH_EXP_SEC: ${JWT_REFRESH_EXP_SEC}
+
+      # TOSS
+      PAYMENT_TOSS_SECRET_KEY: ${PAYMENT_TOSS_SECRET_KEY}
+      PAYMENT_TOSS_CLIENT_KEY: ${PAYMENT_TOSS_CLIENT_KEY}
+
+      # OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # 공공데이터 API 및 크론 설정
+      DATA_GO_KR_SERVICE_KEY: ${DATA_GO_KR_SERVICE_KEY}
+      HOSPITAL_SERVICE_KEY: ${HOSPITAL_SERVICE_KEY}
+
+      RENT_API_SERVICE_KEY: ${RENT_API_SERVICE_KEY}
+
+      KAKAO_API_KEY: ${KAKAO_API_KEY}
+
+      SEOUL_OPENAPI_KEY: ${SEOUL_OPENAPI_KEY}
+      SEOUL_OPENAPI_SERVICE: ${SEOUL_OPENAPI_SERVICE}
+
+      SCHOOL_OPENAPI_KEY: ${SCHOOL_OPENAPI_KEY}
+      SCHOOL_OPENAPI_SYNC_CRON: ${SCHOOL_OPENAPI_SYNC_CRON}
+
+      SUBWAY_OPENAPI_URL: ${SUBWAY_OPENAPI_URL}
+      SUBWAY_OPENAPI_SYNC_CRON: ${SUBWAY_OPENAPI_SYNC_CRON}
+
+      APARTMENT_SUBWAY_DISTANCE_SYNC_CRON: ${APARTMENT_SUBWAY_DISTANCE_SYNC_CRON}
+      APARTMENT_SCHOOL_DISTANCE_SYNC_CRON: ${APARTMENT_SCHOOL_DISTANCE_SYNC_CRON}
+
+  # 3. Frontend 서비스
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: home-fe
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - home-network
+    environment:
+      # 브라우저에서 접근할 백엔드 URL 설정
+      NEXT_PUBLIC_BACKEND_URL: ${NEXT_PUBLIC_BACKEND_URL}
+
+networks:
+  home-network:
+    driver: bridge
+
+volumes:
+  #  데이터 영속화를 위한 볼륨 설정
+  mysql-data:
+  redis-data:

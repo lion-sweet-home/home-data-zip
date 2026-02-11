@@ -21,9 +21,13 @@ public class ApartmentIdPartitioner implements Partitioner {
     @Override
     public Map<String, ExecutionContext> partition(int gridSize) {
         Map<String, ExecutionContext> result = new HashMap<>();
+
+        // 수도권(서울: 11, 인천: 28, 경기: 41) 필터링
+        List<String> targetPrefixes = List.of("11", "28", "41");
+
         List<String> lawdCodes = regionRepository.findAll().stream()
                 .map(Region::getSggCode)
-                .filter(code -> code != null && code.startsWith("11")) // 서울(11) 필터 추가
+                .filter(code -> code != null && targetPrefixes.stream().anyMatch(code::startsWith))
                 .distinct().toList();
 
         List<String> dealYmds = new ArrayList<>();

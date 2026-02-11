@@ -7,16 +7,14 @@ import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.example.homedatazip.monthAvg.repository.MonthAvgRepository;
 import org.example.homedatazip.monthAvg.utill.Yyyymm;
-import org.example.homedatazip.tradeSale.Repository.TradeSaleQueryRepository;
+import org.example.homedatazip.tradeSale.repository.TradeSaleQueryRepository;
 import org.example.homedatazip.tradeSale.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +25,14 @@ public class TradeSaleQueryService {
     private final TradeSaleQueryRepository tradeSaleQueryRepository;
     private final ApartmentRepository apartmentRepository;
     private final MonthAvgRepository monthAvgRepository;
+
+    public List<DongRankResponse> getDongRanking(String sido, String gugun, int periodMonths) {
+        // 만약 시/도나 구/군이 없으면 빈 리스트 반환
+        if (sido == null || gugun == null) {
+            return Collections.emptyList();
+        }
+        return tradeSaleQueryRepository.findDongRankByRegion(sido, gugun, periodMonths);
+    }
 
 
     // 마커 조회
@@ -57,11 +63,11 @@ public class TradeSaleQueryService {
         // DB에서 실제 거래가 있었던 데이터 조회
         List<TradeVolumeDto> dbVolumes = tradeSaleQueryRepository.countMonthlyTrades(aptId, monthsToView);
 
-        // 빠른 조회를 위해 Map으로 변환 (Key: yyyyMM, Value: 건수)
+        // 빠른 조회를 위해 Map으로 변환
         Map<String, Long> volumeMap = dbVolumes.stream()
                 .collect(Collectors.toMap(TradeVolumeDto::month, TradeVolumeDto::count));
 
-        // 생성한 monthLabels를 순회하며 데이터가 없으면 0L 삽입
+        // 생성한 monthLabels를 순회
         List<Long> monthlyVolumes = monthLabels.stream()
                 .map(label -> volumeMap.getOrDefault(label, 0L))
                 .collect(Collectors.toList());
@@ -83,8 +89,12 @@ public class TradeSaleQueryService {
         // 거래 히스토리 조회
         List<TradeSaleHistory> histories = tradeSaleQueryRepository.findTradeHistory(aptId);
 
-        // 평수별 그룹화
+        int monthsToView = (periodMonths != null) ? periodMonths : 6;
+        String minDateLine = LocalDate.now().minusMonths(monthsToView)
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
         Map<Double, List<TradeSaleHistory>> pyeongTrades = histories.stream()
+                .filter(h -> h.dealDate().compareTo(minDateLine) >= 0 || monthsToView == 0)
                 .collect(Collectors.groupingBy(TradeSaleHistory::areaKey));
 
         // 최신 평균가 계산
@@ -118,7 +128,7 @@ public class TradeSaleQueryService {
     private Map<Double, List<TradeSaleChartData>> generateChartDataMap(Long aptId, Integer periodMonths, Map<Double, List<TradeSaleHistory>> pyeongTrades) {
         int monthsToView = (periodMonths != null) ? periodMonths : 6;
 
-        // 조회할 전체 기간 리스트 생성 (비어있는 달 방지)
+        // 조회할 전체 기간 리스트 생성
         List<String> allMonths = new ArrayList<>();
         LocalDate now = LocalDate.now();
         for (int i = monthsToView - 1; i >= 0; i--) {
@@ -132,6 +142,20 @@ public class TradeSaleQueryService {
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
                         entry -> {
+
+                            Map<String, List<IndividualTrade>> tradeDotsMap = entry.getValue().stream()
+                                    .collect(Collectors.groupingBy(
+                                            h -> {
+                                                String pureDate = h.dealDate().replace("-", "");
+                                                return pureDate.substring(0, 6);
+                                            },
+                                            Collectors.mapping(h -> new IndividualTrade(
+                                                    h.dealDate(),
+                                                    h.dealAmount(),
+                                                    h.floor()
+                                            ), Collectors.toList())
+                                    ));
+
                             Long targetAreaTypeId = entry.getValue().get(0).areaTypeId();
 
                             // DB 데이터 조회
@@ -139,23 +163,32 @@ public class TradeSaleQueryService {
                                     aptId, targetAreaTypeId, minYyyymm, maxYyyymm
                             );
 
+                            Optional<MonthAvg> lastRecordBeforeStart = monthAvgRepository.findTopByAptIdAndAreaTypeIdAndYyyymmBeforeOrderByYyyymmDesc(
+                                    aptId, targetAreaTypeId, minYyyymm
+                            );
+
                             // 빠른 조회를 위해 Map으로 변환
                             Map<String, MonthAvg> statsMap = stats.stream()
                                     .collect(Collectors.toMap(MonthAvg::getYyyymm, s -> s));
 
                             List<TradeSaleChartData> filledData = new ArrayList<>();
-                            long lastKnownAvg = 0L;
+                            long lastKnownAvg = lastRecordBeforeStart
+                                    .map(m -> m.getSaleCount() > 0 ? m.getSaleDealAmountSum() / m.getSaleCount() : 0L)
+                                    .orElse(0L);
 
                             // 모든 달을 순회하며 빈 곳 채우기
                             for (String month : allMonths) {
                                 MonthAvg s = statsMap.get(month);
 
+                                List<IndividualTrade> dots = tradeDotsMap.getOrDefault(month, new ArrayList<>());
+
                                 if (s != null && s.getSaleCount() != null && s.getSaleCount() > 0) {
                                     // 데이터가 있는 경우: 새로운 평균가 갱신
                                     lastKnownAvg = s.getSaleDealAmountSum() / s.getSaleCount();
-                                    filledData.add(new TradeSaleChartData(month, lastKnownAvg, (long) s.getSaleCount()));                                } else {
+                                    filledData.add(new TradeSaleChartData(month, lastKnownAvg, (long) s.getSaleCount(),dots));
+                                } else {
                                     // 데이터가 없는 경우: 거래량은 0, 평균가는 직전 값 유지
-                                    filledData.add(new TradeSaleChartData(month, lastKnownAvg, 0L));
+                                    filledData.add(new TradeSaleChartData(month, lastKnownAvg, 0L, dots));
                                 }
                             }
                             return filledData;

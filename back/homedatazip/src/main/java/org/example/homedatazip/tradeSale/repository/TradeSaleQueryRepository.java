@@ -1,4 +1,4 @@
-package org.example.homedatazip.tradeSale.Repository;
+package org.example.homedatazip.tradeSale.repository;
 
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
@@ -136,6 +136,28 @@ public class TradeSaleQueryRepository {
                 )
                 .groupBy(formattedDate)
                 .orderBy(formattedDate.asc())
+                .fetch();
+    }
+
+    public List<DongRankResponse> findDongRankByRegion(String sido, String gugun, int periodMonths) {
+        LocalDate startDate = LocalDate.now().minusMonths(periodMonths);
+
+        return queryFactory
+                .select(new QDongRankResponse(
+                        region.dong,
+                        tradeSale.count()
+                ))
+                .from(tradeSale)
+                .join(tradeSale.apartment, apartment)
+                .join(apartment.region, region)
+                .where(
+                        region.sido.eq(sido),
+                        region.gugun.eq(gugun),
+                        tradeSale.dealDate.goe(startDate),
+                        tradeSale.canceled.ne(true)
+                )
+                .groupBy(region.dong)
+                .orderBy(tradeSale.count().desc())
                 .fetch();
     }
 
