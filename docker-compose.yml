@@ -53,7 +53,7 @@ services:
   # 2. Backend 서비스
   backend:
     build:
-      context: ./back # 백엔드 도커파일 경로
+      context: ./back/homedatazip # 백엔드 도커파일 경로
       dockerfile: Dockerfile
     container_name: home-be
     restart: always

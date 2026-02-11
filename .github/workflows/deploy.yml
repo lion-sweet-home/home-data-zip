@@ -27,6 +27,8 @@ jobs:
             cd ~/home-data-zip
             # .env 파일 생성
             cat > .env << EOF
+            # EC2
+            EC2_HOST=${{ secrets.EC2_HOST }}
             # RDBMS
             MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
             MYSQL_PORT=${{ secrets.MYSQL_PORT }}
