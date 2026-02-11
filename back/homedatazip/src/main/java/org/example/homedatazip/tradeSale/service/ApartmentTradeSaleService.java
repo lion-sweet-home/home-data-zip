@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.service.ApartmentService;
 import org.example.homedatazip.monthAvg.service.MonthAvgRebuildService;
-import org.example.homedatazip.tradeSale.Repository.ApartmentTradeSaleRepository;
+import org.example.homedatazip.tradeSale.repository.ApartmentTradeSaleRepository;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 import org.example.homedatazip.tradeSale.entity.TradeSale;
 import org.springframework.stereotype.Service;

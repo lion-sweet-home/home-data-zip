@@ -26,4 +26,6 @@ public interface HospitalRepository extends JpaRepository<Hospital, Long> {
     );
 
     List<Hospital> findByRegion(Region region);
+
+    List<Hospital> findByRegionIsNullAndLatitudeIsNotNullAndLongitudeIsNotNull();
 }

@@ -7,7 +7,7 @@ import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.example.homedatazip.monthAvg.repository.MonthAvgRepository;
 import org.example.homedatazip.monthAvg.utill.Yyyymm;
-import org.example.homedatazip.tradeSale.Repository.TradeSaleQueryRepository;
+import org.example.homedatazip.tradeSale.repository.TradeSaleQueryRepository;
 import org.example.homedatazip.tradeSale.dto.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

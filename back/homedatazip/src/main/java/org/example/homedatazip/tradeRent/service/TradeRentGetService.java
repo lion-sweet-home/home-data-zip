@@ -1,38 +1,39 @@
 package org.example.homedatazip.tradeRent.service;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.dto.MarkResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
-import org.example.homedatazip.monthAvg.entity.MonthAvg;
-import org.example.homedatazip.monthAvg.repository.MonthAvgRepository;
+import org.example.homedatazip.tradeRent.dto.DotResponse;
 import org.example.homedatazip.tradeRent.dto.RentGetMarkerRequest;
-import org.example.homedatazip.tradeRent.dto.RentGetMarkerResponse;
 import org.example.homedatazip.tradeRent.dto.RentFromAptResponse;
-import org.example.homedatazip.tradeRent.dto.detailList.RentAreaType;
 import org.example.homedatazip.tradeRent.dto.detailList.RentDetailList5Response;
 import org.example.homedatazip.tradeRent.entity.TradeRent;
+import org.example.homedatazip.tradeRent.repository.TradeRentDSLRepository;
 import org.example.homedatazip.tradeRent.repository.TradeRentRepository;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TradeRentGetService {
 
     private final TradeRentRepository tradeRentRepository;
-    private final MonthAvgRepository monthAvgRepository;
+    private final TradeRentDSLRepository tradeRentDSLRepository;
     private final ApartmentRepository apartmentRepository;
+    private static final DateTimeFormatter YM_FMT = DateTimeFormatter.ofPattern("yyyyMM");
+
 
     //마커용 렌트 조회 지도에 뿌려주는 데이터
     @Transactional(readOnly = true)
     public List<MarkResponse> getListRentsByAptId(RentGetMarkerRequest dto){
-
-        System.out.println("[marker] request dto = " + dto);
 
         List<Apartment> apts = apartmentRepository.findAllWithRentByRegionAndRentRange(dto);
 
@@ -40,16 +41,15 @@ public class TradeRentGetService {
                 .map(MarkResponse::from)
                 .toList();
 
-        System.out.println("[marker] result size = " + apts.size());
 
         return list;
     }
 
-    //TradeRent 최근 거래내역 5개 / 지도 -> 마커 선택 시 생기는 창
+
+    //TradeRent 최근 거래내역  지도
     @Transactional(readOnly = true)
     public List<RentFromAptResponse> getRentLimit5(long aptId){
-        List<TradeRent> rentTop5 = tradeRentRepository.
-                findTop5ByApartment_IdOrderByDealDateDesc(aptId,PageRequest.of(0, 5));
+        List<TradeRent> rentTop5 = tradeRentDSLRepository.findRecent5(aptId);
 
         List<RentFromAptResponse> list = rentTop5.stream()
                 .map(RentFromAptResponse::from)
@@ -58,14 +58,32 @@ public class TradeRentGetService {
         return list;
     }
 
-    //Detail 조회용 평형기준 최근 list 5개씩 보증금, 월세 조회
+    //그래프에 점 데이터
     @Transactional(readOnly = true)
-    public RentDetailList5Response getRentAreaType(long aptId, long areaKey10){
+    public List<DotResponse> getRentDot(long aptId, int period){
+        period = period == 0 ? 6 : period;
+        long periodLong = period;
+        YearMonth startYm = YearMonth.now().minusMonths(periodLong - 1L);
+        LocalDate startDate = startYm.atDay(1);
 
-        List<TradeRent> top5 = tradeRentRepository
-                .findByAptAndExclusiveKey10(aptId, areaKey10, PageRequest.of(0,5));
+        List<DotResponse> dot = tradeRentDSLRepository.findDot(aptId, startDate);
+        log.info("Map Size {}", dot.size());
+        return dot;
+    }
 
-        return RentDetailList5Response.from(top5,aptId,areaKey10);
+    //Detail 조회용 평형기준 최근 보증금, 월세 조회
+    @Transactional(readOnly = true)
+    public RentDetailList5Response getRentAreaType(long aptId, long areaKey10, int period){
+        period = period == 0 ? 6 : period;
+        long periodLong = period;
+        YearMonth startYm = YearMonth.now().minusMonths(periodLong - 1L);
+        LocalDate startDate = startYm.atDay(1);
+
+        List<TradeRent> top = tradeRentDSLRepository
+                .findItemsByArea(aptId, areaKey10, startDate);
+        log.info("Map Size {}", top.size());
+
+        return RentDetailList5Response.from(top,aptId,areaKey10);
     }
 
 
@@ -79,5 +97,13 @@ public class TradeRentGetService {
     }
     private Long getAreaType(Long aptId, double exclusive){
         return (aptId * 1_000_000) + key10(exclusive);
+    }
+
+    public static LocalDate parseYyyymmToMonthStart(int yyyymm) {
+
+        String s = String.format("%06d", yyyymm); // 202511
+        int yyyy = Integer.parseInt(s.substring(0, 4));
+        int mm = Integer.parseInt(s.substring(4, 6));
+        return YearMonth.of(yyyy, mm).atDay(1);
     }
 }
