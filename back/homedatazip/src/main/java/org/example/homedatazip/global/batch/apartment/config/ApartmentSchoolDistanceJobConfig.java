@@ -1,6 +1,7 @@
 package org.example.homedatazip.global.batch.apartment.config;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.entity.ApartmentSchoolDistance;
 import org.example.homedatazip.apartment.repository.ApartmentSchoolDistanceRepository;
@@ -22,6 +23,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.List;
 
 /** 아파트–학교 거리(하버사인 10km 이내) 중간 테이블 적재 Job. 기존 데이터 삭제 후 재적재 */
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class ApartmentSchoolDistanceJobConfig {
@@ -53,7 +55,9 @@ public class ApartmentSchoolDistanceJobConfig {
 
     private Tasklet apartmentSchoolDistanceDeleteTasklet() {
         return (contribution, chunkContext) -> {
+            log.info("[아파트-학교 거리] 기존 데이터 삭제 시작 (deleteAllInBatch)");
             apartmentSchoolDistanceRepository.deleteAllInBatch();
+            log.info("[아파트-학교 거리] 기존 데이터 삭제 완료");
             return RepeatStatus.FINISHED;
         };
     }

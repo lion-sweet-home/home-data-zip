@@ -89,9 +89,12 @@ public class SchoolService {
         School school = asd.getSchool();
         double distanceKm = Math.round(asd.getDistanceKm() * 1000.0) / 1000.0;
         return new NearbySchoolResponse(
+                school.getId(),
                 school.getName(),
                 school.getSchoolLevel(),
-                distanceKm
+                distanceKm,
+                school.getLatitude(),
+                school.getLongitude()
         );
     }
 

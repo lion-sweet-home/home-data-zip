@@ -23,7 +23,7 @@ public class ApartmentIdPartitioner implements Partitioner {
         Map<String, ExecutionContext> result = new HashMap<>();
 
         // 수도권(서울: 11, 인천: 28, 경기: 41) 필터링
-        List<String> targetPrefixes = List.of("11", "28", "41");
+        List<String> targetPrefixes = List.of("11");
 
         List<String> lawdCodes = regionRepository.findAll().stream()
                 .map(Region::getSggCode)

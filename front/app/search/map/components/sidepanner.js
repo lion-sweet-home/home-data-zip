@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getMonthlyTradeVolume, getRecentTrades, getNearbySubways, getNearbyBusStations } from '../../../api/apartment';
+import { getMonthlyTradeVolume, getRecentTrades, getNearbySubways, getNearbyBusStations, getNearbySchools, getApartmentRegion } from '../../../api/apartment';
 import { getHospitalCount, getHospitalStats, getHospitalListByDong } from '../../../api/hospital';
 
-export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, onToggleBusMarker }) {
+export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, onShowDetail, onToggleBusMarker, onToggleSchoolMarker }) {
   // 월별 거래량
   const [monthlyData, setMonthlyData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(6);
@@ -17,15 +17,20 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
   // 인근 지하철역
   const [nearbySubways, setNearbySubways] = useState([]);
 
+  // 인근 학교
+  const [nearbySchools, setNearbySchools] = useState([]);
+  const [schoolMarkerVisible, setSchoolMarkerVisible] = useState(false);
+
   // 인근 버스
   const [busStations, setBusStations] = useState([]);
   const [busMarkerVisible, setBusMarkerVisible] = useState(false);
 
-  // 인근 병원
+  // 해당 동 병원
   const [hospitalCount, setHospitalCount] = useState(0);
   const [hospitalStats, setHospitalStats] = useState(null);
   const [showHospitalModal, setShowHospitalModal] = useState(false);
   const [selectedHospitalType, setSelectedHospitalType] = useState('전체');
+  const [resolvedRegion, setResolvedRegion] = useState(null);
 
   // 로딩 상태
   const [loading, setLoading] = useState(true);
@@ -36,38 +41,72 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
     const fetchData = async () => {
       try {
         setLoading(true);
+
+        const normalizedSchoolLevels = Array.isArray(schoolLevels)
+          ? schoolLevels
+          : typeof schoolLevels === 'string'
+            ? schoolLevels.split(',').map((s) => s.trim()).filter(Boolean)
+            : [];
+
+        // 병원 조회를 위한 지역정보(sido/gugun/dong) 보강
+        let region = {
+          sido: apartmentInfo?.sido || null,
+          gugun: apartmentInfo?.gugun || null,
+          dong: apartmentInfo?.dong || null,
+        };
+        if (!region.sido || !region.gugun || !region.dong) {
+          try {
+            const r = await getApartmentRegion(apartmentId);
+            region = {
+              sido: r?.sido || region.sido,
+              gugun: r?.gugun || region.gugun,
+              dong: r?.dong || region.dong,
+            };
+          } catch (e) {
+            // region 조회 실패 시 병원은 스킵(다른 데이터는 계속 보여줌)
+          }
+        }
+        setResolvedRegion(region);
         
-        // 월별 거래량
-        const monthly = await getMonthlyTradeVolume(apartmentId, selectedPeriod);
-        setMonthlyData(monthly || []);
+        // 모든 필요한 API를 병렬로 호출
+        const promises = [
+          getMonthlyTradeVolume(apartmentId, selectedPeriod),
+          getRecentTrades(apartmentId),
+          getNearbySchools(apartmentId, normalizedSchoolLevels),
+          getNearbySubways(apartmentId),
+          getNearbyBusStations(apartmentId, 500, 50)
+        ];
 
-        // 최근 거래내역
-        const trades = await getRecentTrades(apartmentId);
-        setRecentTrades(trades || []);
+        // 병원 정보도 병렬로 호출 (지역 정보가 있는 경우)
+        if (region?.sido && region?.gugun && region?.dong) {
+          promises.push(
+            getHospitalCount({
+              sido: region.sido,
+              gugun: region.gugun,
+              dong: region.dong
+            }),
+            getHospitalStats({
+              sido: region.sido,
+              gugun: region.gugun,
+              dong: region.dong
+            })
+          );
+        }
 
-        // 인근 지하철역
-        const subways = await getNearbySubways(apartmentId);
-        setNearbySubways(subways || []);
+        const results = await Promise.all(promises);
+        
+        setMonthlyData(results[0] || []);
+        setRecentTrades(results[1] || []);
+        setNearbySchools(results[2] || []);
+        setNearbySubways(results[3] || []);
+        setBusStations(results[4]?.items || []);
 
-        // 인근 버스 정류장
-        const buses = await getNearbyBusStations(apartmentId, 500, 50);
-        setBusStations(buses?.items || []);
-
-        // 인근 병원 (동 정보 필요)
-        if (apartmentInfo?.dong) {
-          const count = await getHospitalCount({
-            sido: apartmentInfo.sido || '',
-            gugun: apartmentInfo.gugun || '',
-            dong: apartmentInfo.dong || ''
-          });
-          setHospitalCount(count || 0);
-
-          const stats = await getHospitalStats({
-            sido: apartmentInfo.sido || '',
-            gugun: apartmentInfo.gugun || '',
-            dong: apartmentInfo.dong || ''
-          });
-          setHospitalStats(stats);
+        if (region?.sido && region?.gugun && region?.dong && results.length > 5) {
+          setHospitalCount(results[5] || 0);
+          setHospitalStats(results[6] || null);
+        } else {
+          setHospitalCount(0);
+          setHospitalStats(null);
         }
       } catch (error) {
         console.error('데이터 로딩 실패:', error);
@@ -77,7 +116,14 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
     };
 
     fetchData();
-  }, [apartmentId, selectedPeriod, apartmentInfo]);
+  }, [apartmentId, selectedPeriod, apartmentInfo, schoolLevels]);
+
+  // 학교 데이터가 늦게 로딩되어도, 토글이 켜져 있으면 마커를 다시 올려준다
+  useEffect(() => {
+    if (!onToggleSchoolMarker) return;
+    if (!schoolMarkerVisible) return;
+    onToggleSchoolMarker(nearbySchools, true);
+  }, [nearbySchools, schoolMarkerVisible]); // 부모 콜백은 useCallback으로 고정되어야 무한루프가 안 남
 
   // 그래프 모달 데이터 로드
   useEffect(() => {
@@ -98,6 +144,13 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
     setBusMarkerVisible(checked);
     if (onToggleBusMarker) {
       onToggleBusMarker(busStations, checked);
+    }
+  };
+
+  const handleSchoolMarkerToggle = (checked) => {
+    setSchoolMarkerVisible(checked);
+    if (onToggleSchoolMarker) {
+      onToggleSchoolMarker(nearbySchools, checked);
     }
   };
 
@@ -132,6 +185,20 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
 
   return (
     <div className="w-full h-full overflow-y-auto bg-white p-6 space-y-6">
+      {/* 선택된 아파트 기본 정보 */}
+      <div className="pb-4 border-b">
+        <div className="text-xl font-bold text-gray-900">
+          {apartmentInfo?.name || '아파트'}
+        </div>
+        {apartmentInfo?.address ? (
+          <div className="text-sm text-gray-700 mt-1">{apartmentInfo.address}</div>
+        ) : (
+          <div className="text-sm text-gray-500 mt-1">
+            {apartmentInfo?.sido || ''} {apartmentInfo?.gugun || ''} {apartmentInfo?.dong || ''}
+          </div>
+        )}
+      </div>
+
       {/* 월별 거래량 */}
       <div className="border-b pb-4">
         <div className="flex items-center justify-between mb-4">
@@ -222,6 +289,37 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
         </div>
       </div>
 
+      {/* 인근 학교 */}
+      <div className="border-b pb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">인근 학교</h3>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={schoolMarkerVisible}
+              onChange={(e) => handleSchoolMarkerToggle(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">마커 표시</span>
+          </label>
+        </div>
+        <div className="space-y-3">
+          {nearbySchools.length > 0 ? (
+            nearbySchools.slice(0, 3).map((school, index) => (
+              <div key={school.schoolId ?? index} className="p-3 bg-gray-50 rounded-lg">
+                <div className="font-medium text-gray-900 mb-1">{school.schoolName}</div>
+                <div className="text-sm text-gray-600 mb-1">{school.schoolLevel || '-'}</div>
+                <div className="text-sm text-blue-600">
+                  {school.distanceKm != null ? `${Number(school.distanceKm).toFixed(2)}km` : '-'}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center text-gray-500 py-4">학교 정보가 없습니다</div>
+          )}
+        </div>
+      </div>
+
       {/* 인근 지하철역 */}
       <div className="border-b pb-4">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">인근 지하철역</h3>
@@ -263,10 +361,10 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
         </div>
       </div>
 
-      {/* 인근 병원 */}
+      {/* 해당 동 병원 */}
       <div className="border-b pb-4">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">인근 병원</h3>
+          <h3 className="text-lg font-semibold text-gray-900">해당 동 병원</h3>
           <button
             onClick={() => setShowHospitalModal(true)}
             className="text-sm text-blue-600 hover:text-blue-700"
@@ -275,9 +373,9 @@ export default function SidePanner({ apartmentId, apartmentInfo, onShowDetail, o
           </button>
         </div>
         <div className="text-sm text-gray-600">
-          {apartmentInfo?.dong ? (
+          {resolvedRegion?.dong ? (
             <>
-              <span className="font-semibold text-gray-900">{apartmentInfo.dong}</span> 동 내{' '}
+              <span className="font-semibold text-gray-900">{resolvedRegion.dong}</span> 동 내{' '}
               <span className="font-semibold text-gray-900">{hospitalCount}개</span> 병원
             </>
           ) : (

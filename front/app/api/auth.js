@@ -210,22 +210,6 @@ export async function reissue() {
   return response;
 }
 
-/**
- * 비밀번호 변경 API
- * 
- * @param {string} currentPassword - 현재 비밀번호
- * @param {string} newPassword - 새 비밀번호
- * @returns {Promise<void>}
- * 
- * 사용 예시:
- * await changePassword('oldPassword', 'newPassword');
- */
-export async function changePassword(currentPassword, newPassword) {
-  return post('/auth/change-password', {
-    currentPassword,
-    newPassword,
-  });
-}
 
 // 기본 export
 export default {
@@ -236,8 +220,6 @@ export default {
   sendEmailVerification,
   verifyEmailCode,
   register,
-  // getCurrentUser,
   refreshToken,
   reissue,
-  changePassword,
 };

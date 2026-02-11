@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getSidoList, getGugunList, getDongList } from '../api/region';
+import { getSidoList, getGugunList, getDongList, getDongRank } from '../api/region';
 import { searchSubwayStations } from '../api/subway';
 import { searchSchoolsByRegion } from '../api/school';
+import { getJeonseCount, getWolseCount } from '../api/apartment';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -50,6 +51,11 @@ export default function SearchPage() {
   const [schoolRadius, setSchoolRadius] = useState(1.0);
   const [schoolRadiusActive, setSchoolRadiusActive] = useState(false);
   const [schoolList, setSchoolList] = useState([]);
+
+  // 동 목록 모달 관련
+  const [showDongModal, setShowDongModal] = useState(false);
+  const [dongModalList, setDongModalList] = useState([]);
+  const [loadingDongList, setLoadingDongList] = useState(false);
 
   // 시도 목록 로드
   useEffect(() => {
@@ -174,7 +180,7 @@ export default function SearchPage() {
   };
 
   // 검색 버튼 클릭 핸들러
-  const handleSearch = () => {
+  const handleSearch = async () => {
     if (searchConditionType === 'region') {
       // 지역 검색: 시/도와 구/군은 필수
       if (!selectedSido || !selectedGugun) {
@@ -182,12 +188,52 @@ export default function SearchPage() {
         return;
       }
 
-      // 검색 파라미터를 쿼리 스트링으로 전달
+      // 동을 선택하지 않은 경우 동 목록 모달 표시
+      if (!selectedDong) {
+        setLoadingDongList(true);
+        try {
+          if (tradeType === '매매') {
+            // 매매: 동 랭킹 조회
+            const dongRankData = await getDongRank(selectedSido, selectedGugun, 6);
+            setDongModalList(dongRankData || []);
+          } else {
+            // 전월세: 전세/월세 개수 조회
+            const [jeonseData, wolseData] = await Promise.all([
+              getJeonseCount(selectedSido, selectedGugun, 6),
+              getWolseCount(selectedSido, selectedGugun, 6)
+            ]);
+            
+            // 전세 데이터를 기준으로 동 목록 생성
+            const totalWolseCount = (wolseData || []).reduce((sum, item) => sum + (item.count || 0), 0);
+            const combinedDongs = new Map();
+            
+            (jeonseData || []).forEach(item => {
+              if (item.dong) {
+                combinedDongs.set(item.dong, {
+                  dong: item.dong,
+                  jeonseCount: item.count || 0,
+                  wolseCount: totalWolseCount
+                });
+              }
+            });
+            
+            setDongModalList(Array.from(combinedDongs.values()));
+          }
+          setShowDongModal(true);
+        } catch (error) {
+          console.error('동 목록 로드 실패:', error);
+          alert('동 목록을 불러오는데 실패했습니다.');
+        } finally {
+          setLoadingDongList(false);
+        }
+        return;
+      }
+
+      // 동이 선택된 경우 바로 지도 페이지로 이동
       const params = new URLSearchParams();
-      params.append('tradeType', tradeType);
       params.append('sido', selectedSido);
       params.append('gugun', selectedGugun);
-      if (selectedDong) params.append('dong', selectedDong);
+      params.append('dong', selectedDong);
       if (tradeType === '매매') {
         if (priceMin) params.append('priceMin', priceMin);
         if (priceMax) params.append('priceMax', priceMax);
@@ -207,6 +253,13 @@ export default function SearchPage() {
         if (schoolRadiusActive) params.append('schoolRadius', schoolRadius);
       }
 
+      // tradeType은 쿼리스트링에 넣지 않기로 했으니 sessionStorage로 전달
+      try {
+        sessionStorage.setItem('search_tradeType', tradeType);
+      } catch (e) {
+        // ignore
+      }
+
       router.push(`/search/map?${params.toString()}`);
     } else if (searchConditionType === 'subway') {
       // 지하철역 검색: 역 선택 필수
@@ -216,13 +269,54 @@ export default function SearchPage() {
       }
 
       const params = new URLSearchParams();
-      params.append('tradeType', tradeType);
+      // tradeType은 쿼리 스트링에 포함하지 않음
       params.append('subwayStationId', selectedSubwayStation.stationId);
       params.append('subwayStationName', selectedSubwayStation.stationName);
       if (subwayRadiusActive) params.append('subwayRadius', subwayRadius);
 
+      try {
+        sessionStorage.setItem('search_tradeType', tradeType);
+      } catch (e) {
+        // ignore
+      }
+
       router.push(`/search/map?${params.toString()}`);
     }
+  };
+
+  // 동 선택 핸들러 (모달에서)
+  const handleDongSelect = (dong) => {
+    const params = new URLSearchParams();
+    params.append('sido', selectedSido);
+    params.append('gugun', selectedGugun);
+    params.append('dong', dong);
+    
+    if (tradeType === '매매') {
+      if (priceMin) params.append('priceMin', priceMin);
+      if (priceMax) params.append('priceMax', priceMax);
+    } else {
+      if (depositMin) params.append('depositMin', depositMin);
+      if (depositMax) params.append('depositMax', depositMax);
+      if (monthlyRentMin) params.append('monthlyRentMin', monthlyRentMin);
+      if (monthlyRentMax) params.append('monthlyRentMax', monthlyRentMax);
+    }
+    
+    // 학교 필터
+    const selectedSchoolTypes = Object.entries(schoolTypes)
+      .filter(([_, selected]) => selected)
+      .map(([type]) => type);
+    if (selectedSchoolTypes.length > 0) {
+      params.append('schoolTypes', selectedSchoolTypes.join(','));
+      if (schoolRadiusActive) params.append('schoolRadius', schoolRadius);
+    }
+
+    setShowDongModal(false);
+    try {
+      sessionStorage.setItem('search_tradeType', tradeType);
+    } catch (e) {
+      // ignore
+    }
+    router.push(`/search/map?${params.toString()}`);
   };
 
   return (
@@ -621,6 +715,57 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
+
+      {/* 동 목록 모달 */}
+      {showDongModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDongModal(false)}>
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {tradeType === '매매' ? '동별 거래량' : '동별 전세/월세 거래량'}
+              </h2>
+              <button
+                onClick={() => setShowDongModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+
+            {loadingDongList ? (
+              <div className="text-center py-8 text-gray-500">로딩 중...</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {dongModalList.length > 0 ? (
+                  dongModalList.map((item, index) => (
+                    <button
+                      key={`${item.dong}-${index}`}
+                      onClick={() => handleDongSelect(item.dong)}
+                      className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-left cursor-pointer"
+                    >
+                      <div className="font-semibold text-gray-900 mb-2">{item.dong}</div>
+                      {tradeType === '매매' ? (
+                        <div className="text-sm text-gray-600">
+                          거래량: <span className="font-medium text-blue-600">{item.tradeCount || 0}건</span>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div>전세: <span className="font-medium text-blue-600">{item.jeonseCount || 0}건</span></div>
+                          <div>월세: <span className="font-medium text-green-600">{item.wolseCount || 0}건</span></div>
+                        </div>
+                      )}
+                    </button>
+                  ))
+                ) : (
+                  <div className="col-span-full text-center text-gray-500 py-8">
+                    동 목록이 없습니다.
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
