@@ -8,9 +8,9 @@ spring:
       favor-parameter: false
 
   datasource:
-    url: jdbc:mysql://localhost:3306/home_db
-    username: root
-    password: root1234
+    url: ${DATASOURCE_URL:jdbc:mysql://localhost:3306/home_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -31,9 +31,9 @@ spring:
       initialize-schema: always
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USER_NAME}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
     properties:
       mail:
@@ -44,8 +44,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   ai:
     ollama:
@@ -55,13 +55,14 @@ spring:
 
 cors:
   allowed-origins:
-    - http://localhost:5173
-    - https://www.yourdomain.com
+    - http://${EC2_HOST:localhost}:5173
+    - http://${EC2_HOST:localhost}:3000
   allowed-methods:
     - GET
     - POST
     - PUT
     - DELETE
+    - PATCH
   max-age: 3600
 
 jwt:
@@ -74,8 +75,8 @@ payment:
   toss:
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
-    billing-success-url: http://localhost:5173/payments/billing/success
-    billing-fail-url: http://localhost:5173/payments/billing/fail
+    billing-success-url: http://${EC2_HOST:localhost}:3000/payments/billing/success
+    billing-fail-url: http://${EC2_HOST:localhost}:3000/payments/billing/fail
 
 api:
   data-go-kr:
