@@ -70,14 +70,14 @@ public class ApartmentSubwayDistanceTasklet implements Tasklet {
             }
 
             try {
-                for (SubwayStation station : stations) {
-                    double distanceKm = HaversineUtils.distanceKm(
+            for (SubwayStation station : stations) {
+                double distanceKm = HaversineUtils.distanceKm(
                             aptLat, aptLon,
-                            station.getLatitude(), station.getLongitude());
-                    if (distanceKm <= MAX_RADIUS_KM) {
-                        toInsert.add(ApartmentSubwayDistance.of(apt, station, distanceKm));
-                    }
+                        station.getLatitude(), station.getLongitude());
+                if (distanceKm <= MAX_RADIUS_KM) {
+                    toInsert.add(ApartmentSubwayDistance.of(apt, station, distanceKm));
                 }
+            }
             } catch (Exception e) {
                 // 어떤 아파트에서 터졌는지 확실히 남기기
                 log.error("아파트–지하철 거리 계산 중 예외 발생. aptId={}, aptName={}, lat={}, lon={}, stationsSize={}",
@@ -90,7 +90,7 @@ public class ApartmentSubwayDistanceTasklet implements Tasklet {
         for (int i = 0; i < toInsert.size(); i += SAVE_CHUNK_SIZE) {
             int end = Math.min(i + SAVE_CHUNK_SIZE, toInsert.size());
             try {
-                apartmentSubwayDistanceRepository.saveAll(toInsert.subList(i, end));
+            apartmentSubwayDistanceRepository.saveAll(toInsert.subList(i, end));
                 if ((i / SAVE_CHUNK_SIZE) % 10 == 0) {
                     log.info("저장 진행: {} ~ {} / {}", i, end, toInsert.size());
                 }

@@ -1,15 +1,14 @@
 package org.example.homedatazip.monthAvg.dto;
 
-import java.time.YearMonth;
-
-public record MonthTop3JeonsePriceResponse(
+public record MonthTop3SalePriceResponse(
         Long aptId,
         Double exclusive,
         String aptName,
         String gugun,
         String dong,
         String yyyymm,
-        Integer jeonseCount,
-        Long avgDeposit,
-        Double depositChangeRate
-){}
+        Integer saleCount,
+        Long avgDealAmount,
+        Double dealAmountChangeRate
+) {}
+

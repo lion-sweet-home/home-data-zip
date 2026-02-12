@@ -1,15 +1,13 @@
 package org.example.homedatazip.monthAvg.repository.impl;
 
-import com.querydsl.core.annotations.QueryProjection;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.entity.QApartment;
 import org.example.homedatazip.data.QRegion;
-import org.example.homedatazip.monthAvg.dto.MonthTop3WolsePriceResponse;
+import org.example.homedatazip.monthAvg.dto.MonthTop3SalePriceResponse;
 import org.example.homedatazip.monthAvg.entity.QMonthAvg;
 import org.springframework.stereotype.Repository;
 
@@ -20,14 +18,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@Slf4j
 @Repository
 @RequiredArgsConstructor
-public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Repository {
+public class SaleMonthAvgTop3RepositoryImpl implements SaleMonthAvgTop3Repository {
 
     private final JPAQueryFactory queryFactory;
     private static final DateTimeFormatter YM_FMT = DateTimeFormatter.ofPattern("yyyyMM");
-
 
     public record AptMonthAggRow(
             Long areaTypeId,
@@ -37,20 +33,17 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
             String gugun,
             String dong,
             Integer countSum,
-            Long depositSum,
-            Long monthRentSum
+            Long dealAmountSum
     ) {}
 
     public record PrevAggRow(
             Long areaTypeId,
             Integer countSum,
-            Long depositSum,
-            Long monthRentSum
+            Long dealAmountSum
     ) {}
 
     @Override
-    public List<MonthTop3WolsePriceResponse> top3RentByLastMonth(YearMonth lastMonth) {
-
+    public List<MonthTop3SalePriceResponse> top3ByLastMonth(YearMonth lastMonth) {
         String lastYm = lastMonth.format(YM_FMT);
         String prevYm = lastMonth.minusMonths(1).format(YM_FMT);
 
@@ -58,7 +51,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
         QApartment a = QApartment.apartment;
         QRegion r = QRegion.region;
 
-
+        // areaTypeId = aptId*1_000_000 + areaKey(=exclusive*100)
         NumberExpression<Long> exclusive100 = Expressions.numberTemplate(
                 Long.class,
                 "MOD({0}, 1000000)",
@@ -66,10 +59,8 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
         );
         NumberExpression<Double> exclusiveVal = exclusive100.doubleValue().divide(100.0);
 
-
-        NumberExpression<Integer> lastCountSum = m.wolseCount.sum();
-        NumberExpression<Long> lastDepositSum = m.wolseDepositSum.sum();
-        NumberExpression<Long> lastMonthRentSum = m.wolseRentSum.sum();
+        NumberExpression<Integer> lastCountSum = m.saleCount.sum();
+        NumberExpression<Long> lastDealAmountSum = m.saleDealAmountSum.sum();
 
         List<AptMonthAggRow> lastTop3 = queryFactory
                 .select(Projections.constructor(
@@ -81,8 +72,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
                         r.gugun,
                         r.dong,
                         lastCountSum,
-                        lastDepositSum,
-                        lastMonthRentSum
+                        lastDealAmountSum
                 ))
                 .from(m)
                 .join(a).on(a.id.eq(m.aptId))
@@ -97,17 +87,15 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
 
         List<Long> topAreaTypeIds = lastTop3.stream().map(AptMonthAggRow::areaTypeId).toList();
 
-        NumberExpression<Integer> prevCountSum = m.wolseCount.sum();
-        NumberExpression<Long> prevDepositSum = m.wolseDepositSum.sum();
-        NumberExpression<Long> prevMonthRentSum = m.wolseRentSum.sum();
+        NumberExpression<Integer> prevCountSum = m.saleCount.sum();
+        NumberExpression<Long> prevDealAmountSum = m.saleDealAmountSum.sum();
 
         List<PrevAggRow> prevAggRows = queryFactory
                 .select(Projections.constructor(
                         PrevAggRow.class,
                         m.areaTypeId,
                         prevCountSum,
-                        prevDepositSum,
-                        prevMonthRentSum
+                        prevDealAmountSum
                 ))
                 .from(m)
                 .where(m.yyyymm.eq(prevYm), m.areaTypeId.in(topAreaTypeIds))
@@ -117,22 +105,16 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
         Map<Long, PrevAggRow> prevByAreaTypeId = prevAggRows.stream()
                 .collect(Collectors.toMap(PrevAggRow::areaTypeId, x -> x));
 
-        List<MonthTop3WolsePriceResponse> result = new ArrayList<>();
+        List<MonthTop3SalePriceResponse> result = new ArrayList<>();
 
         for (AptMonthAggRow last : lastTop3) {
             PrevAggRow prev = prevByAreaTypeId.get(last.areaTypeId);
 
+            Long lastAvg = safeAvg(last.dealAmountSum, last.countSum);
+            Long prevAvg = (prev == null) ? null : safeAvg(prev.dealAmountSum, prev.countSum);
+            Double changeRate = safeChangeRate(lastAvg, prevAvg);
 
-            Long lastAvgDeposit = safeAvg(last.depositSum, last.countSum);
-            Long prevAvgDeposit = (prev == null) ? null : safeAvg(prev.depositSum, prev.countSum);
-            Double depositRate = safeChangeRate(lastAvgDeposit, prevAvgDeposit);
-
-
-            Long lastAvgRent = safeAvg(last.monthRentSum, last.countSum);
-            Long prevAvgRent = (prev == null) ? null : safeAvg(prev.monthRentSum, prev.countSum);
-            Double rentRate = safeChangeRate(lastAvgRent, prevAvgRent);
-
-            result.add(new MonthTop3WolsePriceResponse(
+            result.add(new MonthTop3SalePriceResponse(
                     last.aptId,
                     last.exclusive,
                     last.aptName,
@@ -140,10 +122,8 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
                     last.dong,
                     lastYm,
                     last.countSum,
-                    lastAvgDeposit,
-                    depositRate,
-                    lastAvgRent,
-                    rentRate
+                    lastAvg,
+                    changeRate
             ));
         }
 
@@ -152,7 +132,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
 
     private Long safeAvg(Long sum, Integer count) {
         if (sum == null || count == null || count == 0) return null;
-        return sum / count; // ✅ 내림
+        return sum / count;
     }
 
     private Double safeChangeRate(Long lastAvg, Long prevAvg) {
@@ -160,3 +140,4 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
         return ((double) (lastAvg - prevAvg) / (double) prevAvg) * 100.0;
     }
 }
+
