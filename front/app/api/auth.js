@@ -26,6 +26,8 @@ export async function login(email, password) {
   if (response.AccessToken) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', response.AccessToken);
+      // Header 등 전역 UI 즉시 갱신용 이벤트
+      window.dispatchEvent(new Event('auth:changed'));
     }
   }
   
@@ -49,6 +51,8 @@ export async function logout() {
     // 로그아웃 성공/실패와 관계없이 로컬 스토리지 정리
     if (typeof window !== 'undefined') {
       localStorage.removeItem('accessToken');
+      // Header 등 전역 UI 즉시 갱신용 이벤트
+      window.dispatchEvent(new Event('auth:changed'));
     }
   }
 }
@@ -163,6 +167,7 @@ export async function refreshToken() {
   if (response.AccessToken) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', response.AccessToken);
+      window.dispatchEvent(new Event('auth:changed'));
     }
   }
   
@@ -204,6 +209,7 @@ export async function reissue() {
   if (response.AccessToken) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('accessToken', response.AccessToken);
+      window.dispatchEvent(new Event('auth:changed'));
     }
   }
   

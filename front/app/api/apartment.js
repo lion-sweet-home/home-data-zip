@@ -170,6 +170,28 @@ export async function getWolseTop3() {
 }
 
 /**
+ * 매매 거래량 Top 3 조회 (전월 거래량 기준)
+ *
+ * @returns {Promise<Array>} 매매 거래량 Top 3 목록
+ */
+export async function getSaleTop3() {
+  return get('/apartments/month-avg/sale');
+}
+
+/**
+ * 아파트명(키워드) 검색
+ * ApartmentController: GET /api/apartments/search?keyword=...
+ *
+ * @param {string} keyword
+ * @returns {Promise<Array|null>} AptSummaryResponse[]
+ */
+export async function searchApartmentsByName(keyword) {
+  const params = new URLSearchParams();
+  params.append('keyword', keyword);
+  return get(`/apartments/search?${params.toString()}`);
+}
+
+/**
  * 아파트 최근 거래내역 조회 (최대 5건)
  * 
  * @param {number} aptId - 아파트 ID
@@ -237,4 +259,6 @@ export default {
   getAreaTypeAvg,
   getJeonseTop3,
   getWolseTop3,
+  getSaleTop3,
+  searchApartmentsByName,
 };

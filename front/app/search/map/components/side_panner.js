@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { getMonthlyTradeVolume, getRecentTrades, getNearbySubways, getNearbyBusStations, getNearbySchools, getApartmentRegion } from '../../../api/apartment';
 import { getHospitalCount, getHospitalStats, getHospitalListByDong } from '../../../api/hospital';
 
-export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, onShowDetail, onToggleBusMarker, onToggleSchoolMarker }) {
+export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, onShowDetail, onToggleSchoolMarker }) {
   // 월별 거래량
   const [monthlyData, setMonthlyData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(6);
@@ -23,7 +23,6 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
 
   // 인근 버스
   const [busStations, setBusStations] = useState([]);
-  const [busMarkerVisible, setBusMarkerVisible] = useState(false);
 
   // 해당 동 병원
   const [hospitalCount, setHospitalCount] = useState(0);
@@ -139,13 +138,6 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
       fetchGraphData();
     }
   }, [showGraphModal, graphModalPeriod, apartmentId]);
-
-  const handleBusMarkerToggle = (checked) => {
-    setBusMarkerVisible(checked);
-    if (onToggleBusMarker) {
-      onToggleBusMarker(busStations, checked);
-    }
-  };
 
   const handleSchoolMarkerToggle = (checked) => {
     setSchoolMarkerVisible(checked);
@@ -346,15 +338,6 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
       <div className="border-b pb-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">인근 버스</h3>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={busMarkerVisible}
-              onChange={(e) => handleBusMarkerToggle(e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-700">마커 표시</span>
-          </label>
         </div>
         <div className="text-sm text-gray-600">
           반경 500m 내 <span className="font-semibold text-gray-900">{busStations.length}개</span> 정류장

@@ -376,10 +376,8 @@ export default function Filter({ onSearch, initialParams }) {
             type="button"
             onClick={() => {
               setSearchConditionType('region');
-              setSubwaySearchKeyword('');
-              setSubwayResults([]);
-              setSelectedSubwayStation(null);
-              setSubwayRadiusActive(false);
+              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
+              // 다른 모드의 상태는 유지한다.
             }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               searchConditionType === 'region'
@@ -393,10 +391,8 @@ export default function Filter({ onSearch, initialParams }) {
             type="button"
             onClick={() => {
               setSearchConditionType('subway');
-              setSelectedSido('');
-              setSelectedGugun('');
-              setSelectedDong('');
-              setSchoolList([]);
+              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
+              // 다른 모드의 상태는 유지한다.
             }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               searchConditionType === 'subway'

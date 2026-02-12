@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout } from '../api/auth';
@@ -11,84 +11,108 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    // Access Token으로만 로그인 상태 및 사용자 정보 확인
-    const checkLoginStatus = () => {
-      if (typeof window === 'undefined') {
-        setLoading(false);
-        return;
-      }
+  // Access Token으로만 로그인 상태 및 사용자 정보 확인
+  const checkLoginStatus = useCallback(() => {
+    if (typeof window === 'undefined') {
+      setLoading(false);
+      return;
+    }
 
-      const accessToken = localStorage.getItem('accessToken');
+    const accessToken = localStorage.getItem('accessToken');
 
-      // Access Token이 없으면 비로그인 상태
-      if (!accessToken) {
+    // Access Token이 없으면 비로그인 상태
+    if (!accessToken) {
+      setIsLoggedIn(false);
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    // JWT 토큰에서 사용자 정보 추출 (payload 디코딩)
+    try {
+      const parts = accessToken.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+        // 사용자 정보 설정 (이메일, 역할 등)
+        const userInfo = {
+          email: payload.email || null,
+          roles: payload.roles || [],
+        };
+
+        setUser(userInfo);
+        setIsLoggedIn(true);
+      } else {
         setIsLoggedIn(false);
         setUser(null);
-        setLoading(false);
-        return;
       }
-
-      // JWT 토큰에서 사용자 정보 추출 (payload 디코딩)
-      try {
-        const parts = accessToken.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(
-            atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')),
-          );
-
-          // 사용자 정보 설정 (이메일, 역할 등)
-          const userInfo = {
-            email: payload.email || null,
-            roles: payload.roles || [],
-          };
-
-          setUser(userInfo);
-          setIsLoggedIn(true);
-        } else {
-          setIsLoggedIn(false);
-          setUser(null);
-        }
-      } catch (error) {
-        console.error('Token decode error in Header:', error);
-        setIsLoggedIn(false);
-        setUser(null);
-        // 유효하지 않은 토큰 제거
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('accessToken');
-        }
-      } finally {
-        setLoading(false);
+    } catch (error) {
+      console.error('Token decode error in Header:', error);
+      setIsLoggedIn(false);
+      setUser(null);
+      // 유효하지 않은 토큰 제거
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('accessToken');
       }
-    };
-
-    checkLoginStatus();
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    checkLoginStatus();
+
+    // 같은 탭: login/logout 시 dispatch하는 커스텀 이벤트
+    const onAuthChanged = () => checkLoginStatus();
+    // 다른 탭: localStorage 변경 이벤트
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key === 'accessToken' || e.key === null) checkLoginStatus();
+    };
+    // 탭 포커스 복귀 시 토큰 상태 재확인
+    const onFocus = () => checkLoginStatus();
+
+    window.addEventListener('auth:changed', onAuthChanged);
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      window.removeEventListener('auth:changed', onAuthChanged);
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [checkLoginStatus]);
 
   // 사용자 역할 배열 가져오기
   const getUserRoles = () => {
     if (!user) return [];
-    
+
     // roles 배열에서 역할 추출
     if (user.roles && Array.isArray(user.roles)) {
       // roles가 문자열 배열인 경우
       if (user.roles.length > 0 && typeof user.roles[0] === 'string') {
-        return user.roles.filter(role => ['ADMIN', 'SELLER', 'USER'].includes(role));
+        return user.roles.filter((role) => ['ADMIN', 'SELLER', 'USER'].includes(role));
       }
       // roles가 객체 배열인 경우
       if (user.roles.length > 0 && user.roles[0]?.roleType) {
-        return user.roles.map(ur => ur.roleType).filter(role => ['ADMIN', 'SELLER', 'USER'].includes(role));
+        return user.roles
+          .map((ur) => ur.roleType)
+          .filter((role) => ['ADMIN', 'SELLER', 'USER'].includes(role));
       }
       if (user.roles.length > 0 && user.roles[0]?.role?.roleType) {
-        return user.roles.map(ur => ur.role?.roleType).filter(role => ['ADMIN', 'SELLER', 'USER'].includes(role));
+        return user.roles
+          .map((ur) => ur.role?.roleType)
+          .filter((role) => ['ADMIN', 'SELLER', 'USER'].includes(role));
       }
     }
-    
+
     // role 필드가 직접 있는 경우 (단일 역할)
     if (user.role) {
       return [user.role];
     }
-    
+
     return [];
   };
 
@@ -108,19 +132,16 @@ export default function Header() {
         </Link>
       );
     }
-    
+
     // SELLER가 있으면 구독중 버튼
     if (roles.includes('SELLER')) {
       return (
-        <button
-          className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 cursor-default"
-          disabled
-        >
+        <button className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 cursor-default" disabled>
           구독중
         </button>
       );
     }
-    
+
     // USER만 있으면 구독하기 버튼
     if (roles.length === 1 && roles[0] === 'USER') {
       return (
@@ -132,7 +153,7 @@ export default function Header() {
         </Link>
       );
     }
-    
+
     // 위 조건에 해당하지 않으면 버튼 안 보임
     return null;
   };
@@ -169,7 +190,7 @@ export default function Header() {
             <Link href="/" className="flex items-center">
               <span className="text-xl font-bold text-gray-900">HomeDataZip</span>
             </Link>
-            
+
             {/* 항상 표시되는 메뉴 */}
             <Link
               href="/search"
@@ -183,7 +204,7 @@ export default function Header() {
             >
               매물 검색
             </Link>
-            
+
             {/* 로그인 상태일 때만 표시되는 메뉴 */}
             {isLoggedIn && (
               <>

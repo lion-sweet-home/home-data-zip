@@ -1004,10 +1004,36 @@ export default function ApartmentPage() {
   ]);
 
   const handleBackToMap = () => {
+    // 가장 안전한 복원: 지도 URL이 최신 검색조건을 반영하지 않을 수 있으므로
+    // sessionStorage에 저장된 마지막 검색 파라미터가 있으면 쿼리 없는 /search/map로 이동 후 복원시키자.
+    try {
+      const lastParams = sessionStorage.getItem('search_map_lastParams');
+      if (lastParams) {
+        router.push('/search/map');
+        return;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // 지도에서 상세로 넘어올 때 저장한 "마지막 지도 URL"이 있으면 그걸 최우선으로 복원한다.
+    try {
+      const lastUrl = sessionStorage.getItem('search_map_lastUrl');
+      if (lastUrl && lastUrl.startsWith('/search/map')) {
+        router.push(lastUrl);
+        return;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // next: 브라우저 히스토리로 복귀(쿼리 포함) 시도
     if (window.history.length > 1) {
       router.back();
       return;
     }
+
+    // 마지막: 쿼리 없는 지도
     router.push('/search/map');
   };
 
@@ -1019,7 +1045,7 @@ export default function ApartmentPage() {
           <div className="text-sm text-gray-500 mb-5">지도에서 아파트를 선택한 뒤 상세보기를 눌러주세요.</div>
           <button
             type="button"
-            onClick={() => router.push('/search/map')}
+            onClick={handleBackToMap}
             className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
           >
             지도로 돌아가기
