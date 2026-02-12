@@ -73,6 +73,13 @@ jobs:
             SUBWAY_OPENAPI_SYNC_CRON=${{ secrets.SUBWAY_OPENAPI_SYNC_CRON }}
             APARTMENT_SUBWAY_DISTANCE_SYNC_CRON=${{ secrets.APARTMENT_SUBWAY_DISTANCE_SYNC_CRON }}
             APARTMENT_SCHOOL_DISTANCE_SYNC_CRON=${{ secrets.APARTMENT_SCHOOL_DISTANCE_SYNC_CRON }}
+            
+            # Quartz Batch Cron 설정 추가
+            QUARTZ_APARTMENT_TRADE_CRON=${{ secrets.QUARTZ_APARTMENT_TRADE_CRON }}
+            QUARTZ_REGION_CRON=${{ secrets.QUARTZ_REGION_CRON }}
+            QUARTZ_BUS_STATION_CRON=${{ secrets.QUARTZ_BUS_STATION_CRON }}
+            QUARTZ_TRADE_RENT_CRON=${{ secrets.QUARTZ_TRADE_RENT_CRON }}
+            QUARTZ_HOSPITAL_CRON=${{ secrets.QUARTZ_HOSPITAL_CRON }}
 
             # Frontend
             NEXT_PUBLIC_BACKEND_URL=http://${{ secrets.EC2_HOST }}:8080
