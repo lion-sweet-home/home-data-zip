@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Filter from './components/filter';
 import Map from './components/map';
 import SidePanner from './components/side_panner';
@@ -11,6 +11,7 @@ import { getSaleMarkers } from '../../api/apartment_sale';
 import { getRentMarkers } from '../../api/apartment_rent';
 
 export default function MapSearchPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   
   // 선택된 아파트 정보
@@ -265,8 +266,24 @@ export default function MapSearchPage() {
 
   // 매물 상세정보보기
   const handleShowDetail = (apartmentId) => {
-    // TODO: 상세 페이지로 이동
-    // router.push(`/apartments/${apartmentId}`);
+    if (!apartmentId) return;
+
+    const params = new URLSearchParams();
+    params.append('aptId', String(apartmentId));
+    params.append('tradeType', currentSearchParams?.tradeType || '매매');
+    if (selectedApartment?.name) params.append('aptName', selectedApartment.name);
+    if (selectedApartment?.address) params.append('address', selectedApartment.address);
+    if (selectedApartment?.sido) params.append('sido', selectedApartment.sido);
+    if (selectedApartment?.gugun) params.append('gugun', selectedApartment.gugun);
+    if (selectedApartment?.dong) params.append('dong', selectedApartment.dong);
+    if (currentSearchParams?.schoolTypes) {
+      const schoolTypes = Array.isArray(currentSearchParams.schoolTypes)
+        ? currentSearchParams.schoolTypes.join(',')
+        : String(currentSearchParams.schoolTypes);
+      if (schoolTypes) params.append('schoolTypes', schoolTypes);
+    }
+
+    router.push(`/apartment?${params.toString()}`);
   };
 
   return (
