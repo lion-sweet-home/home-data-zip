@@ -335,6 +335,12 @@ export default function MapSearchPage() {
     }
   };
 
+  // 버스 마커 토글
+  const handleToggleBusMarker = useCallback((stations, visible) => {
+    // TODO: 버스 마커 기능 구현 필요
+    // 현재는 SidePanner에서 호출되지만 Map 컴포넌트에 버스 마커 지원이 필요
+  }, []);
+
   // 학교 마커 토글
   const handleToggleSchoolMarker = useCallback((schools, visible) => {
     if (visible && schools) {
@@ -386,7 +392,7 @@ export default function MapSearchPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* 상단 필터 */}
-      <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
+      <div className="flex-shrink-0 bg-gray-50 border-b">
         <Filter onSearch={handleSearch} initialParams={initialFilterParams} />
       </div>
 
@@ -400,7 +406,9 @@ export default function MapSearchPage() {
                 apartmentId={selectedApartment.id}
                 apartmentInfo={selectedApartment}
                 schoolLevels={currentSearchParams?.schoolTypes}
+                tradeType={currentSearchParams?.tradeType || '매매'}
                 onShowDetail={handleShowDetail}
+                onToggleBusMarker={handleToggleBusMarker}
                 onToggleSchoolMarker={handleToggleSchoolMarker}
               />
             ) : (
