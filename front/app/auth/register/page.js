@@ -128,7 +128,7 @@ export default function SignupPage() {
         setEmailChecked(false);
         setEmailAvailable(false);
       } else {
-        setError(err.message || '인증 코드 전송에 실패했습니다.');
+      setError(err.message || '인증 코드 전송에 실패했습니다.');
       }
     } finally {
       setCheckingEmail(false);

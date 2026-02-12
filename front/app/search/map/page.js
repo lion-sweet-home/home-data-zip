@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Filter from './components/filter';
 import Map from './components/map';
-import SidePanner from './components/sidepanner';
+import SidePanner from './components/side_panner';
+import ApartmentList from './components/sp_apartment_list';
 import { get } from '../../api/api';
 import { getSaleMarkers } from '../../api/apartment_sale';
 import { getRentMarkers } from '../../api/apartment_rent';
@@ -277,22 +278,29 @@ export default function MapSearchPage() {
 
       {/* 하단: 지도와 사이드 패널 */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 좌측 사이드 패널 (3:7 비율) */}
-        {showSidePanner && selectedApartment && (
+        {/* 좌측 패널: 기본은 목록, 마커 클릭 시 SidePanner */}
+        {apartments.length > 0 && (
           <div className="w-[30%] border-r border-gray-200 overflow-hidden">
-            <SidePanner
-              apartmentId={selectedApartment.id}
-              apartmentInfo={selectedApartment}
-              schoolLevels={currentSearchParams?.schoolTypes}
-              onShowDetail={handleShowDetail}
-              onToggleBusMarker={handleToggleBusMarker}
-              onToggleSchoolMarker={handleToggleSchoolMarker}
-            />
+            {showSidePanner && selectedApartment ? (
+              <SidePanner
+                apartmentId={selectedApartment.id}
+                apartmentInfo={selectedApartment}
+                schoolLevels={currentSearchParams?.schoolTypes}
+                onShowDetail={handleShowDetail}
+                onToggleBusMarker={handleToggleBusMarker}
+                onToggleSchoolMarker={handleToggleSchoolMarker}
+              />
+            ) : (
+              <ApartmentList
+                markers={apartments}
+                onSelect={(markerData, index) => handleMarkerClick(markerData, index)}
+              />
+            )}
           </div>
         )}
 
         {/* 우측 지도 (7:3 비율 또는 전체) */}
-        <div className={`${showSidePanner ? 'w-[70%]' : 'w-full'} relative`}>
+        <div className={`${apartments.length > 0 ? 'w-[70%]' : 'w-full'} relative`}>
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10">
               <div className="text-gray-600">검색 중...</div>

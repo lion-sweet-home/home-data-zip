@@ -17,8 +17,61 @@ export default function Map({
   const [map, setMap] = useState(null);
   const [kakaoLoaded, setKakaoLoaded] = useState(false);
   const markersRef = useRef([]);
+  // NOTE: 컴포넌트명이 Map이라 전역 Map 생성자와 이름이 충돌할 수 있어 globalThis.Map을 사용한다.
+  const numberedMarkerImageCacheRef = useRef(new globalThis.Map()); // key: number(string) -> kakao.maps.MarkerImage
   const busMarkersRef = useRef([]);
   const schoolMarkersRef = useRef([]);
+
+  const getNumberedMarkerImage = (num) => {
+    const key = String(num);
+    const cached = numberedMarkerImageCacheRef.current.get(key);
+    if (cached) return cached;
+
+    const size = 34;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    // shadow
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 6;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2;
+
+    // circle
+    const r = 13;
+    const cx = size / 2;
+    const cy = size / 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = '#2563eb';
+    ctx.fill();
+
+    // border
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    // number
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(key, cx, cy + 0.5);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const markerImage = new window.kakao.maps.MarkerImage(
+      dataUrl,
+      new window.kakao.maps.Size(size, size),
+      { offset: new window.kakao.maps.Point(size / 2, size / 2) }
+    );
+
+    numberedMarkerImageCacheRef.current.set(key, markerImage);
+    return markerImage;
+  };
 
   // Kakao Maps SDK 로드
   useEffect(() => {
@@ -88,26 +141,13 @@ export default function Map({
     // 새 마커 추가
     markers.forEach((markerData, index) => {
       const position = new window.kakao.maps.LatLng(markerData.lat, markerData.lng);
-      
-      // 마커 이미지 커스텀 (선택사항)
-      const imageSrc = markerData.imageSrc || 'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/marker_number_blue.png';
-      const imageSize = new window.kakao.maps.Size(36, 37);
-      const imageOptions = {
-        spriteSize: new window.kakao.maps.Size(36, 691),
-        spriteOrigin: new window.kakao.maps.Point(0, index * 46 + 10),
-        offset: new window.kakao.maps.Point(13, 37),
-      };
-      
-      const markerImage = new window.kakao.maps.MarkerImage(
-        imageSrc,
-        imageSize,
-        imageOptions
-      );
+      const markerImage = getNumberedMarkerImage(index + 1);
 
       const marker = new window.kakao.maps.Marker({
         position: position,
-        image: markerImage,
+        ...(markerImage ? { image: markerImage } : {}),
         map: map,
+        zIndex: 10,
       });
 
       // 인포윈도우 (선택사항)
