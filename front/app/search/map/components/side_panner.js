@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { getMonthlyTradeVolume, getRecentTrades, getNearbySubways, getNearbyBusStations, getNearbySchools, getApartmentRegion } from '../../../api/apartment';
+import { getAptSaleSummary } from '../../../api/apartment_sale';
 import { getHospitalCount, getHospitalStats, getHospitalListByDong } from '../../../api/hospital';
 
-export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, onShowDetail, onToggleSchoolMarker }) {
+export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onToggleBusMarker, onToggleSchoolMarker }) {
   // 월별 거래량
   const [monthlyData, setMonthlyData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(6);
@@ -67,9 +68,15 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
         }
         setResolvedRegion(region);
         
+        // 매매/전월세에 따라 다른 API 호출
+        const isSale = tradeType === '매매';
+        const monthlyVolumePromise = isSale
+          ? getAptSaleSummary(apartmentId, selectedPeriod)
+          : getMonthlyTradeVolume(apartmentId, selectedPeriod);
+        
         // 모든 필요한 API를 병렬로 호출
         const promises = [
-          getMonthlyTradeVolume(apartmentId, selectedPeriod),
+          monthlyVolumePromise,
           getRecentTrades(apartmentId),
           getNearbySchools(apartmentId, normalizedSchoolLevels),
           getNearbySubways(apartmentId),
@@ -94,7 +101,21 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
 
         const results = await Promise.all(promises);
         
-        setMonthlyData(results[0] || []);
+        // 매매/전월세에 따라 데이터 형식 변환
+        const rawMonthlyData = results[0];
+        if (isSale && rawMonthlyData) {
+          // 매매: {monthlyVolumes: [1,2,3], monthLabels: ['202401','202402',...]} 형식
+          const saleData = rawMonthlyData.monthlyVolumes?.map((count, index) => ({
+            yyyymm: rawMonthlyData.monthLabels?.[index] || '',
+            saleCount: count || 0,
+            jeonseCount: 0,
+            wolseCount: 0,
+          })) || [];
+          setMonthlyData(saleData);
+        } else {
+          // 전월세: [{yyyymm, jeonseCount, wolseCount}] 형식
+          setMonthlyData(rawMonthlyData || []);
+        }
         setRecentTrades(results[1] || []);
         setNearbySchools(results[2] || []);
         setNearbySubways(results[3] || []);
@@ -115,7 +136,7 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
     };
 
     fetchData();
-  }, [apartmentId, selectedPeriod, apartmentInfo, schoolLevels]);
+  }, [apartmentId, selectedPeriod, apartmentInfo, schoolLevels, tradeType]);
 
   // 학교 데이터가 늦게 로딩되어도, 토글이 켜져 있으면 마커를 다시 올려준다
   useEffect(() => {
@@ -129,15 +150,36 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
     if (showGraphModal && apartmentId) {
       const fetchGraphData = async () => {
         try {
-          const data = await getMonthlyTradeVolume(apartmentId, graphModalPeriod);
-          setMonthlyData(data || []);
+          const isSale = tradeType === '매매';
+          const rawData = isSale
+            ? await getAptSaleSummary(apartmentId, graphModalPeriod)
+            : await getMonthlyTradeVolume(apartmentId, graphModalPeriod);
+          
+          if (isSale && rawData) {
+            const saleData = rawData.monthlyVolumes?.map((count, index) => ({
+              yyyymm: rawData.monthLabels?.[index] || '',
+              saleCount: count || 0,
+              jeonseCount: 0,
+              wolseCount: 0,
+            })) || [];
+            setMonthlyData(saleData);
+          } else {
+            setMonthlyData(rawData || []);
+          }
         } catch (error) {
           console.error('그래프 데이터 로딩 실패:', error);
         }
       };
       fetchGraphData();
     }
-  }, [showGraphModal, graphModalPeriod, apartmentId]);
+  }, [showGraphModal, graphModalPeriod, apartmentId, tradeType]);
+
+  const handleBusMarkerToggle = (checked) => {
+    setBusMarkerVisible(checked);
+    if (onToggleBusMarker) {
+      onToggleBusMarker(busStations, checked);
+    }
+  };
 
   const handleSchoolMarkerToggle = (checked) => {
     setSchoolMarkerVisible(checked);
@@ -162,9 +204,9 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
 
   const formatMonth = (yyyymm) => {
     if (!yyyymm || yyyymm.length !== 6) return '';
-    const year = yyyymm.substring(0, 4);
+    const year = yyyymm.substring(2, 4); // YY 형식
     const month = yyyymm.substring(4, 6);
-    return `${year}.${month}`;
+    return `${year}${month}`;
   };
 
   if (loading) {
@@ -221,38 +263,88 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
         </div>
 
         {/* 간단한 그래프 (막대 그래프) */}
-        <div className="h-48 flex items-end gap-2">
-          {monthlyData.length > 0 ? (
-            monthlyData.map((item, index) => {
-              const maxCount = Math.max(
-                ...monthlyData.map(d => Math.max(d.jeonseCount || 0, d.wolseCount || 0))
-              );
-              const jeonseHeight = maxCount > 0 ? ((item.jeonseCount || 0) / maxCount) * 100 : 0;
-              const wolseHeight = maxCount > 0 ? ((item.wolseCount || 0) / maxCount) * 100 : 0;
+        <div className="mt-12">
+          <div className="h-48 flex items-end gap-1.5">
+          {monthlyData.length > 0 ? (() => {
+            const isSale = tradeType === '매매';
+            const graphHeight = 192; // h-48 = 192px
+            
+            // maxCount를 한 번만 계산
+            const maxCount = Math.max(
+              1, // 최소값 1로 설정하여 0으로 나누는 것을 방지
+              ...monthlyData.map(d => {
+                if (isSale) {
+                  return Number(d.saleCount) || 0;
+                }
+                return Math.max(
+                  Number(d.jeonseCount) || 0,
+                  Number(d.wolseCount) || 0
+                );
+              })
+            );
+
+            return monthlyData.map((item, index) => {
+              if (isSale) {
+                const saleCount = Number(item.saleCount) || 0;
+                const saleHeightPx = maxCount > 0 ? (saleCount / maxCount) * graphHeight : 0;
+
+                return (
+                  <div key={item.yyyymm || index} className="flex-1 flex flex-col items-center min-w-0">
+                    <div className="w-full flex justify-center items-end" style={{ height: `${graphHeight}px` }}>
+                      {saleCount > 0 ? (
+                        <div
+                          className="w-full bg-blue-600 rounded-t"
+                          style={{ height: `${Math.max(saleHeightPx, 4)}px` }}
+                          title={`매매: ${saleCount}건`}
+                        />
+                      ) : (
+                        <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
+                      {formatMonth(item.yyyymm)}
+                    </div>
+                  </div>
+                );
+              }
+
+              // 전월세: 전세와 월세를 별도 막대로 표시
+              const jeonseCount = Number(item.jeonseCount) || 0;
+              const wolseCount = Number(item.wolseCount) || 0;
+              const jeonseHeightPx = maxCount > 0 ? (jeonseCount / maxCount) * graphHeight : 0;
+              const wolseHeightPx = maxCount > 0 ? (wolseCount / maxCount) * graphHeight : 0;
 
               return (
-                <div key={index} className="flex-1 flex flex-col items-center">
-                  <div className="w-full flex gap-0.5 justify-center items-end h-full">
-                    <div
-                      className="w-full bg-blue-500 rounded-t"
-                      style={{ height: `${jeonseHeight}%` }}
-                      title={`전세: ${item.jeonseCount || 0}건`}
-                    />
-                    <div
-                      className="w-full bg-green-500 rounded-t"
-                      style={{ height: `${wolseHeight}%` }}
-                      title={`월세: ${item.wolseCount || 0}건`}
-                    />
+                <div key={item.yyyymm || index} className="flex-1 flex flex-col items-center min-w-0">
+                  <div className="w-full flex gap-1 justify-center items-end" style={{ height: `${graphHeight}px` }}>
+                    {jeonseCount > 0 && (
+                      <div
+                        className="flex-1 bg-blue-600 rounded-t"
+                        style={{ height: `${Math.max(jeonseHeightPx, 4)}px` }}
+                        title={`전세: ${jeonseCount}건`}
+                      />
+                    )}
+                    {wolseCount > 0 && (
+                      <div
+                        className="flex-1 bg-green-600 rounded-t"
+                        style={{ height: `${Math.max(wolseHeightPx, 4)}px` }}
+                        title={`월세: ${wolseCount}건`}
+                      />
+                    )}
+                    {jeonseCount === 0 && wolseCount === 0 && (
+                      <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                    )}
                   </div>
-                  <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
+                  <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
                     {formatMonth(item.yyyymm)}
                   </div>
                 </div>
               );
-            })
-          ) : (
+            });
+          })() : (
             <div className="w-full text-center text-gray-500 py-8">거래 데이터가 없습니다</div>
           )}
+          </div>
         </div>
       </div>
 
@@ -409,41 +501,94 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, o
             </div>
 
             {/* 큰 그래프 */}
-            <div className="h-96 flex items-end gap-2">
-              {monthlyData.length > 0 ? (
-                monthlyData.map((item, index) => {
-                  const maxCount = Math.max(
-                    ...monthlyData.map(d => Math.max(d.jeonseCount || 0, d.wolseCount || 0))
-                  );
-                  const jeonseHeight = maxCount > 0 ? ((item.jeonseCount || 0) / maxCount) * 100 : 0;
-                  const wolseHeight = maxCount > 0 ? ((item.wolseCount || 0) / maxCount) * 100 : 0;
+            <div className="mt-[100px]">
+              <div className="h-96 flex items-end gap-2">
+              {monthlyData.length > 0 ? (() => {
+                const isSale = tradeType === '매매';
+                const graphHeight = 384; // h-96 = 384px
+                
+                // maxCount를 한 번만 계산
+                const maxCount = Math.max(
+                  1, // 최소값 1로 설정하여 0으로 나누는 것을 방지
+                  ...monthlyData.map(d => {
+                    if (isSale) {
+                      return Number(d.saleCount) || 0;
+                    }
+                    return Math.max(
+                      Number(d.jeonseCount) || 0,
+                      Number(d.wolseCount) || 0
+                    );
+                  })
+                );
+
+                return monthlyData.map((item, index) => {
+                  if (isSale) {
+                    const saleCount = Number(item.saleCount) || 0;
+                    const saleHeightPx = maxCount > 0 ? (saleCount / maxCount) * graphHeight : 0;
+
+                    return (
+                      <div key={item.yyyymm || index} className="flex-1 flex flex-col items-center min-w-0">
+                        <div className="w-full flex justify-center items-end" style={{ height: `${graphHeight}px` }}>
+                          {saleCount > 0 ? (
+                            <div
+                              className="w-full bg-blue-600 rounded-t"
+                              style={{ height: `${Math.max(saleHeightPx, 4)}px` }}
+                              title={`매매: ${saleCount}건`}
+                            />
+                          ) : (
+                            <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
+                          {formatMonth(item.yyyymm)}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          매매: {saleCount}건
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // 전월세: 전세와 월세를 별도 막대로 표시
+                  const jeonseCount = Number(item.jeonseCount) || 0;
+                  const wolseCount = Number(item.wolseCount) || 0;
+                  const jeonseHeightPx = maxCount > 0 ? (jeonseCount / maxCount) * graphHeight : 0;
+                  const wolseHeightPx = maxCount > 0 ? (wolseCount / maxCount) * graphHeight : 0;
 
                   return (
-                    <div key={index} className="flex-1 flex flex-col items-center">
-                      <div className="w-full flex gap-1 justify-center items-end h-full">
-                        <div
-                          className="w-full bg-blue-500 rounded-t"
-                          style={{ height: `${jeonseHeight}%` }}
-                          title={`전세: ${item.jeonseCount || 0}건`}
-                        />
-                        <div
-                          className="w-full bg-green-500 rounded-t"
-                          style={{ height: `${wolseHeight}%` }}
-                          title={`월세: ${item.wolseCount || 0}건`}
-                        />
+                    <div key={item.yyyymm || index} className="flex-1 flex flex-col items-center min-w-0">
+                      <div className="w-full flex gap-1.5 justify-center items-end" style={{ height: `${graphHeight}px` }}>
+                        {jeonseCount > 0 && (
+                          <div
+                            className="flex-1 bg-blue-600 rounded-t"
+                            style={{ height: `${Math.max(jeonseHeightPx, 4)}px` }}
+                            title={`전세: ${jeonseCount}건`}
+                          />
+                        )}
+                        {wolseCount > 0 && (
+                          <div
+                            className="flex-1 bg-green-600 rounded-t"
+                            style={{ height: `${Math.max(wolseHeightPx, 4)}px` }}
+                            title={`월세: ${wolseCount}건`}
+                          />
+                        )}
+                        {jeonseCount === 0 && wolseCount === 0 && (
+                          <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                        )}
                       </div>
-                      <div className="text-xs text-gray-600 mt-2 transform -rotate-45 origin-top-left whitespace-nowrap">
+                      <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
                         {formatMonth(item.yyyymm)}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        전세: {item.jeonseCount || 0} / 월세: {item.wolseCount || 0}
+                        전세: {jeonseCount} / 월세: {wolseCount}
                       </div>
                     </div>
                   );
-                })
-              ) : (
+                });
+              })() : (
                 <div className="w-full text-center text-gray-500 py-8">거래 데이터가 없습니다</div>
               )}
+              </div>
             </div>
           </div>
         </div>

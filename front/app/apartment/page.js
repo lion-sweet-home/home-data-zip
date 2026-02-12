@@ -10,6 +10,7 @@ import {
 } from '../api/apartment';
 import { getAptSaleChart, getAptSaleDetail } from '../api/apartment_sale';
 import { getRecentRentTrades, getRentDetailByArea, getRentDots } from '../api/apartment_rent';
+import SchoolForm from './components/schoolform';
 
 const PERIOD_OPTIONS = [6, 12, 24, 36, 48];
 
@@ -1201,16 +1202,20 @@ export default function ApartmentPage() {
               <PeriodSelector selected={tradePeriod} onChange={setTradePeriod} />
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {tradeType === '매매' ? (
                 selectedSaleTrades.length > 0 ? (
                   selectedSaleTrades.map((item, idx) => (
                     <div key={`${item?.dealDate || idx}-${idx}`} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                      <div className="flex justify-between text-sm text-gray-700">
-                        <span>{formatDate(item?.dealDate)}</span>
-                        <span>{item?.floor != null ? `${item.floor}층` : '-'}</span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="text-sm text-gray-700">{formatDate(item?.dealDate)}</div>
+                          <div className="text-sm text-gray-600 mt-1">{item?.floor != null ? `${item.floor}층` : '-'}</div>
+                        </div>
+                        <div className="text-2xl font-semibold text-gray-900 text-right ml-4">
+                          {formatPrice(item?.dealAmount)}
+                        </div>
                       </div>
-                      <div className="mt-1 text-sm font-semibold text-gray-900">{formatPrice(item?.dealAmount)}</div>
                     </div>
                   ))
                 ) : (
@@ -1219,20 +1224,22 @@ export default function ApartmentPage() {
               ) : rentTrades.length > 0 ? (
                 rentTrades.map((item, idx) => (
                   <div key={`${item?.dealDate || idx}-${idx}`} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                    <div className="flex justify-between text-sm text-gray-700">
-                      <span>{formatDate(item?.dealDate)}</span>
-                      <span>{item?.floor != null ? `${item.floor}층` : '-'}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm text-gray-700">{formatDate(item?.dealDate)}</div>
+                        <div className="text-sm text-gray-600 mt-1">{item?.floor != null ? `${item.floor}층` : '-'}</div>
+                      </div>
+                      <div className="text-2xl font-semibold text-gray-900 text-right ml-4">
+                        {isJeonseByMonthlyRent(item?.monthlyRent) ? (
+                          <div>전세 {formatPrice(item?.deposit)}</div>
+                        ) : (
+                          <div>
+                            <div>보증금 {formatPrice(item?.deposit)}</div>
+                            <div className="text-xl">월세 {formatPrice(item?.monthlyRent)}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {isJeonseByMonthlyRent(item?.monthlyRent) ? (
-                      <div className="mt-1 text-sm text-gray-900">
-                        전세 <span className="font-semibold">{formatPrice(item?.deposit)}</span>
-                      </div>
-                    ) : (
-                      <div className="mt-1 text-sm text-gray-900">
-                        보증금 <span className="font-semibold">{formatPrice(item?.deposit)}</span> / 월세{' '}
-                        <span className="font-semibold">{formatPrice(item?.monthlyRent)}</span>
-                      </div>
-                    )}
                   </div>
                 ))
               ) : (
@@ -1241,24 +1248,7 @@ export default function ApartmentPage() {
             </div>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="text-sm font-semibold text-gray-900 mb-4">학교 정보</div>
-            <div className="space-y-2">
-              {nearbySchools.length > 0 ? (
-                nearbySchools.map((school) => (
-                  <div key={school.schoolId} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                    <div className="font-semibold text-gray-900">{school.schoolName}</div>
-                    <div className="text-sm text-gray-600 mt-1">{school.schoolLevel || '-'}</div>
-                    <div className="text-sm text-blue-600 mt-1">
-                      {school.distanceKm != null ? `${toNumber(school.distanceKm).toFixed(2)}km` : '-'}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 py-8 text-center">학교 정보가 없습니다.</div>
-              )}
-            </div>
-          </div>
+          <SchoolForm schools={nearbySchools} />
         </div>
 
         {(loading || graphLoading) && (
