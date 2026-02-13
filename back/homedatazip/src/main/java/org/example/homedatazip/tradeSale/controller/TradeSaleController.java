@@ -2,6 +2,7 @@ package org.example.homedatazip.tradeSale.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.dto.MarkResponse;
 import org.example.homedatazip.tradeSale.dto.AptChartResponse;
 import org.example.homedatazip.tradeSale.dto.AptDetailResponse;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/apartment/trade-sale")
 @RequiredArgsConstructor
@@ -21,8 +23,11 @@ public class TradeSaleController {
     private final TradeSaleQueryService tradeSaleQueryService;
 
     @GetMapping("/markers")
-    public ResponseEntity<List<MarkResponse>> getMarkers(@Valid SaleSearchRequest request) {
-        return ResponseEntity.ok(tradeSaleQueryService.getMarkers(request));
+    public ResponseEntity<List<MarkResponse>> getMarkers(@Valid SaleSearchRequest req) {
+        log.info("[SALE_SEARCH] sido='{}', gugun='{}', dong='{}', keyword='{}', minAmount={}, maxAmount={}, periodMonths={}",
+                req.sido(), req.gugun(), req.dong(), req.keyword(),
+                req.minAmount(), req.maxAmount(), req.periodMonths());
+        return ResponseEntity.ok(tradeSaleQueryService.getMarkers(req));
     }
 
     // 아파트 요약

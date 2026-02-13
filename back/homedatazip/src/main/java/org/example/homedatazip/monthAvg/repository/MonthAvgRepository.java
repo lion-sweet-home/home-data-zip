@@ -121,4 +121,6 @@ public interface MonthAvgRepository extends JpaRepository<MonthAvg, Long> {
     Optional<MonthAvg> findTopByAptIdOrderByYyyymmDesc(Long aptId);
 
     List<MonthAvg> findAllByAptIdAndYyyymm(Long aptId, String yyyymm);
+
+    Optional<MonthAvg> findTopByAptIdAndAreaTypeIdAndYyyymmBeforeOrderByYyyymmDesc(Long aptId, Long areaTypeId, String yyyymm);
 }

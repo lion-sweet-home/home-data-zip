@@ -75,6 +75,7 @@ public class SecurityConfig {
                         // 웹소켓 연결점
                         .requestMatchers("/ws-stomp/**").permitAll()
 
+                        .requestMatchers("/", "/apartment.html", "/css/", "/js/", "/images/**", "/favicon.ico").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

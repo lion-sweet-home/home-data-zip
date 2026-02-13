@@ -73,4 +73,8 @@ public class Hospital {
         this.latitude = latitude;
         this.longitude = longitude;
     }
+
+    public void attachRegion(Region region) {
+        this.region = region;
+    }
 }
