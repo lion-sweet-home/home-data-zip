@@ -26,5 +26,6 @@ public class ChatMessageEventListener {
 
         // 본인 채팅방 목록에도 최근 메시지가 갱신 되어야한다.
         sseEmitterService.sendRoomListUpdate(event.senderId());
+        sseEmitterService.sendRoomListUpdate(event.opponentId());
     }
 }

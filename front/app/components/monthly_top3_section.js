@@ -101,7 +101,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-blue-600"
             >
               {(saleTop3 || []).slice(0, 3).map((item, idx) => (
-                <SaleCard key={item?.aptId ?? idx} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <SaleCard key={`sale-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
               ))}
               {(!saleTop3 || saleTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
@@ -115,7 +115,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-violet-600"
             >
               {(jeonseTop3 || []).slice(0, 3).map((item, idx) => (
-                <RentJeonseCard key={item?.aptId ?? idx} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <RentJeonseCard key={`jeonse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
               ))}
               {(!jeonseTop3 || jeonseTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
@@ -129,7 +129,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-emerald-600"
             >
               {(wolseTop3 || []).slice(0, 3).map((item, idx) => (
-                <RentWolseCard key={item?.aptId ?? idx} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <RentWolseCard key={`wolse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
               ))}
               {(!wolseTop3 || wolseTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
