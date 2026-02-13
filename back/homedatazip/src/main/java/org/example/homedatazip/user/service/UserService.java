@@ -1,5 +1,6 @@
 package org.example.homedatazip.user.service;
 
+import jdk.jshell.spi.ExecutionControl;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
@@ -166,21 +167,21 @@ public class UserService {
 
     @Transactional
     public void changePassword(Long userId, PasswordChangeRequest request) {
+        // 1. 유저 조회 USER_NOT_FOUND
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
-        // 1. 현재 비밀번호 일치 확인
+        // 2. 현재 비밀번호 일치 확인 INVALID_PASSWORD
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new RuntimeException("현재 비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
         }
 
-        // 2. 새 비밀번호와 확인용 비번이 일치하는지 확인
+        // 3. 새 비밀번호 확인 일치 검증 INVALID_PASSWORD
         if (!request.newPassword().equals(request.confirmPassword())) {
-            throw new RuntimeException("새 비밀번호가 서로 일치하지 않습니다.");
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
         }
 
-        // 3. 비밀번호 암호화 및 업데이트
+        // 4. 비밀번호 업데이트
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
     }
 }
-
