@@ -11,6 +11,11 @@ import {
 import { getAptSaleChart, getAptSaleDetail } from '../api/apartment_sale';
 import { getRecentRentTrades, getRentDetailByArea, getRentDots } from '../api/apartment_rent';
 import SchoolForm from './components/schoolform';
+import ApartmentTopBar from './components/top_bar';
+import ApartmentSummaryCard from './components/summary_card';
+import AreaSelectorCard from './components/area_selector_card';
+import TradeHistoryCard from './components/trade_history_card';
+import GraphModal from './components/graph_modal';
 
 const PERIOD_OPTIONS = [6, 12, 24, 36, 48];
 
@@ -321,27 +326,6 @@ function formatAvgPrice(value) {
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return '-';
   return formatPrice(n);
-}
-
-function PeriodSelector({ selected, onChange }) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {PERIOD_OPTIONS.map((period) => (
-        <button
-          key={period}
-          type="button"
-          onClick={() => onChange(period)}
-          className={`px-3 py-1.5 rounded-md text-sm border ${
-            selected === period
-              ? 'bg-blue-600 border-blue-600 text-white'
-              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          {period === 6 ? '6개월' : `${period / 12}년`}
-        </button>
-      ))}
-    </div>
-  );
 }
 
 const CHART_WIDTH = 960;
@@ -822,10 +806,20 @@ export default function ApartmentPage() {
           }
         }
 
-        setRentAreaOptions(options);
+        // NOTE: 백엔드 응답에 중복 areaKey가 포함될 수 있어 key 중복 경고 방지
+        const seen = new Set();
+        const deduped = options.filter((opt) => {
+          const key = Number(opt?.value);
+          if (!Number.isFinite(key)) return false;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        setRentAreaOptions(deduped);
         const preferred = Number(searchParams.get('rentAreaKey'));
-        const preferredOption = options.find((opt) => Number(opt.value) === preferred);
-        setSelectedRentAreaKey(preferredOption?.value ?? options[0]?.value ?? null);
+        const preferredOption = deduped.find((opt) => Number(opt.value) === preferred);
+        setSelectedRentAreaKey(preferredOption?.value ?? deduped[0]?.value ?? null);
       } catch (e) {
         console.error(e);
         setRentAreaOptions([]);
@@ -1059,194 +1053,60 @@ export default function ApartmentPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-6">
       <div className="max-w-7xl mx-auto space-y-4">
-        <div className="flex flex-wrap gap-2 items-center justify-between">
-          <button
-            type="button"
-            onClick={handleBackToMap}
-            className="px-3 py-1.5 rounded-md border border-gray-300 text-xs text-gray-700 bg-white hover:bg-gray-50"
-          >
-            지도로 돌아가기
-          </button>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setTradeType('매매')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                tradeType === '매매'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              매매
-            </button>
-            <button
-              type="button"
-              onClick={() => setTradeType('전월세')}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium ${
-                tradeType === '전월세'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              전월세
-            </button>
-          </div>
-        </div>
+        <ApartmentTopBar
+          tradeType={tradeType}
+          onBack={handleBackToMap}
+          onTradeTypeChange={setTradeType}
+        />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="text-2xl font-bold text-gray-900">{aptName}</div>
-              <div className="text-sm text-gray-600 mt-1">{address || '-'}</div>
-            </div>
-            {tradeType === '매매' ? (
-              <div className="text-right">
-                <div className="text-xs text-gray-500">선택 면적({selectedAreaLabel}) 평균 거래가</div>
-                <div className="text-2xl font-bold text-blue-700 mt-1">{formatAvgPrice(selectedSaleAvgAmount)}</div>
-              </div>
-            ) : (
-              <div className="text-right">
-                <div className="text-xs text-gray-500">선택 면적({selectedAreaLabel}) 평균 거래가</div>
-                <div className="text-sm text-gray-700 mt-1">
-                  전세 평균 <span className="font-semibold text-blue-700">{formatAvgPrice(rentAreaSummary?.jeonseAvg)}</span>
-                </div>
-                <div className="text-sm text-gray-700">
-                  월세 보증금/월세 평균{' '}
-                  <span className="font-semibold text-emerald-700">
-                    {formatAvgPrice(rentAreaSummary?.wolseAvg)} / {formatAvgPrice(rentAreaSummary?.wolseRentAvg)}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <ApartmentSummaryCard
+          aptName={aptName}
+          address={address}
+          tradeType={tradeType}
+          selectedAreaLabel={selectedAreaLabel}
+          saleAvgPriceText={formatAvgPrice(selectedSaleAvgAmount)}
+          jeonseAvgText={formatAvgPrice(rentAreaSummary?.jeonseAvg)}
+          wolseAvgText={`${formatAvgPrice(rentAreaSummary?.wolseAvg)} / ${formatAvgPrice(
+            rentAreaSummary?.wolseRentAvg
+          )}`}
+        />
 
-        <div className="bg-white border border-gray-200 rounded-xl p-5">
-          <div className="text-sm font-semibold text-gray-900 mb-3">면적 선택</div>
-          <div className="flex flex-wrap gap-2">
-            {tradeType === '매매'
-              ? saleAreaOptions.map((area) => (
-                  <button
-                    key={area.value}
-                    type="button"
-                    onClick={() => setSelectedSaleAreaKey(String(area.value))}
-                    className={`px-4 py-2 rounded-lg border text-sm ${
-                      String(selectedSaleAreaKey) === String(area.value)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {area.label}㎡
-                  </button>
-                ))
-              : rentAreaOptions.map((area) => (
-                  <button
-                    key={area.value}
-                    type="button"
-                    onClick={() => setSelectedRentAreaKey(Number(area.value))}
-                    className={`px-4 py-2 rounded-lg border text-sm ${
-                      Number(selectedRentAreaKey) === Number(area.value)
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {area.label}㎡
-                  </button>
-                ))}
-          </div>
-        </div>
+        <AreaSelectorCard
+          tradeType={tradeType}
+          saleAreaOptions={saleAreaOptions}
+          selectedSaleAreaKey={selectedSaleAreaKey}
+          onSelectSaleAreaKey={setSelectedSaleAreaKey}
+          rentAreaOptions={rentAreaOptions}
+          selectedRentAreaKey={selectedRentAreaKey}
+          onSelectRentAreaKey={setSelectedRentAreaKey}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-sm font-semibold text-gray-900">거래내역</div>
-              {tradeType === '매매' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGraphPeriod(tradePeriod);
-                    setShowGraphModal(true);
-                  }}
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                >
-                  거래 그래프 보기
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRentGraphView('jeonse');
-                      setGraphPeriod(tradePeriod);
-                      setShowGraphModal(true);
-                    }}
-                    className="text-xs text-blue-600 hover:text-blue-700"
-                  >
-                    전세 그래프 보기
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setRentGraphView('wolse');
-                      setGraphPeriod(tradePeriod);
-                      setShowGraphModal(true);
-                    }}
-                    className="text-xs text-emerald-700 hover:text-emerald-800"
-                  >
-                    월세 그래프 보기
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="mb-4">
-              <PeriodSelector selected={tradePeriod} onChange={setTradePeriod} />
-            </div>
-
-            <div className="space-y-2 max-h-[600px] overflow-y-auto">
-              {tradeType === '매매' ? (
-                selectedSaleTrades.length > 0 ? (
-                  selectedSaleTrades.map((item, idx) => (
-                    <div key={`${item?.dealDate || idx}-${idx}`} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="text-sm text-gray-700">{formatDate(item?.dealDate)}</div>
-                          <div className="text-sm text-gray-600 mt-1">{item?.floor != null ? `${item.floor}층` : '-'}</div>
-                        </div>
-                        <div className="text-2xl font-semibold text-gray-900 text-right ml-4">
-                          {formatPrice(item?.dealAmount)}
-                        </div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-sm text-gray-500 py-8 text-center">거래 내역이 없습니다.</div>
-                )
-              ) : rentTrades.length > 0 ? (
-                rentTrades.map((item, idx) => (
-                  <div key={`${item?.dealDate || idx}-${idx}`} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="text-sm text-gray-700">{formatDate(item?.dealDate)}</div>
-                        <div className="text-sm text-gray-600 mt-1">{item?.floor != null ? `${item.floor}층` : '-'}</div>
-                      </div>
-                      <div className="text-2xl font-semibold text-gray-900 text-right ml-4">
-                        {isJeonseByMonthlyRent(item?.monthlyRent) ? (
-                          <div>전세 {formatPrice(item?.deposit)}</div>
-                        ) : (
-                          <div>
-                            <div>보증금 {formatPrice(item?.deposit)}</div>
-                            <div className="text-xl">월세 {formatPrice(item?.monthlyRent)}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-sm text-gray-500 py-8 text-center">거래 내역이 없습니다.</div>
-              )}
-            </div>
-          </div>
+          <TradeHistoryCard
+            tradeType={tradeType}
+            tradePeriod={tradePeriod}
+            periodOptions={PERIOD_OPTIONS}
+            onChangeTradePeriod={setTradePeriod}
+            onOpenSaleGraph={() => {
+              setGraphPeriod(tradePeriod);
+              setShowGraphModal(true);
+            }}
+            onOpenJeonseGraph={() => {
+              setRentGraphView('jeonse');
+              setGraphPeriod(tradePeriod);
+              setShowGraphModal(true);
+            }}
+            onOpenWolseGraph={() => {
+              setRentGraphView('wolse');
+              setGraphPeriod(tradePeriod);
+              setShowGraphModal(true);
+            }}
+            selectedSaleTrades={selectedSaleTrades}
+            rentTrades={rentTrades}
+            formatDate={formatDate}
+            formatPrice={formatPrice}
+            isJeonseByMonthlyRent={isJeonseByMonthlyRent}
+          />
 
           <SchoolForm schools={nearbySchools} />
         </div>
@@ -1257,40 +1117,22 @@ export default function ApartmentPage() {
         {errorMessage && <div className="text-sm text-red-600 text-center py-2">{errorMessage}</div>}
       </div>
 
-      {showGraphModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-5xl max-h-[90vh] overflow-y-auto p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">
-                {tradeType === '매매'
-                  ? '거래 그래프'
-                  : rentGraphView === 'jeonse'
-                    ? '전세 그래프'
-                    : '월세 그래프'}
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowGraphModal(false)}
-                className="text-2xl text-gray-500 hover:text-gray-700"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="mb-4">
-              <PeriodSelector selected={graphPeriod} onChange={setGraphPeriod} />
-            </div>
-
-            {graphLoading ? (
-              <div className="text-center py-12 text-gray-500">그래프 로딩 중...</div>
-            ) : tradeType === '매매' ? (
-              <SaleGraph data={saleGraphData} />
-            ) : (
-              <RentGraph avgData={rentGraphData} dotData={rentDotGraphData} mode={rentGraphView} />
-            )}
-          </div>
-        </div>
-      )}
+      <GraphModal
+        open={showGraphModal}
+        onClose={() => setShowGraphModal(false)}
+        tradeType={tradeType}
+        rentGraphView={rentGraphView}
+        graphPeriod={graphPeriod}
+        periodOptions={PERIOD_OPTIONS}
+        onChangeGraphPeriod={setGraphPeriod}
+        graphLoading={graphLoading}
+      >
+        {tradeType === '매매' ? (
+          <SaleGraph data={saleGraphData} />
+        ) : (
+          <RentGraph avgData={rentGraphData} dotData={rentDotGraphData} mode={rentGraphView} />
+        )}
+      </GraphModal>
     </div>
   );
 }
