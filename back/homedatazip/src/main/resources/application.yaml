@@ -8,9 +8,9 @@ spring:
       favor-parameter: false
 
   datasource:
-    url: jdbc:mysql://localhost:3306/home_db
-    username: root
-    password: root1234
+    url: ${DATASOURCE_URL:jdbc:mysql://localhost:3306/home_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -31,9 +31,9 @@ spring:
       initialize-schema: always
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USER_NAME}
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
     properties:
       mail:
@@ -44,8 +44,8 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
   ai:
     ollama:
@@ -55,13 +55,14 @@ spring:
 
 cors:
   allowed-origins:
-    - http://localhost:5173
-    - https://www.yourdomain.com
+    - http://${EC2_HOST:localhost}:5173
+    - http://${EC2_HOST:localhost}:3000
   allowed-methods:
     - GET
     - POST
     - PUT
     - DELETE
+    - PATCH
   max-age: 3600
 
 jwt:
@@ -74,8 +75,8 @@ payment:
   toss:
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
-    billing-success-url: http://localhost:5173/payments/billing/success
-    billing-fail-url: http://localhost:5173/payments/billing/fail
+    billing-success-url: http://${EC2_HOST:localhost}:3000/payments/billing/success
+    billing-fail-url: http://${EC2_HOST:localhost}:3000/payments/billing/fail
 
 api:
   data-go-kr:
@@ -107,6 +108,13 @@ seoul:
     type: json
     service: ${SEOUL_OPENAPI_SERVICE}
 
+# OpenAPI 학교 목록 (Quartz - 매일 2시 10분)
+school:
+  openapi:
+    key: ${SCHOOL_OPENAPI_KEY:}
+    sync:
+      cron: ${SCHOOL_OPENAPI_SYNC_CRON:0 30 4 * * ?}
+
 # OpenAPI 지하철 역 목록 URL (Quartz - 매일 2시)
 subway:
   openapi:
@@ -114,8 +122,25 @@ subway:
     sync:
       cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
 
-# 아파트 - 지하철 거리 (Quartz - 매일 3시)
+# Quartz 통합 Batch 스케줄 (한 곳에서 모든 Batch 실행 시간 관리)
+quartz:
+  batch:
+    apartment-trade:
+      cron: ${QUARTZ_APARTMENT_TRADE_CRON:0 0 2 * * ?}  # 매일 2시
+    region:
+      cron: ${QUARTZ_REGION_CRON:0 0 1 ? * SUN}  # 매주 일요일 1시
+    bus-station:
+      cron: ${QUARTZ_BUS_STATION_CRON:0 0 1 * * ?}  # 매일 1시
+    trade-rent:
+      cron: ${QUARTZ_TRADE_RENT_CRON:0 0 5 * * ?}  # 매일 5시
+    hospital:
+      cron: ${QUARTZ_HOSPITAL_CRON:0 30 5 * * ?}  # 매일 5시 30분
+
+# 아파트 - 지하철&학교 거리 (Quartz - 매일 3시, 4시)
 apartment:
   subway-distance:
     sync:
       cron: ${APARTMENT_SUBWAY_DISTANCE_SYNC_CRON:0 0 3 * * ?}
+  school-distance:
+    sync:
+      cron: ${APARTMENT_SCHOOL_DISTANCE_SYNC_CRON:0 0 4 * * ?}

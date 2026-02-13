@@ -12,14 +12,34 @@ public interface SubwayStationSourceRepository extends JpaRepository<SubwayStati
     List<SubwayStationSource> findAllByOrderByStationNameAscIdAsc();
 
     /** 역명 포함 검색 (station fetch, 역명은 한글이라 대소문자 없음) */
-    @Query("SELECT s FROM SubwayStationSource s JOIN FETCH s.station st WHERE st.id IS NOT NULL AND s.stationName LIKE CONCAT('%', :stationName, '%') ORDER BY s.stationName, s.id")
+    @Query("""
+            SELECT s FROM SubwayStationSource s JOIN FETCH s.station st
+            WHERE st.id IS NOT NULL AND s.stationName LIKE CONCAT('%', :stationName, '%')
+            ORDER BY s.stationName, s.id
+            """)
     List<SubwayStationSource> findByStationNameContainingWithStation(@Param("stationName") String stationName);
 
     /** 역명 + 호선 검색 (station fetch) */
-    @Query("SELECT s FROM SubwayStationSource s JOIN FETCH s.station st WHERE st.id IS NOT NULL AND s.stationName LIKE CONCAT('%', :stationName, '%') AND s.lineName = :lineName ORDER BY s.stationName, s.id")
+    @Query("""
+            SELECT s FROM SubwayStationSource s JOIN FETCH s.station st
+            WHERE st.id IS NOT NULL AND s.stationName LIKE CONCAT('%', :stationName, '%') AND s.lineName = :lineName
+            ORDER BY s.stationName, s.id
+            """)
     List<SubwayStationSource> findByStationNameContainingAndLineNameWithStation(@Param("stationName") String stationName, @Param("lineName") String lineName);
 
     /** 호선만 검색 (station fetch) */
-    @Query("SELECT s FROM SubwayStationSource s JOIN FETCH s.station st WHERE st.id IS NOT NULL AND s.lineName = :lineName ORDER BY s.stationName, s.id")
+    @Query("""
+            SELECT s FROM SubwayStationSource s JOIN FETCH s.station st
+            WHERE st.id IS NOT NULL AND s.lineName = :lineName
+            ORDER BY s.stationName, s.id
+            """)
     List<SubwayStationSource> findByLineNameWithStation(@Param("lineName") String lineName);
+
+    /** 역 ID 목록으로 호선 정보 일괄 조회 */
+    @Query("""
+            SELECT s FROM SubwayStationSource s JOIN FETCH s.station st
+            WHERE st.id IN :stationIds
+            ORDER BY st.stationName, s.id
+            """)
+    List<SubwayStationSource> findByStationIdInWithStation(@Param("stationIds") List<Long> stationIds);
 }

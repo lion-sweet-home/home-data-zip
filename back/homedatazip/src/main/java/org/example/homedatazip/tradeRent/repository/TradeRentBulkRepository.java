@@ -26,13 +26,7 @@ public class TradeRentBulkRepository {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
 
-    /**
-     * INSERT IGNORE로 대량 삽입
-     * 중복 데이터는 자동으로 무시됨 (예외 발생 X)
-     *
-     * @param tradeRents 삽입할 TradeRent 리스트
-     * @return [삽입 성공 건수, 중복 스킵 건수]
-     */
+
     public int[] bulkInsertIgnore(List<TradeRent> tradeRents) {
         if (tradeRents == null || tradeRents.isEmpty()) {
             return new int[]{0, 0};
@@ -85,10 +79,7 @@ public class TradeRentBulkRepository {
         return new int[]{insertedCount, skippedCount};
     }
 
-    /**
-     * ON DUPLICATE KEY UPDATE로 Upsert
-     * 중복 시 기존 데이터 업데이트
-     */
+
     public int[] bulkUpsert(List<TradeRent> tradeRents) {
         if (tradeRents == null || tradeRents.isEmpty()) {
             return new int[]{0, 0};

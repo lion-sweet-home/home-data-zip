@@ -3,6 +3,7 @@ package org.example.homedatazip.user.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.dto.EmailRequest;
+import org.example.homedatazip.email.dto.EmailVerificationRequest;
 import org.example.homedatazip.email.service.EmailAuthService;
 import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.user.dto.*;
@@ -27,6 +28,13 @@ public class UserController {
         return ResponseEntity.ok().body(userService.isNicknameAvailable(request.nickname()));
     }
 
+    // 이메일 중복 확인
+    @PostMapping("/check-email")
+    public ResponseEntity<Boolean> checkEmail(@RequestBody @Valid EmailCheckRequest request) {
+
+        return ResponseEntity.ok().body(userService.isEmailAvailable(request.email()));
+    }
+
     // 회원 가입
     @PostMapping("/register")
     public ResponseEntity<Void> register(@RequestBody @Valid RegisterRequest request) {
@@ -39,6 +47,13 @@ public class UserController {
     @PostMapping("/email-verification")
     public ResponseEntity<Void> sendEmailCode(@RequestBody EmailRequest request) {
         emailAuthService.sendAuthCode(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    // 인증 코드 확인
+    @PostMapping("/verify-email-code")
+    public ResponseEntity<Void> verifyEmailCode(@RequestBody @Valid EmailVerificationRequest request) {
+        emailAuthService.verifyCode(request.email(), request.authCode());
         return ResponseEntity.ok().build();
     }
 

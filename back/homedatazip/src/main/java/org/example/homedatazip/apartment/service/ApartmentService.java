@@ -2,16 +2,22 @@ package org.example.homedatazip.apartment.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.homedatazip.apartment.dto.AptSaleAggregation;
+import org.example.homedatazip.apartment.dto.AptSummaryResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
+import org.example.homedatazip.apartment.repository.ApartmentSearchRepository;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.ApartmentErrorCode;
 import org.example.homedatazip.global.geocode.dto.CoordinateInfoResponse;
 import org.example.homedatazip.global.geocode.service.GeoService;
+import org.example.homedatazip.monthAvg.utill.Yyyymm;
 import org.example.homedatazip.tradeRent.dto.ApartmentGetOrCreateRequest;
 import org.example.homedatazip.tradeSale.dto.ApartmentTradeSaleItem;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -24,6 +30,8 @@ public class ApartmentService {
     private final ApartmentRepository apartmentRepository;
     private final ApartmentTradeSaleSaveService apartmentSaveService;
     private final GeoService geoService;
+
+    private final ApartmentSearchRepository apartmentSearchRepository;
 
     // 매매
     @Transactional
@@ -139,5 +147,154 @@ public class ApartmentService {
                 newApartments.size(), aptMap.size() - newApartments.size());
 
         return aptMap;
+    }
+
+    /**
+     * 키워드 검색
+     * <br/>
+     * 1. 키워드 유효성 검증
+     * 2. 키워드로 시작하는 아파트 목록 조회
+     * 3. 아파트 ID 추출 및 기간 설정
+     * 4. 집계 데이터 조회
+     * 5. 응답 DTO 생성 (전월 거래량 내림차순 정렬)
+     */
+    public List<AptSummaryResponse> searchByKeyword(String keyword) {
+        // 1. 키워드 유효성 검증
+        validateKeyword(keyword);
+
+        log.info("🔍 아파트 키워드 검색 시작 - keyword: {}", keyword);
+
+        // 2. 키워드를 포함하는 아파트 목록 조회
+        List<Apartment> apartments
+                = apartmentRepository.findByAptNameContaining(keyword);
+
+        // 조회 결과 없음
+        if (apartments == null || apartments.isEmpty()) {
+            log.info("❌ 키워드 검색 결과 없음 - keyword: {}", keyword);
+            return null; // 프론트 쪽에서 검색 결과 없다고 표기
+        }
+
+        log.info("🏠 아파트 조회 완료 - keyword: {}, 검색된 아파트: {}건",
+                keyword,
+                apartments.size()
+        );
+
+        // 아파트 정보 Map
+        Map<Long, Apartment> apartmentMap = apartments.stream()
+                .collect(Collectors
+                        .toMap(Apartment::getId, apt -> apt)
+                );
+
+        // 3. 아파트 ID 추출 및 기간 설정
+        List<Long> aptIds = new ArrayList<>(apartmentMap.keySet());
+
+        // 전월, 4년 전
+        String lastMonth = Yyyymm.lastMonthYyyymm(LocalDate.now());
+        String fourYearsAgo = Yyyymm.minYyyymmForMonths(lastMonth, 48);
+
+        log.debug("📅 조회기간 - 전월: {}, 4년 전: {}", lastMonth, fourYearsAgo);
+
+        // 4. 집계 데이터 조회
+        List<AptSaleAggregation> aggregations = apartmentSearchRepository
+                .findSaleAggregationByAptIds(aptIds, lastMonth, fourYearsAgo);
+
+        log.debug("📊 집계 데이터 조회 완료 - {}건", aggregations.size());
+
+        // 5. 응답 DTO 생성
+        List<AptSummaryResponse> result = aggregations.stream()
+                .map(aggregation ->
+                        createSummaryResponse(
+                                apartmentMap.get(aggregation.aptId()),
+                                aggregation)
+                )
+                .sorted((a, b) -> {
+                            Integer countA = a.tradeCount() != null ? a.tradeCount() : 0;
+                            Integer countB = b.tradeCount() != null ? b.tradeCount() : 0;
+                            return countB.compareTo(countA);
+                        }
+                )
+                .toList();
+
+        log.info("✅ 아파트 키워드 검색 완료 - keyword: {}, 응답: {}건",
+                keyword,
+                result.size()
+        );
+
+        return result;
+    }
+
+    /**
+     * 키워드 유효성 검증 (공백, 글자수 체크)
+     */
+    private void validateKeyword(String keyword) {
+        // 공백 체크
+        if (keyword == null || keyword.isBlank()) {
+            throw new BusinessException(ApartmentErrorCode.KEYWORD_CANNOT_BLANK);
+        }
+        // 글자수 체크
+        if (keyword.trim().length() < 2) {
+            throw new BusinessException(ApartmentErrorCode.INVALID_KEYWORD_LENGTH);
+        }
+    }
+
+    /**
+     * 응답 DTO 생성
+     */
+    private AptSummaryResponse createSummaryResponse(
+            Apartment apt,
+            AptSaleAggregation aggregation
+    ) {
+        String gu = (apt != null && apt.getRegion() != null)
+                ? apt.getRegion().getGugun()
+                : null;
+
+        String aptName = (apt != null)
+                ? apt.getAptName()
+                : null;
+
+        // 전월 거래량
+        Integer tradeCount = aggregation.lastMonthSaleCount() != null
+                ? aggregation.lastMonthSaleCount().intValue()
+                : 0;
+
+        // 전월 거래량이 0인 경우 - 평균 거래가 null, 등락률 null
+        if (tradeCount == 0) {
+            log.debug("⚠️ 전월 거래 없음 - aptId: {}, areaTypeId: {}",
+                    aggregation.aptId(),
+                    aggregation.areaTypeId()
+            );
+
+            return new AptSummaryResponse(
+                    aggregation.aptId(),
+                    aptName,
+                    gu,
+                    aggregation.areaTypeId(),
+                    null,
+                    null,
+                    0
+            );
+        }
+
+        // 전월 거래량이 있는 경우
+        Long avgDealAmount = aggregation.getLastMonthAvgAmount();
+        Double priceChangeRate = aggregation.getPriceChangeRate();
+
+        // 등락률 계산 불가
+        if (priceChangeRate == null && aggregation.compareYyyymm() == null) {
+            log.debug("⚠️ 등락률 계산 불가(비교 대상월 없음) - aptId: {}, areaTypeId: {}",
+                    aggregation.aptId(),
+                    aggregation.areaTypeId()
+            );
+        }
+
+        return new AptSummaryResponse(
+                aggregation.aptId(),
+                aptName,
+                gu,
+                aggregation.areaTypeId(),
+                avgDealAmount,
+                priceChangeRate,
+                tradeCount
+        );
     }
 }

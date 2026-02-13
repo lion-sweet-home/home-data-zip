@@ -3,7 +3,6 @@ package org.example.homedatazip.subway.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.subway.dto.ApartmentNearSubwayResponse;
 import org.example.homedatazip.subway.dto.SubwayStationSearchRequest;
-import org.example.homedatazip.subway.dto.SubwayStationSearchResponse;
 import org.example.homedatazip.subway.dto.SubwayStationResponse;
 import org.example.homedatazip.subway.service.SubwayStationService;
 import org.springframework.http.ResponseEntity;
@@ -23,18 +22,16 @@ public class SubwayStationController {
 
     private final SubwayStationService subwayStationService;
 
-    // 지하철 역 검색 (한 검색란에 역명 또는 호선으로 검색, 둘 다 optional).
-    // GET /api/subway/stations?stationName={stationName}&lineName={lineName}
+    // 지하철 역 검색 (한 검색란에 역명 또는 호선으로 검색, 둘 다 optional)
     @GetMapping()
-    public ResponseEntity<SubwayStationSearchResponse> searchStations(
+    public ResponseEntity<List<SubwayStationResponse>> searchStations(
             @ModelAttribute SubwayStationSearchRequest request
     ) {
         List<SubwayStationResponse> stations = subwayStationService.searchStations(request.stationName(), request.lineName());
-        return ResponseEntity.ok(new SubwayStationSearchResponse(stations));
+        return ResponseEntity.ok(stations);
     }
 
-    // 해당 지하철 역 반경 내 아파트 검색.
-    // GET /api/subway/stations/{stationId}/apartments?distanceKm={distanceKm}
+    // 해당 지하철 역 반경 내 아파트 검색
     @GetMapping("/{stationId}/apartments")
     public ResponseEntity<List<ApartmentNearSubwayResponse>> getApartmentsNearStation(
             @PathVariable Long stationId, @RequestParam double distanceKm

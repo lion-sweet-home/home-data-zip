@@ -1,6 +1,7 @@
 package org.example.homedatazip.apartment.repository;
 
 import org.example.homedatazip.apartment.entity.Apartment;
+import org.example.homedatazip.apartment.repository.rentDSL.ApartmentRepositoryCustomRent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -11,7 +12,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
+public interface ApartmentRepository extends JpaRepository<Apartment, Long>, ApartmentRepositoryCustomRent {
 
     /** 위/경도가 있는 아파트만 조회 (아파트–지하철 거리 배치용) */
     List<Apartment> findByLatitudeIsNotNullAndLongitudeIsNotNull();
@@ -27,31 +28,31 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
 
     //조회성능을 위한 시구동을 통한 region fetch Join + 아파트 Get + null체크
     //deposit || MonthlyRent 필터선택 후 조회시 추가 필터
-    @Query("""
-        select a
-        from Apartment a
-        where a.region.sido = :sido
-          and a.region.gugun = :gugun
-          and a.region.dong like concat(coalesce(:dongPrefix, ''), '%')
-          and exists (
-              select 1
-              from TradeRent tr
-              where tr.apartment = a
-                and (coalesce(:minDeposit, 0) = 0 or tr.deposit >= coalesce(:minDeposit, 0))
-                and (coalesce(:maxDeposit, 0) = 0 or tr.deposit <= coalesce(:maxDeposit, 0))
-                and (coalesce(:minMonthlyRent, 0) = 0 or tr.monthlyRent >= coalesce(:minMonthlyRent, 0))
-                and (coalesce(:maxMonthlyRent, 0) = 0 or tr.monthlyRent <= coalesce(:maxMonthlyRent, 0))
-          )
-        """)
-    List<Apartment> findAllWithRentByRegionAndRentRange(
-            @Param("sido") String sido,
-            @Param("gugun") String gugun,
-            @Param("dongPrefix") String dongPrefix,
-            @Param("minDeposit") long minDeposit,
-            @Param("maxDeposit") long maxDeposit,
-            @Param("minMonthlyRent") int minMonthlyRent,
-            @Param("maxMonthlyRent") int maxMonthlyRent
-    );
+//    @Query("""
+//    select a
+//    from Apartment a
+//    where a.region.sido = :sido
+//      and a.region.gugun = :gugun
+//      and (:dongPrefix is null or a.region.dong like concat(:dongPrefix, '%'))
+//      and exists (
+//          select 1
+//          from TradeRent tr
+//          where tr.apartment = a
+//            and (:minDeposit is null or tr.deposit >= :minDeposit)
+//            and (:maxDeposit is null or tr.deposit <= :maxDeposit)
+//            and (:minMonthlyRent is null or tr.monthlyRent >= :minMonthlyRent)
+//            and (:maxMonthlyRent is null or tr.monthlyRent <= :maxMonthlyRent)
+//      )
+//""")
+//    List<Apartment> findAllWithRentByRegionAndRentRange(
+//            @Param("sido") String sido,
+//            @Param("gugun") String gugun,
+//            @Param("dongPrefix") String dongPrefix,
+//            @Param("minDeposit") Long minDeposit,
+//            @Param("maxDeposit") Long maxDeposit,
+//            @Param("minMonthlyRent") Integer minMonthlyRent,
+//            @Param("maxMonthlyRent") Integer maxMonthlyRent
+//    );
 
     @Modifying
     @Transactional
@@ -71,4 +72,9 @@ public interface ApartmentRepository extends JpaRepository<Apartment, Long> {
                       @Param("regionId") Long regionId);
 
     List<Apartment> findByRegionIdOrderByAptNameAsc(Long regionId);
+
+    // 키워드 검색용 (키워드로 시작하는 아파트 검색)
+    List<Apartment> findByAptNameStartsWith(String aptName);
+
+    List<Apartment> findByAptNameContaining(String aptName);
 }

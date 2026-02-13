@@ -37,7 +37,8 @@ out/
 ### VS Code ###
 .vscode/
 
-/front/
+# /front/
+# /front_test/
 
 # env
 .env
