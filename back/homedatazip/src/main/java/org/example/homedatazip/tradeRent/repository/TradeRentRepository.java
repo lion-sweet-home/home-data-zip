@@ -15,21 +15,4 @@ import java.util.Optional;
 @Repository
 public interface TradeRentRepository extends JpaRepository<TradeRent,Long> {
     Optional<TradeRent> findById(long id);
-    List<TradeRent> findByApartmentId(long apartmentId);
-    boolean existsByApartmentId(long apartmentId);
-
-    List<TradeRent> findTop5ByApartment_IdOrderByDealDateDesc(Long aptId);
-
-    @Query("""
-        select tr from TradeRent tr
-        where tr.apartment.id = :aptId
-          and tr.exclusiveArea * 100 = :areaKey10
-          and tr.dealDate >= :yyyymm
-        order by tr.dealDate desc
-    """)
-    List<TradeRent> findByAptAndExclusiveKey10(
-            @Param("aptId") long aptId,
-            @Param("areaKey10") long areaKey10,
-            @Param("yyyymm") LocalDate yyyymm
-    );
 }
