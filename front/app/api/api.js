@@ -29,11 +29,55 @@ function fetchWithTimeout(url, options, timeout = 30000) {
 }
 
 /**
+ * JWT 토큰 디코딩 (payload 추출)
+ */
+function decodeJWT(token) {
+  if (!token) return null;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    const payload = parts[1];
+    const decoded = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+    return decoded;
+  } catch (error) {
+    console.error('JWT decode error:', error);
+    return null;
+  }
+}
+
+/**
+ * Access Token의 만료 시간 확인
+ * @returns {number|null} 만료 시간 (Unix timestamp, 초 단위) 또는 null
+ */
+function getTokenExpiration(token) {
+  const decoded = decodeJWT(token);
+  if (!decoded || !decoded.exp) return null;
+  return decoded.exp;
+}
+
+/**
+ * Access Token이 만료되었는지 확인
+ * @param {number} bufferSeconds - 만료 전 버퍼 시간 (초, 기본값: 60초)
+ * @returns {boolean} 만료되었거나 곧 만료될 예정이면 true
+ */
+function isTokenExpired(bufferSeconds = 60) {
+  const token = getAuthToken();
+  if (!token) return true;
+  
+  const exp = getTokenExpiration(token);
+  if (!exp) return true;
+  
+  // 현재 시간 + 버퍼 시간과 만료 시간 비교
+  const now = Math.floor(Date.now() / 1000);
+  return exp <= (now + bufferSeconds);
+}
+
+/**
  * 로컬 스토리지에서 인증 토큰 가져오기
  */
 function getAuthToken() {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token') || localStorage.getItem('accessToken');
+  return localStorage.getItem('accessToken');
 }
 
 /**
@@ -64,7 +108,6 @@ function getRefreshToken() {
 function setTokens(accessToken, refreshToken) {
   if (typeof window === 'undefined') return;
   if (accessToken) {
-    localStorage.setItem('token', accessToken);
     localStorage.setItem('accessToken', accessToken);
   }
   if (refreshToken) {
@@ -85,7 +128,6 @@ function deleteCookie(name) {
  */
 function clearTokens() {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('token');
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   // 쿠키에서도 refreshToken 제거
@@ -106,7 +148,7 @@ async function reissueToken() {
   }
 
   try {
-    const url = `${API_BASE_URL}/auth/reissue`;
+    const url = `${API_BASE_URL}/auth/refresh`;
     // 쿠키는 자동으로 전송되므로 credentials: 'include' 옵션 사용
     const response = await fetchWithTimeout(
       url,
@@ -122,11 +164,11 @@ async function reissueToken() {
 
     if (response.ok) {
       const data = await response.json();
-      const newAccessToken = data.token || data.accessToken;
-      const newRefreshToken = data.refreshToken;
+      // 백엔드 응답은 AccessToken 필드 사용 (대문자 A)
+      const newAccessToken = data.AccessToken || data.token || data.accessToken;
       
       if (newAccessToken) {
-        setTokens(newAccessToken, newRefreshToken);
+        setTokens(newAccessToken, null); // refreshToken은 쿠키로 관리되므로 null
         return newAccessToken;
       }
     }
@@ -139,16 +181,45 @@ async function reissueToken() {
 }
 
 /**
+ * Access Token 자동 갱신 (필요한 경우)
+ * @returns {Promise<string|null>} 유효한 Access Token 또는 null
+ */
+async function ensureValidToken() {
+  // 토큰이 없으면 null 반환
+  const token = getAuthToken();
+  if (!token) return null;
+
+  // 토큰이 만료되지 않았으면 그대로 반환
+  if (!isTokenExpired()) {
+    return token;
+  }
+
+  // 토큰이 만료되었거나 곧 만료될 예정이면 재발급 시도
+  console.log('Access Token이 만료되었거나 곧 만료됩니다. 재발급 시도...');
+  const newToken = await reissueToken();
+  
+  if (newToken) {
+    console.log('Access Token 재발급 성공');
+    return newToken;
+  } else {
+    console.log('Access Token 재발급 실패');
+    // 재발급 실패 시 토큰 제거
+    clearTokens();
+    return null;
+  }
+}
+
+/**
  * 요청 헤더 생성
  */
-function createHeaders(customHeaders = {}) {
+async function createHeaders(customHeaders = {}) {
   const headers = {
     ...defaultOptions.headers,
     ...customHeaders,
   };
 
-  // 인증 토큰이 있으면 헤더에 추가
-  const token = getAuthToken();
+  // 유효한 인증 토큰 가져오기 (필요시 자동 갱신)
+  const token = await ensureValidToken();
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
@@ -168,10 +239,21 @@ async function handleResponse(response, skipReissue = false) {
   // HTTP 상태 코드 확인
   if (!response.ok) {
     let errorMessage = `HTTP error! status: ${response.status}`;
+    let errorData = null;
     
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorData.error || errorMessage;
+      errorData = await response.json();
+      // 백엔드 ErrorResponse 형식 (code, message)
+      if (errorData.message) {
+        errorMessage = errorData.message;
+      } else if (errorData.error) {
+        errorMessage = errorData.error;
+      }
+      // Spring Boot validation 에러 형식 (errors 배열)
+      if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+        // 첫 번째 validation 에러 메시지 사용
+        errorMessage = errorData.errors[0].message || errorMessage;
+      }
     } catch {
       // JSON 파싱 실패 시 텍스트로 시도
       try {
@@ -185,6 +267,7 @@ async function handleResponse(response, skipReissue = false) {
     const error = new Error(errorMessage);
     error.status = response.status;
     error.statusText = response.statusText;
+    error.data = errorData; // 원본 에러 데이터 저장
     error.skipReissue = skipReissue; // reissue 요청 자체는 재시도하지 않음
     throw error;
   }
@@ -228,7 +311,7 @@ export async function request(endpoint, options = {}) {
   // 요청 옵션 구성
   const requestOptions = {
     method,
-    headers: createHeaders(customHeaders),
+    headers: await createHeaders(customHeaders),
     credentials: 'include', // 쿠키 자동 전송
     ...restOptions,
   };
@@ -249,14 +332,14 @@ export async function request(endpoint, options = {}) {
     return await handleResponse(response, skipReissue);
   } catch (error) {
     // 401 에러이고 reissue를 건너뛰지 않는 경우 토큰 재발급 시도
-    if (error.status === 401 && !skipReissue && !endpoint.includes('/auth/reissue')) {
+    if (error.status === 401 && !skipReissue && !endpoint.includes('/auth/refresh')) {
       const newToken = await reissueToken();
       
       if (newToken) {
         // 토큰 재발급 성공 시 원래 요청 재시도
         try {
           // 새로운 토큰으로 헤더 재생성
-          const retryHeaders = createHeaders(customHeaders);
+          const retryHeaders = await createHeaders(customHeaders);
           const retryOptions = {
             ...requestOptions,
             headers: retryHeaders,

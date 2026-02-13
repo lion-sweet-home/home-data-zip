@@ -35,6 +35,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
             Double exclusive,
             String aptName,
             String gugun,
+            String dong,
             Integer countSum,
             Long depositSum,
             Long monthRentSum
@@ -78,6 +79,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
                         exclusiveVal,
                         a.aptName,
                         r.gugun,
+                        r.dong,
                         lastCountSum,
                         lastDepositSum,
                         lastMonthRentSum
@@ -86,7 +88,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
                 .join(a).on(a.id.eq(m.aptId))
                 .join(r).on(r.id.eq(a.region.id))
                 .where(m.yyyymm.eq(lastYm))
-                .groupBy(m.areaTypeId, m.aptId, a.aptName, r.gugun)
+                .groupBy(m.areaTypeId, m.aptId, a.aptName, r.gugun, r.dong)
                 .orderBy(lastCountSum.desc(), m.areaTypeId.asc())
                 .limit(3)
                 .fetch();
@@ -135,6 +137,7 @@ public class WolseMonthAvgTop3RepositoryImpl implements WolseMonthAvgTop3Reposit
                     last.exclusive,
                     last.aptName,
                     last.gugun,
+                    last.dong,
                     lastYm,
                     last.countSum,
                     lastAvgDeposit,

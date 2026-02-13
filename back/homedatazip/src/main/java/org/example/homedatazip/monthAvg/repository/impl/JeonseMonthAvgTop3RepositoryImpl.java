@@ -37,6 +37,7 @@ public class JeonseMonthAvgTop3RepositoryImpl implements JeonseMonthAvgTop3Repos
             Double exclusive,
             String aptName,
             String gugun,
+            String dong,
             Integer countSum,
             Long depositSum
     ) {}
@@ -72,6 +73,7 @@ public class JeonseMonthAvgTop3RepositoryImpl implements JeonseMonthAvgTop3Repos
                         exclusiveVal,
                         a.aptName,
                         r.gugun,
+                        r.dong,
                         lastCountSum,
                         lastDepositSum
                 ))
@@ -79,7 +81,7 @@ public class JeonseMonthAvgTop3RepositoryImpl implements JeonseMonthAvgTop3Repos
                 .join(a).on(a.id.eq(m.aptId))
                 .join(r).on(r.id.eq(a.region.id))
                 .where(m.yyyymm.eq(lastYm))
-                .groupBy(m.areaTypeId, m.aptId, a.aptName, r.gugun)
+                .groupBy(m.areaTypeId, m.aptId, a.aptName, r.gugun, r.dong)
                 .orderBy(lastCountSum.desc(), m.areaTypeId.asc())
                 .limit(3)
                 .fetch();
@@ -121,6 +123,7 @@ public class JeonseMonthAvgTop3RepositoryImpl implements JeonseMonthAvgTop3Repos
                     last.exclusive(),
                     last.aptName(),
                     last.gugun(),
+                    last.dong(),
                     lastYm,
                     last.countSum(),
                     lastAvg,

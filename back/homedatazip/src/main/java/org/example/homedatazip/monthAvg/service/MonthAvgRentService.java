@@ -6,6 +6,7 @@ import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.example.homedatazip.monthAvg.repository.MonthAvgRepository;
 import org.example.homedatazip.monthAvg.repository.impl.JeonseMonthAvgTop3Repository;
 import org.example.homedatazip.monthAvg.repository.impl.MonthAvgDSLRepository;
+import org.example.homedatazip.monthAvg.repository.impl.SaleMonthAvgTop3Repository;
 import org.example.homedatazip.monthAvg.repository.impl.WolseMonthAvgTop3Repository;
 import org.example.homedatazip.monthAvg.utill.Yyyymm;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class MonthAvgRentService {
     private final MonthAvgRepository monthAvgRepository;
     private final JeonseMonthAvgTop3Repository jeonseMonthAvgTop3Repository;
     private final WolseMonthAvgTop3Repository wolseMonthAvgTop3Repository;
+    private final SaleMonthAvgTop3Repository saleMonthAvgTop3Repository;
     private final MonthAvgDSLRepository monthAvgDSLRepository;
 
     // 아파트의 월별 거래량 첫 페이지 그래프
@@ -128,5 +130,11 @@ public class MonthAvgRentService {
     public List<MonthTop3WolsePriceResponse> getWolseTop3ByRegion(){
         YearMonth lastMonth = YearMonth.now().minusMonths(1);
         return wolseMonthAvgTop3Repository.top3RentByLastMonth(lastMonth);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MonthTop3SalePriceResponse> getSaleTop3ByRegion() {
+        YearMonth lastMonth = YearMonth.now().minusMonths(1);
+        return saleMonthAvgTop3Repository.top3ByLastMonth(lastMonth);
     }
 }

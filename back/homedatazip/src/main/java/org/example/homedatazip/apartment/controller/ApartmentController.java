@@ -2,6 +2,7 @@ package org.example.homedatazip.apartment.controller;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.dto.AptSummaryResponse;
+import org.example.homedatazip.apartment.dto.ApartmentRegionResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.apartment.service.ApartmentService;
@@ -72,6 +73,23 @@ public class ApartmentController {
         List<String> levels = (schoolLevel != null) ? schoolLevel : List.of();
         List<NearbySchoolResponse> list = schoolService.findNearbySchoolsByApartmentId(apartmentId, levels);
         return ResponseEntity.ok(list);
+    }
+
+    /**
+     * 아파트 ID로 지역 정보(시/도, 구/군, 동) 조회
+     * - 병원/기타 주변시설 조회용
+     */
+    @GetMapping("/{apartmentId}/region")
+    public ResponseEntity<ApartmentRegionResponse> apartmentRegion(@PathVariable Long apartmentId) {
+        Apartment apt = apartmentRepository.findById(apartmentId).orElse(null);
+        if (apt == null || apt.getRegion() == null) {
+            return ResponseEntity.ok(new ApartmentRegionResponse(null, null, null));
+        }
+        return ResponseEntity.ok(new ApartmentRegionResponse(
+                apt.getRegion().getSido(),
+                apt.getRegion().getGugun(),
+                apt.getRegion().getDong()
+        ));
     }
 
     /**
