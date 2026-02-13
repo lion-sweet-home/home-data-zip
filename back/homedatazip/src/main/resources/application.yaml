@@ -122,6 +122,20 @@ subway:
     sync:
       cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
 
+# Quartz 통합 Batch 스케줄 (한 곳에서 모든 Batch 실행 시간 관리)
+quartz:
+  batch:
+    apartment-trade:
+      cron: ${QUARTZ_APARTMENT_TRADE_CRON:0 0 2 * * ?}  # 매일 2시
+    region:
+      cron: ${QUARTZ_REGION_CRON:0 0 1 ? * SUN}  # 매주 일요일 1시
+    bus-station:
+      cron: ${QUARTZ_BUS_STATION_CRON:0 0 1 * * ?}  # 매일 1시
+    trade-rent:
+      cron: ${QUARTZ_TRADE_RENT_CRON:0 0 5 * * ?}  # 매일 5시
+    hospital:
+      cron: ${QUARTZ_HOSPITAL_CRON:0 30 5 * * ?}  # 매일 5시 30분
+
 # 아파트 - 지하철&학교 거리 (Quartz - 매일 3시, 4시)
 apartment:
   subway-distance:
