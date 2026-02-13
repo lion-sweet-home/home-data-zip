@@ -37,6 +37,8 @@ export async function getRentMarkers(request) {
   if (request.maxDeposit != null) params.append('maxDeposit', request.maxDeposit);
   if (request.minMonthlyRent != null) params.append('minMonthlyRent', request.minMonthlyRent);
   if (request.maxMonthlyRent != null) params.append('maxMonthlyRent', request.maxMonthlyRent);
+  if (request.minExclusive != null) params.append('minExclusive', request.minExclusive);
+  if (request.maxExclusive != null) params.append('maxExclusive', request.maxExclusive);
   return get(`/rent?${params.toString()}`);
 }
 

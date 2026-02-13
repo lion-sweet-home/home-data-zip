@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getMonthlyTradeVolume, getRecentTrades, getNearbySubways, getNearbyBusStations, getNearbySchools, getApartmentRegion } from '../../../api/apartment';
+import { useState, useEffect, useCallback } from 'react';
+import { getMonthlyTradeVolume, getNearbySubways, getNearbyBusStations, getNearbySchools, getApartmentRegion } from '../../../api/apartment';
 import { getAptSaleSummary } from '../../../api/apartment_sale';
+import { getRecentRentTrades } from '../../../api/apartment_rent';
 import { getHospitalCount, getHospitalStats, getHospitalListByDong } from '../../../api/hospital';
 
 export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onToggleBusMarker, onToggleSchoolMarker }) {
@@ -11,6 +12,8 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
   const [selectedPeriod, setSelectedPeriod] = useState(6);
   const [showGraphModal, setShowGraphModal] = useState(false);
   const [graphModalPeriod, setGraphModalPeriod] = useState(6);
+  // Tooltip 상태
+  const [tooltip, setTooltip] = useState(null);
 
   // 최근 거래내역
   const [recentTrades, setRecentTrades] = useState([]);
@@ -24,6 +27,7 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
 
   // 인근 버스
   const [busStations, setBusStations] = useState([]);
+  const [busMarkerVisible, setBusMarkerVisible] = useState(false);
 
   // 해당 동 병원
   const [hospitalCount, setHospitalCount] = useState(0);
@@ -70,41 +74,81 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
         
         // 매매/전월세에 따라 다른 API 호출
         const isSale = tradeType === '매매';
+        
+        // tradeType이 없으면 경고하고 조기 종료
+        if (!tradeType || (tradeType !== '매매' && tradeType !== '전월세')) {
+          console.warn('[SidePanner] tradeType이 유효하지 않습니다:', tradeType);
+          setLoading(false);
+          return;
+        }
+        
         const monthlyVolumePromise = isSale
           ? getAptSaleSummary(apartmentId, selectedPeriod)
           : getMonthlyTradeVolume(apartmentId, selectedPeriod);
         
+        // 최근 거래내역 API: tradeType에 따라 분기
+        const recentTradesPromise = isSale
+          ? Promise.resolve(null) // 매매는 getAptSaleSummary 응답에서 추출
+          : getRecentRentTrades(apartmentId);
+        
         // 모든 필요한 API를 병렬로 호출
+        // Promise.allSettled를 사용하여 일부 실패해도 다른 API는 계속 처리
         const promises = [
           monthlyVolumePromise,
-          getRecentTrades(apartmentId),
+          recentTradesPromise,
           getNearbySchools(apartmentId, normalizedSchoolLevels),
           getNearbySubways(apartmentId),
           getNearbyBusStations(apartmentId, 500, 50)
         ];
 
         // 병원 정보도 병렬로 호출 (지역 정보가 있는 경우)
+        let hospitalCountPromise = null;
+        let hospitalStatsPromise = null;
         if (region?.sido && region?.gugun && region?.dong) {
-          promises.push(
-            getHospitalCount({
-              sido: region.sido,
-              gugun: region.gugun,
-              dong: region.dong
-            }),
-            getHospitalStats({
-              sido: region.sido,
-              gugun: region.gugun,
-              dong: region.dong
-            })
-          );
+          hospitalCountPromise = getHospitalCount({
+            sido: region.sido,
+            gugun: region.gugun,
+            dong: region.dong
+          });
+          hospitalStatsPromise = getHospitalStats({
+            sido: region.sido,
+            gugun: region.gugun,
+            dong: region.dong
+          });
+          promises.push(hospitalCountPromise, hospitalStatsPromise);
         }
 
-        const results = await Promise.all(promises);
+        // Promise.allSettled를 사용하여 일부 API 실패해도 다른 데이터는 계속 처리
+        const results = await Promise.allSettled(promises);
+        
+        // 각 결과를 안전하게 추출 (실패한 경우 기본값 사용)
+        const extractResult = (index, defaultValue = null, apiName = '') => {
+          const result = results[index];
+          if (result.status === 'fulfilled') {
+            return result.value;
+          } else {
+            const error = result.reason;
+            console.error(`[SidePanner] API 호출 실패 (index ${index}${apiName ? `, ${apiName}` : ''}):`, error);
+            // 에러 상세 정보 로깅
+            if (error?.message) {
+              console.error(`[SidePanner] 에러 메시지:`, error.message);
+            }
+            if (error?.stack) {
+              console.error(`[SidePanner] 에러 스택:`, error.stack);
+            }
+            if (error?.response) {
+              console.error(`[SidePanner] 응답 데이터:`, error.response);
+            }
+            return defaultValue;
+          }
+        };
         
         // 매매/전월세에 따라 데이터 형식 변환
-        const rawMonthlyData = results[0];
+        const rawMonthlyData = extractResult(0);
+        let recentTradesData = extractResult(1);
+        
         if (isSale && rawMonthlyData) {
-          // 매매: {monthlyVolumes: [1,2,3], monthLabels: ['202401','202402',...]} 형식
+          // 매매: {monthlyVolumes: [1,2,3], monthLabels: ['202401','202402',...], recentTradeSales: [...]} 형식
           const saleData = rawMonthlyData.monthlyVolumes?.map((count, index) => ({
             yyyymm: rawMonthlyData.monthLabels?.[index] || '',
             saleCount: count || 0,
@@ -112,24 +156,136 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
             wolseCount: 0,
           })) || [];
           setMonthlyData(saleData);
+          
+          // 매매 최근 거래내역: getAptSaleSummary 응답에서 추출
+          // RecentTradeSale 형식을 RentFromAptResponse 형식으로 변환
+          // Note: RecentTradeSale에는 PK가 없으므로 index를 포함하여 유니크한 ID 생성
+          const saleRecentTrades = (rawMonthlyData.recentTradeSales || []).map((trade, index) => ({
+            id: `sale-${trade.dealDate}-${trade.floor}-${trade.exurArea}-${index}`, // 유니크 ID 생성 (index 포함)
+            dealDate: trade.dealDate,
+            floor: trade.floor,
+            exclusiveArea: trade.exurArea,
+            deposit: trade.dealAmount, // 매매는 dealAmount가 가격
+            monthlyRent: null, // 매매는 월세 없음
+          }));
+          // 중복 제거: 같은 날짜/층/면적의 거래가 여러 건 있어도 첫 번째만 유지
+          const uniqueSaleTrades = saleRecentTrades.filter((trade, index, self) => {
+            const baseKey = `${trade.dealDate}-${trade.floor}-${trade.exclusiveArea}`;
+            return index === self.findIndex(t => 
+              `${t.dealDate}-${t.floor}-${t.exclusiveArea}` === baseKey
+            );
+          });
+          recentTradesData = uniqueSaleTrades;
         } else {
           // 전월세: [{yyyymm, jeonseCount, wolseCount}] 형식
           setMonthlyData(rawMonthlyData || []);
+          // 전월세 최근 거래내역: getRecentRentTrades 응답 그대로 사용
+          // RentFromAptResponse에는 id 필드가 있지만, 혹시 중복이 있을 수 있으므로 안전하게 처리
+          if (Array.isArray(recentTradesData)) {
+            // id가 없는 항목에 대해 index 기반 id 생성
+            recentTradesData = recentTradesData.map((trade, index) => ({
+              ...trade,
+              id: trade.id || `rent-${trade.dealDate}-${trade.floor}-${trade.exclusiveArea}-${index}`,
+            }));
+            // id 기준 중복 제거 (같은 id가 여러 개 있으면 첫 번째만 유지)
+            const seenIds = new Set();
+            recentTradesData = recentTradesData.filter((trade) => {
+              if (seenIds.has(trade.id)) {
+                return false;
+              }
+              seenIds.add(trade.id);
+              return true;
+            });
+          } else {
+            recentTradesData = [];
+          }
         }
-        setRecentTrades(results[1] || []);
-        setNearbySchools(results[2] || []);
-        setNearbySubways(results[3] || []);
-        setBusStations(results[4]?.items || []);
+        
+        setRecentTrades(recentTradesData);
+        
+        // 학교 데이터 처리 (배열 직접 반환)
+        const nearbySchoolsData = extractResult(2, []);
+        setNearbySchools(Array.isArray(nearbySchoolsData) ? nearbySchoolsData : []);
+        
+        // 지하철역 데이터 처리 (배열 직접 반환)
+        const nearbySubwaysData = extractResult(3, []);
+        setNearbySubways(Array.isArray(nearbySubwaysData) ? nearbySubwaysData : []);
+        
+        // 버스정류장 데이터 처리 ({count, items} 형식)
+        const busStationsResponse = extractResult(4, null, '버스정류장');
+        if (busStationsResponse && typeof busStationsResponse === 'object') {
+          // 응답 구조 확인 및 로깅 (개발 환경)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('[SidePanner] 버스정류장 API 응답:', JSON.stringify(busStationsResponse, null, 2));
+          }
+          
+          // {count, items} 형식인지 확인
+          if ('items' in busStationsResponse && Array.isArray(busStationsResponse.items)) {
+            const items = busStationsResponse.items;
+            // 데이터 검증 및 정규화
+            const normalizedItems = items.map((item, idx) => {
+              if (!item || typeof item !== 'object') {
+                console.warn(`[SidePanner] 버스정류장 아이템 ${idx}가 유효하지 않습니다:`, item);
+                return null;
+              }
+              return {
+                id: item.id || item.nodeId || `bus-${idx}`,
+                nodeId: item.nodeId || '',
+                stationNumber: item.stationNumber || '',
+                name: item.name || '',
+                longitude: typeof item.longitude === 'number' ? item.longitude : parseFloat(item.longitude) || 0,
+                latitude: typeof item.latitude === 'number' ? item.latitude : parseFloat(item.latitude) || 0,
+                distanceMeters: typeof item.distanceMeters === 'number' ? item.distanceMeters : parseFloat(item.distanceMeters) || 0,
+              };
+            }).filter(Boolean); // null 제거
+            
+            setBusStations(normalizedItems);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`[SidePanner] 버스정류장 ${normalizedItems.length}개 로드 완료`);
+            }
+          } else if (Array.isArray(busStationsResponse)) {
+            // 배열로 직접 반환된 경우 (예외 처리)
+            console.warn('[SidePanner] 버스정류장 응답이 예상과 다른 형식입니다 (배열):', busStationsResponse);
+            setBusStations(busStationsResponse);
+          } else {
+            console.warn('[SidePanner] 버스정류장 응답 형식이 올바르지 않습니다. 예상: {count, items}, 실제:', busStationsResponse);
+            setBusStations([]);
+          }
+        } else if (busStationsResponse === null) {
+          // API 호출 실패 (extractResult가 null 반환)
+          console.warn('[SidePanner] 버스정류장 API 호출 실패 또는 응답 없음');
+          setBusStations([]);
+        } else {
+          setBusStations([]);
+        }
 
-        if (region?.sido && region?.gugun && region?.dong && results.length > 5) {
-          setHospitalCount(results[5] || 0);
-          setHospitalStats(results[6] || null);
+        // 병원 정보 처리
+        if (region?.sido && region?.gugun && region?.dong && hospitalCountPromise && hospitalStatsPromise) {
+          const hospitalCountResult = extractResult(5, 0);
+          const hospitalStatsResult = extractResult(6, null);
+          setHospitalCount(typeof hospitalCountResult === 'number' ? hospitalCountResult : 0);
+          setHospitalStats(hospitalStatsResult);
         } else {
           setHospitalCount(0);
           setHospitalStats(null);
         }
       } catch (error) {
-        console.error('데이터 로딩 실패:', error);
+        console.error('[SidePanner] 데이터 로딩 실패:', error);
+        // 에러 상세 정보 로깅
+        if (error.response) {
+          console.error('[SidePanner] 응답 데이터:', error.response);
+        }
+        if (error.message) {
+          console.error('[SidePanner] 에러 메시지:', error.message);
+        }
+        // 일부 데이터라도 표시할 수 있도록 기본값 설정
+        setMonthlyData([]);
+        setRecentTrades([]);
+        setNearbySchools([]);
+        setNearbySubways([]);
+        setBusStations([]);
+        setHospitalCount(0);
+        setHospitalStats(null);
       } finally {
         setLoading(false);
       }
@@ -209,6 +365,14 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
     return `${year}${month}`;
   };
 
+  // Tooltip용 월 포맷 (YYYY-MM 형식)
+  const formatMonthForTooltip = (yyyymm) => {
+    if (!yyyymm || yyyymm.length !== 6) return '';
+    const year = yyyymm.substring(0, 4); // YYYY 형식
+    const month = yyyymm.substring(4, 6);
+    return `${year}-${month}`;
+  };
+
   if (loading) {
     return (
       <div className="w-full h-full flex items-center justify-center">
@@ -263,7 +427,7 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
         </div>
 
         {/* 간단한 그래프 (막대 그래프) */}
-        <div className="mt-12">
+        <div className="mt-12 relative">
           <div className="h-48 flex items-end gap-1.5">
           {monthlyData.length > 0 ? (() => {
             const isSale = tradeType === '매매';
@@ -293,12 +457,25 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
                     <div className="w-full flex justify-center items-end" style={{ height: `${graphHeight}px` }}>
                       {saleCount > 0 ? (
                         <div
-                          className="w-full bg-blue-600 rounded-t"
+                          className="w-full bg-blue-600 rounded-t cursor-pointer hover:bg-blue-700 transition-colors"
                           style={{ height: `${Math.max(saleHeightPx, 4)}px` }}
-                          title={`매매: ${saleCount}건`}
+                          onMouseEnter={(e) => {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            const containerRect = e.currentTarget.closest('.relative')?.getBoundingClientRect();
+                            if (containerRect) {
+                              setTooltip({
+                                month: formatMonthForTooltip(item.yyyymm),
+                                count: saleCount,
+                                type: '매매',
+                                x: rect.left - containerRect.left + rect.width / 2,
+                                y: rect.top - containerRect.top - 10,
+                              });
+                            }
+                          }}
+                          onMouseLeave={() => setTooltip(null)}
                         />
                       ) : (
-                        <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                        <div className="w-full h-[2px] bg-gray-200" />
                       )}
                     </div>
                     <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
@@ -319,20 +496,46 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
                   <div className="w-full flex gap-1 justify-center items-end" style={{ height: `${graphHeight}px` }}>
                     {jeonseCount > 0 && (
                       <div
-                        className="flex-1 bg-blue-600 rounded-t"
+                        className="flex-1 bg-blue-600 rounded-t cursor-pointer hover:bg-blue-700 transition-colors"
                         style={{ height: `${Math.max(jeonseHeightPx, 4)}px` }}
-                        title={`전세: ${jeonseCount}건`}
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const containerRect = e.currentTarget.closest('.relative')?.getBoundingClientRect();
+                          if (containerRect) {
+                            setTooltip({
+                              month: formatMonthForTooltip(item.yyyymm),
+                              count: jeonseCount,
+                              type: '전세',
+                              x: rect.left - containerRect.left + rect.width / 2,
+                              y: rect.top - containerRect.top - 10,
+                            });
+                          }
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
                       />
                     )}
                     {wolseCount > 0 && (
                       <div
-                        className="flex-1 bg-green-600 rounded-t"
+                        className="flex-1 bg-green-600 rounded-t cursor-pointer hover:bg-green-700 transition-colors"
                         style={{ height: `${Math.max(wolseHeightPx, 4)}px` }}
-                        title={`월세: ${wolseCount}건`}
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          const containerRect = e.currentTarget.closest('.relative')?.getBoundingClientRect();
+                          if (containerRect) {
+                            setTooltip({
+                              month: formatMonthForTooltip(item.yyyymm),
+                              count: wolseCount,
+                              type: '월세',
+                              x: rect.left - containerRect.left + rect.width / 2,
+                              y: rect.top - containerRect.top - 10,
+                            });
+                          }
+                        }}
+                        onMouseLeave={() => setTooltip(null)}
                       />
                     )}
                     {jeonseCount === 0 && wolseCount === 0 && (
-                      <div className="w-full h-[2px] bg-gray-200" title="거래 없음" />
+                      <div className="w-full h-[2px] bg-gray-200" />
                     )}
                   </div>
                   <div className="text-xs text-gray-600 mt-2 text-center whitespace-nowrap">
@@ -345,6 +548,33 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
             <div className="w-full text-center text-gray-500 py-8">거래 데이터가 없습니다</div>
           )}
           </div>
+          {/* Tooltip */}
+          {tooltip && (
+            <div
+              className="absolute z-50 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg pointer-events-none"
+              style={{
+                left: `${tooltip.x}px`,
+                top: `${tooltip.y}px`,
+                transform: 'translate(-50%, -100%)',
+              }}
+            >
+              <div className="font-medium mb-1">{tooltip.month}</div>
+              <div className="text-gray-300">
+                {tooltip.type}: {tooltip.count}건
+              </div>
+              {/* 말풍선 꼬리 */}
+              <div
+                className="absolute top-full left-1/2 transform -translate-x-1/2"
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: '6px solid transparent',
+                  borderRight: '6px solid transparent',
+                  borderTop: '6px solid rgb(17, 24, 39)',
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -353,8 +583,8 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
         <h3 className="text-lg font-semibold text-gray-900 mb-4">최근 거래내역</h3>
         <div className="space-y-3">
           {recentTrades.length > 0 ? (
-            recentTrades.slice(0, 5).map((trade) => (
-              <div key={trade.id} className="p-3 bg-gray-50 rounded-lg">
+            recentTrades.slice(0, 5).map((trade, index) => (
+              <div key={trade.id || `trade-${index}`} className="p-3 bg-gray-50 rounded-lg">
                 <div className="flex justify-between items-start mb-2">
                   <div className="text-sm text-gray-600">
                     {trade.floor}층 · {trade.exclusiveArea ? `${trade.exclusiveArea}㎡` : '-'}
@@ -362,8 +592,14 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
                   <div className="text-sm text-gray-500">{formatDate(trade.dealDate)}</div>
                 </div>
                 <div className="text-sm text-gray-900">
-                  보증금: {formatPrice(trade.deposit)}
-                  {trade.monthlyRent && ` / 월세: ${formatPrice(trade.monthlyRent)}`}
+                  {tradeType === '매매' ? (
+                    <>매매가: {formatPrice(trade.deposit)}</>
+                  ) : (
+                    <>
+                      보증금: {formatPrice(trade.deposit)}
+                      {trade.monthlyRent && ` / 월세: ${formatPrice(trade.monthlyRent)}`}
+                    </>
+                  )}
                 </div>
               </div>
             ))
