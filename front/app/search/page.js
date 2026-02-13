@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createPortal } from 'react-dom';
 import { getSidoList, getGugunList, getDongList, getDongRank } from '../api/region';
 import { searchSubwayStations } from '../api/subway';
 import { searchSchoolsByRegion } from '../api/school';
@@ -41,6 +42,9 @@ export default function SearchPage() {
   // 전/월세용 월세 범위
   const [monthlyRentMin, setMonthlyRentMin] = useState('');
   const [monthlyRentMax, setMonthlyRentMax] = useState('');
+  // 전/월세용 면적 범위 (m²)
+  const [minExclusive, setMinExclusive] = useState('');
+  const [maxExclusive, setMaxExclusive] = useState('');
 
   // 학교 필터
   const [schoolTypes, setSchoolTypes] = useState({
@@ -56,6 +60,33 @@ export default function SearchPage() {
   const [showDongModal, setShowDongModal] = useState(false);
   const [dongModalList, setDongModalList] = useState([]);
   const [loadingDongList, setLoadingDongList] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // 클라이언트 사이드 마운트 확인 (Portal 사용을 위해)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 모달 열릴 때 body 스크롤 잠금
+  useEffect(() => {
+    if (showDongModal) {
+      // 스크롤 위치 저장
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        // 스크롤 복원
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflow = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [showDongModal]);
 
   // 시도 목록 로드
   useEffect(() => {
@@ -181,6 +212,21 @@ export default function SearchPage() {
 
   // 검색 버튼 클릭 핸들러
   const handleSearch = async () => {
+    // 면적 범위 검증 및 스왑 (검색 실행 시에만)
+    let finalMinExclusive = minExclusive;
+    let finalMaxExclusive = maxExclusive;
+    if (finalMinExclusive && finalMaxExclusive) {
+      const minVal = parseFloat(finalMinExclusive);
+      const maxVal = parseFloat(finalMaxExclusive);
+      if (!isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal) {
+        // min > max면 스왑
+        finalMinExclusive = maxExclusive;
+        finalMaxExclusive = minExclusive;
+        setMinExclusive(finalMinExclusive);
+        setMaxExclusive(finalMaxExclusive);
+      }
+    }
+    
     if (searchConditionType === 'region') {
       // 지역 검색: 시/도와 구/군은 필수
       if (!selectedSido || !selectedGugun) {
@@ -203,17 +249,33 @@ export default function SearchPage() {
               getWolseCount(selectedSido, selectedGugun, 6)
             ]);
             
-            // 전세 데이터를 기준으로 동 목록 생성
-            const totalWolseCount = (wolseData || []).reduce((sum, item) => sum + (item.count || 0), 0);
+            // 전세와 월세 데이터를 동별로 합치기
             const combinedDongs = new Map();
             
+            // 전세 데이터 추가
             (jeonseData || []).forEach(item => {
               if (item.dong) {
                 combinedDongs.set(item.dong, {
                   dong: item.dong,
                   jeonseCount: item.count || 0,
-                  wolseCount: totalWolseCount
+                  wolseCount: 0
                 });
+              }
+            });
+            
+            // 월세 데이터 추가/합산
+            (wolseData || []).forEach(item => {
+              if (item.dong) {
+                const existing = combinedDongs.get(item.dong);
+                if (existing) {
+                  existing.wolseCount = item.count || 0;
+                } else {
+                  combinedDongs.set(item.dong, {
+                    dong: item.dong,
+                    jeonseCount: 0,
+                    wolseCount: item.count || 0
+                  });
+                }
               }
             });
             
@@ -242,6 +304,9 @@ export default function SearchPage() {
         if (depositMax) params.append('depositMax', depositMax);
         if (monthlyRentMin) params.append('monthlyRentMin', monthlyRentMin);
         if (monthlyRentMax) params.append('monthlyRentMax', monthlyRentMax);
+        // 검증된 면적 범위 사용
+        if (finalMinExclusive) params.append('minExclusive', finalMinExclusive);
+        if (finalMaxExclusive) params.append('maxExclusive', finalMaxExclusive);
       }
       
       // 학교 필터
@@ -286,6 +351,18 @@ export default function SearchPage() {
 
   // 동 선택 핸들러 (모달에서)
   const handleDongSelect = (dong) => {
+    // 면적 범위 검증 및 스왑
+    let finalMinExclusive = minExclusive;
+    let finalMaxExclusive = maxExclusive;
+    if (finalMinExclusive && finalMaxExclusive) {
+      const minVal = parseFloat(finalMinExclusive);
+      const maxVal = parseFloat(finalMaxExclusive);
+      if (!isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal) {
+        finalMinExclusive = maxExclusive;
+        finalMaxExclusive = minExclusive;
+      }
+    }
+    
     const params = new URLSearchParams();
     params.append('sido', selectedSido);
     params.append('gugun', selectedGugun);
@@ -299,6 +376,9 @@ export default function SearchPage() {
       if (depositMax) params.append('depositMax', depositMax);
       if (monthlyRentMin) params.append('monthlyRentMin', monthlyRentMin);
       if (monthlyRentMax) params.append('monthlyRentMax', monthlyRentMax);
+      // 검증된 면적 범위 사용
+      if (finalMinExclusive) params.append('minExclusive', finalMinExclusive);
+      if (finalMaxExclusive) params.append('maxExclusive', finalMaxExclusive);
     }
     
     // 학교 필터
@@ -626,6 +706,37 @@ export default function SearchPage() {
                         />
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        면적 범위 (m²)
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={minExclusive}
+                          onChange={(e) => {
+                            // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                            setMinExclusive(e.target.value);
+                          }}
+                          placeholder="최소 m²"
+                          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                        />
+                        <span className="text-gray-700 font-medium">~</span>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={maxExclusive}
+                          onChange={(e) => {
+                            // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                            setMaxExclusive(e.target.value);
+                          }}
+                          placeholder="최대 m²"
+                          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                        />
+                        <span className="text-xs text-gray-500">m²</span>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
@@ -716,17 +827,31 @@ export default function SearchPage() {
         </div>
       </div>
 
-      {/* 동 목록 모달 */}
-      {showDongModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowDongModal(false)}>
-          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+      {/* 동 목록 모달 - React Portal 사용 */}
+      {mounted && showDongModal && createPortal(
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          onClick={() => setShowDongModal(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
+          {/* 배경 딤 + 블러 레이어 */}
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-md" />
+          
+          {/* 모달 본체 - 블러 영향 받지 않게 relative */}
+          <div 
+            className="relative bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 id="modal-title" className="text-2xl font-bold text-gray-900">
                 {tradeType === '매매' ? '동별 거래량' : '동별 전세/월세 거래량'}
               </h2>
               <button
                 onClick={() => setShowDongModal(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                className="text-gray-500 hover:text-gray-700 text-2xl font-bold w-8 h-8 flex items-center justify-center transition-colors"
+                aria-label="모달 닫기"
               >
                 ×
               </button>
@@ -764,7 +889,8 @@ export default function SearchPage() {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

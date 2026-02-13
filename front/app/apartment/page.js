@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   getAptAreaTypes,
@@ -182,6 +182,7 @@ function normalizeRentDots(rows) {
       yyyymm: row?.yyyymm ?? row?.month ?? '',
       deposit: toNumber(row?.deposit),
       monthlyRent: toNumber(row?.monthlyRent ?? row?.mothlyRent),
+      floor: row?.floor ?? null, // floor 필드 추가
     }))
     .filter((row) => row.yyyymm);
 }
@@ -353,6 +354,9 @@ function buildMonthX(index, count) {
 }
 
 function SaleGraph({ data }) {
+  const [tooltip, setTooltip] = useState(null);
+  const tooltipRef = useRef(null);
+
   if (!data?.length) {
     return <div className="w-full text-center text-gray-500 py-10">차트 데이터가 없습니다.</div>;
   }
@@ -384,6 +388,15 @@ function SaleGraph({ data }) {
     }));
   });
 
+  // useCallback으로 최적화
+  const handleDotMouseEnter = useCallback((dot) => {
+    setTooltip({ data: dot, x: dot.x, y: dot.y });
+  }, []);
+
+  const handleDotMouseLeave = useCallback(() => {
+    setTooltip(null);
+  }, []);
+
   const yGuideValues = [1, 0.75, 0.5, 0.25, 0].map((ratio) => Math.round(maxValue * ratio));
 
   return (
@@ -398,7 +411,10 @@ function SaleGraph({ data }) {
           개별 거래(dots)
         </span>
       </div>
-      <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="w-full h-72 bg-white rounded-lg border border-gray-100">
+      <svg 
+        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
+        className="w-full h-72 bg-white rounded-lg border border-gray-100"
+      >
         {yGuideValues.map((value, index) => {
           const y = scaleY(value);
           return (
@@ -418,7 +434,7 @@ function SaleGraph({ data }) {
             key={`${point.month}-${idx}`}
             cx={point.x}
             cy={point.y}
-            r="3.8"
+            r="4.2"
             fill="#2563EB"
           >
             <title>{`${formatMonth(point.month)} 평균 ${formatPrice(point.value)}`}</title>
@@ -426,17 +442,117 @@ function SaleGraph({ data }) {
         ))}
 
         {tradeDots.map((dot, idx) => (
-          <circle
-            key={`${dot.month}-${dot.dealDate || idx}-${idx}`}
-            cx={dot.x}
-            cy={dot.y}
-            r="2.2"
-            fill="#6B7280"
-            opacity="0.85"
-          >
-            <title>{`${formatMonth(dot.month)} ${formatPrice(dot.value)} ${dot.floor != null ? `(${dot.floor}층)` : ''}`}</title>
-          </circle>
+          <g key={`${dot.month}-${dot.dealDate || idx}-${idx}`}>
+            {/* 히트박스: 투명한 큰 circle (hover 영역 확대) */}
+            <circle
+              cx={dot.x}
+              cy={dot.y}
+              r="10"
+              fill="transparent"
+              onMouseEnter={() => handleDotMouseEnter(dot)}
+              onMouseLeave={handleDotMouseLeave}
+              style={{ cursor: 'pointer' }}
+            />
+            {/* 실제 점: 조금 더 큰 circle */}
+            <circle
+              cx={dot.x}
+              cy={dot.y}
+              r="3"
+              fill="#6B7280"
+              opacity="0.85"
+              style={{ pointerEvents: 'none' }}
+            />
+          </g>
         ))}
+
+        {/* 커스텀 툴팁: 점 위에 고정 (말풍선 스타일) */}
+        {tooltip && tooltip.data && (() => {
+          const tooltipWidth = 180;
+          const tooltipHeight = tooltipRef.current?.offsetHeight || 60;
+          const tailHeight = 10;
+          const gap = 6;
+          const padding = 10;
+          
+          const dotX = tooltip.x;
+          const dotY = tooltip.y;
+          
+          // X 위치: 점의 x 좌표를 중심으로 배치 (화면 경계 고려)
+          const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+          
+          // Y 위치: 위/아래 플립 로직
+          const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
+          const topIfBelow = dotY + (tailHeight + gap);
+          
+          // 위쪽 공간이 부족하면 아래에 배치
+          const placement = topIfAbove < padding ? 'bottom' : 'top';
+          
+          let tooltipY;
+          if (placement === 'top') {
+            tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
+          } else {
+            tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
+          }
+          
+          // 꼬리 위치 계산: 점의 x 좌표에 맞춤
+          const dotXInTooltip = dotX - tooltipX;
+          const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
+          
+          return (
+            <g style={{ pointerEvents: 'none' }}>
+              <foreignObject
+                x={tooltipX}
+                y={tooltipY}
+                width={tooltipWidth}
+                height={tooltipHeight + tailHeight}
+              >
+                <div className="relative" ref={tooltipRef}>
+                  {/* 말풍선 본체 */}
+                  <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
+                    <div className="text-[10px] text-gray-300 mb-1">
+                      {tooltip.data.dealDate ? formatDate(tooltip.data.dealDate) : (tooltip.data.month ? formatMonth(tooltip.data.month) : '-')}
+                    </div>
+                    {tooltip.data.floor != null && (
+                      <div className="text-[10px] text-gray-300 mb-1">
+                        {tooltip.data.floor}층
+                      </div>
+                    )}
+                    <div className="font-medium">
+                      매매가: {formatPrice(tooltip.data.value)}
+                    </div>
+                  </div>
+                  {/* 말풍선 꼬리: placement에 따라 방향 변경 */}
+                  {placement === 'top' ? (
+                    <div 
+                      className="absolute top-full"
+                      style={{
+                        left: `${tailLeft}px`,
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '6px solid transparent',
+                        borderRight: '6px solid transparent',
+                        borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
+                      }}
+                    />
+                  ) : (
+                    <div 
+                      className="absolute bottom-full"
+                      style={{
+                        left: `${tailLeft}px`,
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '6px solid transparent',
+                        borderRight: '6px solid transparent',
+                        borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
+                      }}
+                    />
+                  )}
+                </div>
+              </foreignObject>
+            </g>
+          );
+        })()}
       </svg>
 
       <div className="flex justify-between gap-2 text-[11px] text-gray-500">
@@ -449,6 +565,13 @@ function SaleGraph({ data }) {
 }
 
 function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
+  const [tooltip, setTooltip] = useState(null);
+  const [wolseDepositTooltip, setWolseDepositTooltip] = useState(null);
+  const [wolseRentTooltip, setWolseRentTooltip] = useState(null);
+  const jeonseTooltipRef = useRef(null);
+  const wolseDepositTooltipRef = useRef(null);
+  const wolseRentTooltipRef = useRef(null);
+
   const monthSet = new Set([
     ...(avgData || []).map((r) => r?.yyyymm).filter(Boolean),
     ...(dotData || []).map((r) => r?.yyyymm).filter(Boolean),
@@ -465,6 +588,31 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
     if (!dotsByMonth.has(dot.yyyymm)) dotsByMonth.set(dot.yyyymm, []);
     dotsByMonth.get(dot.yyyymm).push(dot);
   });
+
+  // useCallback으로 최적화된 핸들러
+  const handleJeonseDotEnter = useCallback((dot) => {
+    setTooltip({ data: dot, x: dot.x, y: dot.y });
+  }, []);
+
+  const handleJeonseDotLeave = useCallback(() => {
+    setTooltip(null);
+  }, []);
+
+  const handleWolseDepositDotEnter = useCallback((dot) => {
+    setWolseDepositTooltip({ data: dot, x: dot.x, y: dot.depositY });
+  }, []);
+
+  const handleWolseDepositDotLeave = useCallback(() => {
+    setWolseDepositTooltip(null);
+  }, []);
+
+  const handleWolseRentDotEnter = useCallback((dot) => {
+    setWolseRentTooltip({ data: dot, x: dot.x, y: dot.monthlyRentY });
+  }, []);
+
+  const handleWolseRentDotLeave = useCallback(() => {
+    setWolseRentTooltip(null);
+  }, []);
 
   const jeonseLine = months.map((month) => ({ month, value: toNumber(avgMap.get(month)?.jeonseDepositAvg) }));
   const wolseDepositLine = months.map((month) => ({ month, value: toNumber(avgMap.get(month)?.wolseDepositAvg) }));
@@ -506,6 +654,10 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
         y: jeonseScaleY(dot?.deposit),
         value: toNumber(dot?.deposit),
         month,
+        deposit: toNumber(dot?.deposit),
+        monthlyRent: null, // 전세는 월세 없음
+        floor: dot?.floor ?? null,
+        dealDate: dot?.dealDate || formatMonth(month), // yyyymm을 날짜 형식으로 변환
       }));
   });
 
@@ -520,6 +672,10 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
         depositValue: toNumber(dot?.deposit),
         monthlyRentValue: toNumber(dot?.monthlyRent),
         month,
+        deposit: toNumber(dot?.deposit),
+        monthlyRent: toNumber(dot?.monthlyRent),
+        floor: dot?.floor ?? null,
+        dealDate: dot?.dealDate || formatMonth(month), // yyyymm을 날짜 형식으로 변환
       }));
   });
 
@@ -531,7 +687,10 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
             <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-600" />전세 월 평균가</span>
             <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />전세 거래 점(dots)</span>
           </div>
-          <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="w-full h-72 bg-white rounded-lg border border-gray-100">
+          <svg 
+            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
+            className="w-full h-72 bg-white rounded-lg border border-gray-100"
+          >
             {jeonseGuide.map((value, index) => {
               const y = jeonseScaleY(value);
               return (
@@ -546,8 +705,110 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               <circle key={`rent-jeonse-line-${idx}`} cx={point.x} cy={point.y} r="3.4" fill="#2563EB"><title>{`${formatMonth(point.month)} 전세 평균 ${formatPrice(point.value)}`}</title></circle>
             ))}
             {jeonseDots.map((dot, idx) => (
-              <circle key={`rent-jeonse-dot-${idx}`} cx={dot.x} cy={dot.y} r="2.2" fill="#6B7280" opacity="0.9"><title>{`${formatMonth(dot.month)} 전세 ${formatPrice(dot.value)}`}</title></circle>
+              <g key={`rent-jeonse-dot-${idx}`}>
+                {/* 히트박스: 투명한 큰 circle */}
+                <circle
+                  cx={dot.x}
+                  cy={dot.y}
+                  r="10"
+                  fill="transparent"
+                  onMouseEnter={() => handleJeonseDotEnter(dot)}
+                  onMouseLeave={handleJeonseDotLeave}
+                  style={{ cursor: 'pointer' }}
+                />
+                {/* 실제 점: 조금 더 큰 circle */}
+                <circle
+                  cx={dot.x}
+                  cy={dot.y}
+                  r="3"
+                  fill="#6B7280"
+                  opacity="0.9"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
             ))}
+            {/* 전세 툴팁: 점 위에 고정 */}
+            {tooltip && tooltip.data && tooltip.data.monthlyRent === null && (() => {
+              const tooltipWidth = 180;
+              const tooltipHeight = jeonseTooltipRef.current?.offsetHeight || 60;
+              const tailHeight = 10;
+              const gap = 6;
+              const padding = 10;
+              
+              const dotX = tooltip.x;
+              const dotY = tooltip.y;
+              
+              const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+              
+              const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
+              const topIfBelow = dotY + (tailHeight + gap);
+              
+              const placement = topIfAbove < padding ? 'bottom' : 'top';
+              
+              let tooltipY;
+              if (placement === 'top') {
+                tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
+              } else {
+                tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
+              }
+              
+              const dotXInTooltip = dotX - tooltipX;
+              const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
+              
+              return (
+                <g style={{ pointerEvents: 'none' }}>
+                  <foreignObject
+                    x={tooltipX}
+                    y={tooltipY}
+                    width={tooltipWidth}
+                    height={tooltipHeight + tailHeight}
+                  >
+                    <div className="relative" ref={jeonseTooltipRef}>
+                      <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
+                        <div className="text-[10px] text-gray-300 mb-1">
+                          {tooltip.data.dealDate ? (tooltip.data.dealDate.includes('-') ? formatDate(tooltip.data.dealDate) : formatMonth(tooltip.data.dealDate)) : (tooltip.data.month ? formatMonth(tooltip.data.month) : '-')}
+                        </div>
+                        {tooltip.data.floor != null && (
+                          <div className="text-[10px] text-gray-300 mb-1">
+                            {tooltip.data.floor}층
+                          </div>
+                        )}
+                        <div className="font-medium">
+                          보증금: {formatPrice(tooltip.data.deposit)}
+                        </div>
+                      </div>
+                      {placement === 'top' ? (
+                        <div 
+                          className="absolute top-full"
+                          style={{
+                            left: `${tailLeft}px`,
+                            transform: 'translateX(-50%)',
+                            width: 0,
+                            height: 0,
+                            borderLeft: '6px solid transparent',
+                            borderRight: '6px solid transparent',
+                            borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
+                          }}
+                        />
+                      ) : (
+                        <div 
+                          className="absolute bottom-full"
+                          style={{
+                            left: `${tailLeft}px`,
+                            transform: 'translateX(-50%)',
+                            width: 0,
+                            height: 0,
+                            borderLeft: '6px solid transparent',
+                            borderRight: '6px solid transparent',
+                            borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })()}
           </svg>
         </div>
       )}
@@ -559,7 +820,10 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />월별 보증금 평균</span>
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />보증금 거래 점(dots)</span>
             </div>
-            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="w-full h-72 bg-white rounded-lg border border-gray-100">
+            <svg 
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
+              className="w-full h-72 bg-white rounded-lg border border-gray-100"
+            >
               {wolseDepositGuide.map((value, index) => {
                 const y = wolseDepositScaleY(value);
                 return (
@@ -571,11 +835,116 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               })}
               <path d={createLinePath(wolseDepositLinePoints)} fill="none" stroke="#059669" strokeWidth="2.2" />
               {wolseDepositLinePoints.map((point, idx) => (
-                <circle key={`rent-wolse-deposit-line-${idx}`} cx={point.x} cy={point.y} r="3.4" fill="#059669"><title>{`${formatMonth(point.month)} 월세 보증금 평균 ${formatPrice(point.value)}`}</title></circle>
+                <circle key={`rent-wolse-deposit-line-${idx}`} cx={point.x} cy={point.y} r="4.2" fill="#059669"><title>{`${formatMonth(point.month)} 월세 보증금 평균 ${formatPrice(point.value)}`}</title></circle>
               ))}
               {wolseDots.map((dot, idx) => (
-                <circle key={`rent-wolse-deposit-dot-${idx}`} cx={dot.x} cy={dot.depositY} r="2.2" fill="#6B7280" opacity="0.9"><title>{`${formatMonth(dot.month)} 월세 보증금 ${formatPrice(dot.depositValue)}`}</title></circle>
+                <g key={`rent-wolse-deposit-dot-${idx}`}>
+                  {/* 히트박스 */}
+                  <circle
+                    cx={dot.x}
+                    cy={dot.depositY}
+                    r="10"
+                    fill="transparent"
+                    onMouseEnter={() => handleWolseDepositDotEnter(dot)}
+                    onMouseLeave={handleWolseDepositDotLeave}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  {/* 실제 점: 조금 더 큰 circle */}
+                  <circle
+                    cx={dot.x}
+                    cy={dot.depositY}
+                    r="3"
+                    fill="#6B7280"
+                    opacity="0.9"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </g>
               ))}
+              {/* 월세 보증금 툴팁: 점 위에 고정 */}
+              {wolseDepositTooltip && wolseDepositTooltip.data && wolseDepositTooltip.data.monthlyRent != null && (() => {
+                const tooltipWidth = 180;
+                const tooltipHeight = wolseDepositTooltipRef.current?.offsetHeight || 70;
+                const tailHeight = 10;
+                const gap = 6;
+                const padding = 10;
+                
+                const dotX = wolseDepositTooltip.x;
+                const dotY = wolseDepositTooltip.y;
+                
+                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+                
+                const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
+                const topIfBelow = dotY + (tailHeight + gap);
+                
+                const placement = topIfAbove < padding ? 'bottom' : 'top';
+                
+                let tooltipY;
+                if (placement === 'top') {
+                  tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
+                } else {
+                  tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
+                }
+                
+                const dotXInTooltip = dotX - tooltipX;
+                const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
+                
+                return (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <foreignObject
+                      x={tooltipX}
+                      y={tooltipY}
+                      width={tooltipWidth}
+                      height={tooltipHeight + tailHeight}
+                    >
+                      <div className="relative" ref={wolseDepositTooltipRef}>
+                        <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
+                          <div className="text-[10px] text-gray-300 mb-1">
+                            {wolseDepositTooltip.data.dealDate ? (wolseDepositTooltip.data.dealDate.includes('-') ? formatDate(wolseDepositTooltip.data.dealDate) : formatMonth(wolseDepositTooltip.data.dealDate)) : (wolseDepositTooltip.data.month ? formatMonth(wolseDepositTooltip.data.month) : '-')}
+                          </div>
+                          {wolseDepositTooltip.data.floor != null && (
+                            <div className="text-[10px] text-gray-300 mb-1">
+                              {wolseDepositTooltip.data.floor}층
+                            </div>
+                          )}
+                          <div className="font-medium mb-1">
+                            보증금: {formatPrice(wolseDepositTooltip.data.deposit)}
+                          </div>
+                          <div className="font-medium">
+                            월세: {formatPrice(wolseDepositTooltip.data.monthlyRent)}
+                          </div>
+                        </div>
+                        {placement === 'top' ? (
+                          <div 
+                            className="absolute top-full"
+                            style={{
+                              left: `${tailLeft}px`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
+                            }}
+                          />
+                        ) : (
+                          <div 
+                            className="absolute bottom-full"
+                            style={{
+                              left: `${tailLeft}px`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    </foreignObject>
+                  </g>
+                );
+              })()}
             </svg>
           </div>
 
@@ -584,7 +953,10 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500" />월별 월세 평균</span>
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />월세 거래 점(dots)</span>
             </div>
-            <svg viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} className="w-full h-72 bg-white rounded-lg border border-gray-100">
+            <svg 
+              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
+              className="w-full h-72 bg-white rounded-lg border border-gray-100"
+            >
               {wolseRentGuide.map((value, index) => {
                 const y = wolseRentScaleY(value);
                 return (
@@ -596,11 +968,116 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               })}
               <path d={createLinePath(wolseRentLinePoints)} fill="none" stroke="#F97316" strokeWidth="2.2" />
               {wolseRentLinePoints.map((point, idx) => (
-                <circle key={`rent-wolse-rent-line-${idx}`} cx={point.x} cy={point.y} r="3.4" fill="#F97316"><title>{`${formatMonth(point.month)} 월세 평균 ${formatPrice(point.value)}`}</title></circle>
+                <circle key={`rent-wolse-rent-line-${idx}`} cx={point.x} cy={point.y} r="4.2" fill="#F97316"><title>{`${formatMonth(point.month)} 월세 평균 ${formatPrice(point.value)}`}</title></circle>
               ))}
               {wolseDots.map((dot, idx) => (
-                <circle key={`rent-wolse-rent-dot-${idx}`} cx={dot.x} cy={dot.monthlyRentY} r="2.2" fill="#6B7280" opacity="0.9"><title>{`${formatMonth(dot.month)} 월세 ${formatPrice(dot.monthlyRentValue)}`}</title></circle>
+                <g key={`rent-wolse-rent-dot-${idx}`}>
+                  {/* 히트박스 */}
+                  <circle
+                    cx={dot.x}
+                    cy={dot.monthlyRentY}
+                    r="10"
+                    fill="transparent"
+                    onMouseEnter={() => handleWolseRentDotEnter(dot)}
+                    onMouseLeave={handleWolseRentDotLeave}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  {/* 실제 점: 조금 더 큰 circle */}
+                  <circle
+                    cx={dot.x}
+                    cy={dot.monthlyRentY}
+                    r="3"
+                    fill="#6B7280"
+                    opacity="0.9"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                </g>
               ))}
+              {/* 월세 월세 툴팁: 점 위에 고정 */}
+              {wolseRentTooltip && wolseRentTooltip.data && wolseRentTooltip.data.monthlyRent != null && (() => {
+                const tooltipWidth = 180;
+                const tooltipHeight = wolseRentTooltipRef.current?.offsetHeight || 70;
+                const tailHeight = 10;
+                const gap = 6;
+                const padding = 10;
+                
+                const dotX = wolseRentTooltip.x;
+                const dotY = wolseRentTooltip.y;
+                
+                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+                
+                const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
+                const topIfBelow = dotY + (tailHeight + gap);
+                
+                const placement = topIfAbove < padding ? 'bottom' : 'top';
+                
+                let tooltipY;
+                if (placement === 'top') {
+                  tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
+                } else {
+                  tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
+                }
+                
+                const dotXInTooltip = dotX - tooltipX;
+                const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
+                
+                return (
+                  <g style={{ pointerEvents: 'none' }}>
+                    <foreignObject
+                      x={tooltipX}
+                      y={tooltipY}
+                      width={tooltipWidth}
+                      height={tooltipHeight + tailHeight}
+                    >
+                      <div className="relative" ref={wolseRentTooltipRef}>
+                        <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
+                          <div className="text-[10px] text-gray-300 mb-1">
+                            {wolseRentTooltip.data.dealDate ? (wolseRentTooltip.data.dealDate.includes('-') ? formatDate(wolseRentTooltip.data.dealDate) : formatMonth(wolseRentTooltip.data.dealDate)) : (wolseRentTooltip.data.month ? formatMonth(wolseRentTooltip.data.month) : '-')}
+                          </div>
+                          {wolseRentTooltip.data.floor != null && (
+                            <div className="text-[10px] text-gray-300 mb-1">
+                              {wolseRentTooltip.data.floor}층
+                            </div>
+                          )}
+                          <div className="font-medium mb-1">
+                            보증금: {formatPrice(wolseRentTooltip.data.deposit)}
+                          </div>
+                          <div className="font-medium">
+                            월세: {formatPrice(wolseRentTooltip.data.monthlyRent)}
+                          </div>
+                        </div>
+                        {placement === 'top' ? (
+                          <div 
+                            className="absolute top-full"
+                            style={{
+                              left: `${tailLeft}px`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
+                            }}
+                          />
+                        ) : (
+                          <div 
+                            className="absolute bottom-full"
+                            style={{
+                              left: `${tailLeft}px`,
+                              transform: 'translateX(-50%)',
+                              width: 0,
+                              height: 0,
+                              borderLeft: '6px solid transparent',
+                              borderRight: '6px solid transparent',
+                              borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
+                            }}
+                          />
+                        )}
+                      </div>
+                    </foreignObject>
+                  </g>
+                );
+              })()}
             </svg>
           </div>
         </>

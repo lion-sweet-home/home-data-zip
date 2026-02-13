@@ -40,6 +40,9 @@ export default function Filter({ onSearch, initialParams }) {
   // 전/월세용 월세 범위
   const [monthlyRentMin, setMonthlyRentMin] = useState('');
   const [monthlyRentMax, setMonthlyRentMax] = useState('');
+  // 전/월세용 면적 범위 (m²)
+  const [minExclusive, setMinExclusive] = useState('');
+  const [maxExclusive, setMaxExclusive] = useState('');
 
   // 학교 필터
   const [schoolTypes, setSchoolTypes] = useState({
@@ -98,6 +101,8 @@ export default function Filter({ onSearch, initialParams }) {
     if (initialParams.depositMax != null) setDepositMax(String(initialParams.depositMax));
     if (initialParams.monthlyRentMin != null) setMonthlyRentMin(String(initialParams.monthlyRentMin));
     if (initialParams.monthlyRentMax != null) setMonthlyRentMax(String(initialParams.monthlyRentMax));
+    if (initialParams.minExclusive != null) setMinExclusive(String(initialParams.minExclusive));
+    if (initialParams.maxExclusive != null) setMaxExclusive(String(initialParams.maxExclusive));
 
     // 학교 필터
     if (initialParams.schoolTypes) {
@@ -298,6 +303,22 @@ export default function Filter({ onSearch, initialParams }) {
       }
     }
 
+    // 면적 범위 검증 및 스왑 (검색 실행 시에만)
+    let finalMinExclusive = minExclusive;
+    let finalMaxExclusive = maxExclusive;
+    if (finalMinExclusive && finalMaxExclusive) {
+      const minVal = parseFloat(finalMinExclusive);
+      const maxVal = parseFloat(finalMaxExclusive);
+      if (!isNaN(minVal) && !isNaN(maxVal) && minVal > maxVal) {
+        // min > max면 스왑
+        finalMinExclusive = maxExclusive;
+        finalMaxExclusive = minExclusive;
+        // state도 업데이트 (UI에 반영)
+        setMinExclusive(finalMinExclusive);
+        setMaxExclusive(finalMaxExclusive);
+      }
+    }
+
     const searchParams = {
       tradeType,
       searchConditionType,
@@ -309,7 +330,7 @@ export default function Filter({ onSearch, initialParams }) {
             dong: selectedDong || undefined,
             ...(tradeType === '매매'
               ? { priceMin, priceMax }
-              : { depositMin, depositMax, monthlyRentMin, monthlyRentMax }),
+              : { depositMin, depositMax, monthlyRentMin, monthlyRentMax, minExclusive: finalMinExclusive, maxExclusive: finalMaxExclusive }),
             schoolTypes: Object.entries(schoolTypes)
               .filter(([_, selected]) => selected)
               .map(([type]) => type),
@@ -341,6 +362,8 @@ export default function Filter({ onSearch, initialParams }) {
               setDepositMax('');
               setMonthlyRentMin('');
               setMonthlyRentMax('');
+              setMinExclusive('');
+              setMaxExclusive('');
             }}
             className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               tradeType === '매매'
@@ -570,6 +593,35 @@ export default function Filter({ onSearch, initialParams }) {
                   className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
                 />
                 <span className="text-xs text-gray-500 flex-shrink-0">만원</span>
+              </>
+            )}
+            {/* 면적 범위 (전월세만) */}
+            {tradeType === '전월세' && (
+              <>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={minExclusive}
+                  onChange={(e) => {
+                    // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                    setMinExclusive(e.target.value);
+                  }}
+                  placeholder="최소 m²"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-gray-500 text-xs">~</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={maxExclusive}
+                  onChange={(e) => {
+                    // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                    setMaxExclusive(e.target.value);
+                  }}
+                  placeholder="최대 m²"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-500 flex-shrink-0">m²</span>
               </>
             )}
           </>

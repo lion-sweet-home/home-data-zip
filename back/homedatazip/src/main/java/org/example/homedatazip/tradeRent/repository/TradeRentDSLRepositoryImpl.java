@@ -56,7 +56,8 @@ public class TradeRentDSLRepositoryImpl implements TradeRentDSLRepository {
                         DotResponse.class,
                         tradeRent.deposit,
                         tradeRent.monthlyRent,
-                        yyyymm
+                        yyyymm,
+                        tradeRent.floor
                 ))
                 .from(tradeRent)
                 .where(
