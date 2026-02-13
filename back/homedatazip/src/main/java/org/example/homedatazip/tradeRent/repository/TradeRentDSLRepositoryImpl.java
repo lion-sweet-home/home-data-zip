@@ -56,7 +56,8 @@ public class TradeRentDSLRepositoryImpl implements TradeRentDSLRepository {
                         DotResponse.class,
                         tradeRent.deposit,
                         tradeRent.monthlyRent,
-                        yyyymm
+                        yyyymm,
+                        tradeRent.floor
                 ))
                 .from(tradeRent)
                 .where(
@@ -67,11 +68,21 @@ public class TradeRentDSLRepositoryImpl implements TradeRentDSLRepository {
     }
 
     @Override
-    public List<TradeRent> findRecent5(long aptId) {
+    public List<RentFromAptResponse> findRecent5(long aptId) {
 
         QTradeRent tradeRent = QTradeRent.tradeRent;
         return queryFactory
-                .select(tradeRent)
+                .select(Projections.constructor(
+                        RentFromAptResponse.class,
+                        tradeRent.id,
+                        tradeRent.apartment.id,
+                        tradeRent.apartment.aptName,
+                        tradeRent.deposit,
+                        tradeRent.monthlyRent,
+                        tradeRent.floor,
+                        tradeRent.exclusiveArea,
+                        tradeRent.dealDate
+                        ))
                 .from(tradeRent)
                 .where(tradeRent.apartment.id.eq(aptId))
                 .limit(5)

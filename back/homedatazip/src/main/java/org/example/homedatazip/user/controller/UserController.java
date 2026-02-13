@@ -80,4 +80,13 @@ public class UserController {
 
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.editMyPage(request,user.getEmail(),userId));
     }
+
+    // 비밀번호 변경
+    @PatchMapping("/change-password")
+    public ResponseEntity<Void> changePassword(@AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody PasswordChangeRequest request) {
+
+        userService.changePassword(userDetails.getUserId(), request);
+        return ResponseEntity.ok().build();
+    }
 }

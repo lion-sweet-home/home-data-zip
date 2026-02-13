@@ -1,6 +1,24 @@
+server:
+  servlet:
+    session:
+      cookie:
+        # Google 리다이렉트 시 세션 쿠키 전송 (authorization_request_not_found 방지)
+        # 로컬 http: lax + secure false. 운영(https)에선 same-site: none, secure: true 권장
+        same-site: lax
+        secure: ${SERVER_SESSION_COOKIE_SECURE:false}
+
 spring:
   application:
     name : homedatazip
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: openid, profile, email
 
   mvc:
     contentnegotiation:
@@ -53,6 +71,11 @@ spring:
       base-url: http://localhost:11434  # Ollama 기본 주소
       chat:
         model: llama3
+
+app:
+  oauth:
+    frontend-redirect-uri: ${APP_OAUTH_FRONTEND_REDIRECT_URI:http://localhost:3000/auth/oauth/callback}
+    frontend-failure-redirect-uri: ${APP_OAUTH_FRONTEND_FAILURE_REDIRECT_URI:http://localhost:3000/auth/login}
 
 cors:
   allowed-origins:

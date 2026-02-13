@@ -1,11 +1,16 @@
 package org.example.homedatazip.apartment.repository.rentDSL;
 
 import com.querydsl.core.BooleanBuilder;
+import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.NumberExpression;
+import com.querydsl.core.types.dsl.NumberPath;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.apartment.dto.MarkResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.tradeRent.dto.RentGetMarkerRequest;
+import org.example.homedatazip.tradeRent.entity.QTradeRent;
 
 import java.util.List;
 
@@ -18,7 +23,7 @@ public class ApartmentRepositoryImpl implements ApartmentRepositoryCustomRent {
     private final JPAQueryFactory queryFactory;
 
     @Override
-    public List<Apartment> findAllWithRentByRegionAndRentRange(RentGetMarkerRequest request) {
+    public List<MarkResponse> findAllWithRentByRegionAndRentRange(RentGetMarkerRequest request) {
         BooleanBuilder where = new BooleanBuilder()
                 .and(eqSido(request.sido()))
                 .and(eqGugun(request.gugun()))
@@ -28,18 +33,25 @@ public class ApartmentRepositoryImpl implements ApartmentRepositoryCustomRent {
                 .and(minDeposit(request.minDeposit()))
                 .and(maxDeposit(request.maxDeposit()))
                 .and(minMonthlyRent(request.minMonthlyRent()))
-                .and(maxMonthlyRent(request.maxMonthlyRent()));
-
+                .and(maxMonthlyRent(request.maxMonthlyRent()))
+                .and(minExclusive(request.minExclusive()))
+                .and(maxExclusive(request.maxExclusive()));
 
         return queryFactory
-                .select(apartment)
+                .select(Projections.constructor(
+                        MarkResponse.class,
+                        apartment.id,
+                        apartment.aptName,
+                        apartment.latitude,
+                        apartment.longitude
+                ))
                 .from(apartment)
                 .where(where)
                 .where(
                         queryFactory.selectOne()
                                 .from(tradeRent)
-                                .where(tradeRent.apartment.eq(apartment))
-                                .where(rentWhere)
+                                .where(tradeRent.apartment.eq(apartment),
+                                        rentWhere)
                                 .exists()
                 )
                 .fetch();
@@ -71,5 +83,11 @@ public class ApartmentRepositoryImpl implements ApartmentRepositoryCustomRent {
 
     private static BooleanExpression maxMonthlyRent(Integer v) {
         return v == null ? null : tradeRent.monthlyRent.loe(v);
+    }
+    private static BooleanExpression minExclusive(Double v) {
+        return v == null ? null : tradeRent.exclusiveArea.goe(v);
+    }
+    private static BooleanExpression maxExclusive(Double v) {
+        return v == null ? null : tradeRent.exclusiveArea.loe(v);
     }
 }

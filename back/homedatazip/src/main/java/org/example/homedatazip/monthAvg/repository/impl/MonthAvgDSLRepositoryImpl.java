@@ -11,7 +11,6 @@ import org.example.homedatazip.monthAvg.dto.WolseCountResponse;
 import org.example.homedatazip.monthAvg.entity.QMonthAvg;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -32,7 +31,7 @@ public class MonthAvgDSLRepositoryImpl implements MonthAvgDSLRepository {
         QRegion region = QRegion.region;
         QApartment apartment = QApartment.apartment;
 
-        NumberExpression<Integer> jeonseCountSum = monthAvg.jeonseCount.sum();
+        NumberExpression<Long> jeonseCountSum = monthAvg.jeonseCount.sum().longValue();
 
         return queryFactory
                 .select(
@@ -46,7 +45,11 @@ public class MonthAvgDSLRepositoryImpl implements MonthAvgDSLRepository {
                 .from(monthAvg)
                 .join(apartment).on(apartment.id.eq(monthAvg.aptId))
                 .join(region).on(region.eq(apartment.region))
-                .where(monthAvg.yyyymm.goe(yyyymm))
+                .where(
+                        region.sido.eq(sido),
+                        region.gugun.eq(gugun),
+                        monthAvg.yyyymm.goe(yyyymm)
+                )
                 .groupBy(region.sido, region.gugun, region.dong)
                 .fetch();
     }
@@ -60,7 +63,7 @@ public class MonthAvgDSLRepositoryImpl implements MonthAvgDSLRepository {
         QRegion region = QRegion.region;
         QApartment apartment = QApartment.apartment;
 
-        NumberExpression<Integer> wolseCountSum = monthAvg.wolseCount.sum();
+        NumberExpression<Long> wolseCountSum = monthAvg.wolseCount.sum().longValue();
 
         return queryFactory
                 .select(
@@ -74,7 +77,11 @@ public class MonthAvgDSLRepositoryImpl implements MonthAvgDSLRepository {
                 .from(monthAvg)
                 .join(apartment).on(apartment.id.eq(monthAvg.aptId))
                 .join(region).on(region.eq(apartment.region))
-                .where(monthAvg.yyyymm.goe(yyyymm))
+                .where(
+                        region.sido.eq(sido),
+                        region.gugun.eq(gugun),
+                        monthAvg.yyyymm.goe(yyyymm)
+                )
                 .groupBy(region.sido, region.gugun, region.dong)
                 .fetch();
     }

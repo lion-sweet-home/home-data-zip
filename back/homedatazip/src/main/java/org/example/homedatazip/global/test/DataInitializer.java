@@ -74,6 +74,8 @@ public class DataInitializer implements CommandLineRunner {
         if (userRepository.findByEmail(testEmail).isEmpty()) {
             Role userRole = roleRepository.findByRoleType(RoleType.USER)
                     .orElseThrow(() -> new BusinessException(UserErrorCode.ROLE_NOT_FOUND));
+            Role sellerRole = roleRepository.findByRoleType(RoleType.SELLER)
+                    .orElseThrow(() -> new BusinessException(UserErrorCode.ROLE_NOT_FOUND));
 
             String encodedPassword = passwordEncoder.encode(testPassword);
             log.info("🔐 생성된 해시: {}", encodedPassword);  // 해시값 확인용
@@ -85,8 +87,11 @@ public class DataInitializer implements CommandLineRunner {
                     userRole
             );
 
+            // SELLER 롤 추가
+            testUser.addRole(sellerRole);
+
             userRepository.save(testUser);
-            log.info("✅ 테스트 유저 생성: {} / {}", testEmail, testPassword);
+            log.info("✅ 테스트 유저 생성 (USER, SELLER 롤): {} / {}", testEmail, testPassword);
         } else {
             log.info("ℹ️ 테스트 유저 이미 존재: {}", testEmail);
         }

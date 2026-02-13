@@ -1,6 +1,7 @@
 package org.example.homedatazip.user.repository;
 
 import org.example.homedatazip.role.RoleType;
+import org.example.homedatazip.user.entity.LoginType;
 import org.example.homedatazip.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -75,6 +76,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
             """)
     Page<User> searchByEmail(@Param("keyword") String keyword, Pageable pageable);
 
-    // 알림 수신 설정한 사용자 조회
+    /** 알림 수신 설정한 사용자 조회 */
     List<User> findByNotificationEnabledTrue();
+
+    /** 소셜 로그인: (loginType, providerId)로 사용자 조회 (OAuth Success Handler에서 사용) */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles ur LEFT JOIN FETCH ur.role WHERE u.loginType = :loginType AND u.providerId = :providerId")
+    Optional<User> findByLoginTypeAndProviderIdWithRoles(@Param("loginType") LoginType loginType, @Param("providerId") String providerId);
+
 }

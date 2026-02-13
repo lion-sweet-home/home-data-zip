@@ -93,6 +93,8 @@ export default function MapSearchPage() {
     const depositMax = searchParams.get('depositMax');
     const monthlyRentMin = searchParams.get('monthlyRentMin');
     const monthlyRentMax = searchParams.get('monthlyRentMax');
+    const minExclusive = searchParams.get('minExclusive');
+    const maxExclusive = searchParams.get('maxExclusive');
 
     const schoolTypesStr = searchParams.get('schoolTypes'); // "초등학교,중학교"
     const schoolRadius = searchParams.get('schoolRadius');
@@ -131,6 +133,8 @@ export default function MapSearchPage() {
       ...(depositMax ? { depositMax } : {}),
       ...(monthlyRentMin ? { monthlyRentMin } : {}),
       ...(monthlyRentMax ? { monthlyRentMax } : {}),
+      ...(minExclusive ? { minExclusive } : {}),
+      ...(maxExclusive ? { maxExclusive } : {}),
       ...(schoolTypesStr ? { schoolTypes: schoolTypesStr } : {}),
       ...(schoolRadius ? { schoolRadius } : {}),
       // subway
@@ -162,7 +166,12 @@ export default function MapSearchPage() {
       const tradeType = searchParams.tradeType || '매매';
       
       // 현재 검색 파라미터 저장 (마커 클릭 시 사용)
-      setCurrentSearchParams(searchParams);
+      // tradeType을 명시적으로 포함하여 전달
+      const paramsWithTradeType = {
+        ...searchParams,
+        tradeType: tradeType, // 명시적으로 tradeType 포함
+      };
+      setCurrentSearchParams(paramsWithTradeType);
       // 검색조건 보존(상세페이지 갔다가 돌아와도 유지)
       try {
         sessionStorage.setItem('search_map_lastParams', JSON.stringify(searchParams));
@@ -197,6 +206,13 @@ export default function MapSearchPage() {
             apartmentData: m,
           }));
         } else {
+          // 면적 범위 파싱 (소수 허용)
+          const parseExclusive = (val) => {
+            if (!val || val === '') return undefined;
+            const num = parseFloat(val);
+            return isNaN(num) ? undefined : num;
+          };
+          
           const markerRequest = {
             sido: searchParams.sido,
             gugun: searchParams.gugun,
@@ -205,6 +221,8 @@ export default function MapSearchPage() {
             maxDeposit: searchParams.depositMax ? Number(searchParams.depositMax) * 10000 : undefined,
             minMonthlyRent: searchParams.monthlyRentMin ? Number(searchParams.monthlyRentMin) * 10000 : undefined,
             maxMonthlyRent: searchParams.monthlyRentMax ? Number(searchParams.monthlyRentMax) * 10000 : undefined,
+            minExclusive: parseExclusive(searchParams.minExclusive),
+            maxExclusive: parseExclusive(searchParams.maxExclusive),
           };
           const response = await getRentMarkers(markerRequest);
           markers = (response || []).map(m => ({

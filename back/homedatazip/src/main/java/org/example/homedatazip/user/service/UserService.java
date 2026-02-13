@@ -1,5 +1,6 @@
 package org.example.homedatazip.user.service;
 
+import jdk.jshell.spi.ExecutionControl;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
@@ -163,5 +164,24 @@ public class UserService {
                 .map(Enum::name)
                 .collect(Collectors.toList());
     }
-}
 
+    @Transactional
+    public void changePassword(Long userId, PasswordChangeRequest request) {
+        // 1. 유저 조회 USER_NOT_FOUND
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        // 2. 현재 비밀번호 일치 확인 INVALID_PASSWORD
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
+        }
+
+        // 3. 새 비밀번호 확인 일치 검증 INVALID_PASSWORD
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
+        }
+
+        // 4. 비밀번호 업데이트
+        user.updatePassword(passwordEncoder.encode(request.newPassword()));
+    }
+}
