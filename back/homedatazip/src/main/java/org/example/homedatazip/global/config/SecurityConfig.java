@@ -1,7 +1,8 @@
 package org.example.homedatazip.global.config;
 
+import org.example.homedatazip.auth.handler.OAuth2FailureHandler;
+import org.example.homedatazip.auth.handler.OAuth2SuccessHandler;
 import org.example.homedatazip.global.jwt.security.JwtAuthenticationFilter;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,7 +10,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -22,13 +22,21 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
-                                           JwtAuthenticationFilter jwtAuthenticationFilter, CorsProperties corsProperties) throws Exception {
+                                           JwtAuthenticationFilter jwtAuthenticationFilter,
+                                           OAuth2SuccessHandler oAuth2SuccessHandler,
+                                           OAuth2FailureHandler oAuth2FailureHandler,
+                                           CorsProperties corsProperties) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(corsProperties)))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler))
                 .authorizeHttpRequests(auth -> auth
+                        // OAuth2 콜백 (Google 등)
+                        .requestMatchers("/login/oauth2/code/**").permitAll()
                         // 로그인 사용자 전용 (favorite)
                         .requestMatchers("/api/users/me/**").authenticated()
                         // 회원가입·로그인 등

@@ -41,8 +41,12 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse response,
                                        @AuthenticationPrincipal CustomUserDetails customUserDetails) {
-        log.info("CustomUser Id :::" + customUserDetails.getUserId());
-        authService.logout(customUserDetails.getUserId(), response);
+        if (customUserDetails != null) {
+            log.info("CustomUser Id :::" + customUserDetails.getUserId());
+            authService.logout(customUserDetails.getUserId(), response);
+        } else {
+            cookieProvider.clearRefreshCookie(response, false);
+        }
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
