@@ -96,6 +96,14 @@ public class User extends BaseTimeEntity {
         return user;
     }
 
+    // 비밀번호 변경
+    public void updatePassword(String encodedPassword) {
+        if (encodedPassword == null || encodedPassword.isBlank()) {
+            throw new IllegalArgumentException("비밀번호는 빈 값일 수 없습니다.");
+        }
+        this.password = encodedPassword;
+    }
+
     // 구독을 위한 메서드 추가
     public void addRole(Role role) {
         if (role == null) return;
