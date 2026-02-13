@@ -1,5 +1,6 @@
 package org.example.homedatazip.global.config;
 
+import org.example.homedatazip.auth.handler.OAuth2FailureHandler;
 import org.example.homedatazip.auth.handler.OAuth2SuccessHandler;
 import org.example.homedatazip.global.jwt.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
@@ -23,13 +24,16 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            JwtAuthenticationFilter jwtAuthenticationFilter,
                                            OAuth2SuccessHandler oAuth2SuccessHandler,
+                                           OAuth2FailureHandler oAuth2FailureHandler,
                                            CorsProperties corsProperties) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(corsProperties)))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .oauth2Login(oauth2 -> oauth2.successHandler(oAuth2SuccessHandler))
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(oAuth2SuccessHandler)
+                        .failureHandler(oAuth2FailureHandler))
                 .authorizeHttpRequests(auth -> auth
                         // OAuth2 콜백 (Google 등)
                         .requestMatchers("/login/oauth2/code/**").permitAll()

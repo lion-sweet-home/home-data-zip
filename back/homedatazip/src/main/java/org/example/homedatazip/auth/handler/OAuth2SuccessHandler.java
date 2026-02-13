@@ -22,6 +22,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 @Slf4j
@@ -42,11 +44,11 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException {
         // OAuth2 인증 결과에서 registrationId(google)와 사용자 속성을 꺼냄
         OAuth2AuthenticationToken token = (OAuth2AuthenticationToken) authentication;
-        log.info("token 값: {}", token);
+//        log.info("token 값: {}", token);
         String registrationId = token.getAuthorizedClientRegistrationId(); // google/kakao/naver 구분 가능
         OAuth2User oauth2User = token.getPrincipal();
         Map<String, Object> attributes = oauth2User.getAttributes();
-        log.info("속성값들: {}", attributes);
+//        log.info("속성값들: {}", attributes);
 
         // registrationId를 프로젝트에서 사용하는 LoginType으로 변환
         LoginType loginType = toLoginType(registrationId);
@@ -67,13 +69,15 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
             return;
         }
 
-        // 기존 회원이면 조회, 없으면 신규 소셜 회원을 생성
+        // (loginType, providerId)로 조회 → 없으면 같은 이메일 기존 회원 조회 → 없을 때만 신규 소셜 회원 생성
         User user = userRepository.findByLoginTypeAndProviderIdWithRoles(loginType, providerId)
+                .or(() -> userRepository.findByEmailWithRoles(email))
                 .orElseGet(() -> createOAuthUser(loginType, providerId, email, nickname));
 
-        // Refresh 쿠키 설정 후 프론트로 리다이렉트
-        authService.issueTokenForOAuthUser(user, response);
-        getRedirectStrategy().sendRedirect(request, response, frontendRedirectUri);
+        // AccessToken + Refresh 쿠키 설정 후, AccessToken을 쿼리로 담아 프론트로 리다이렉트 (reissue 불필요)
+        String accessToken = authService.issueTokenForOAuthUser(user, response);
+        String redirectUrl = frontendRedirectUri + "?token=" + URLEncoder.encode(accessToken, StandardCharsets.UTF_8);
+        getRedirectStrategy().sendRedirect(request, response, redirectUrl);
     }
 
     private LoginType toLoginType(String registrationId) {
@@ -101,7 +105,7 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
     // nickname 중복 제거
     private String getNickname(Map<String, Object> attributes, String providerId) {
         Object name = attributes.get("name");
-        String base = (name != null || name.toString().isBlank()) ? name.toString() : "user";
+        String base = (name != null && !name.toString().isBlank()) ? name.toString() : "user";
         String nickname = base;
         int suffix = 0;
         while (userRepository.existsByNickname(nickname)) {

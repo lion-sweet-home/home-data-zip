@@ -102,14 +102,16 @@ public class AuthService {
         cookieProvider.clearRefreshCookie(response, false);
     }
 
-    /** 소셜 로그인 성공 시: User 기준으로 JWT 발급 + 쿠키 설정 */
+    /** 소셜 로그인 성공 시: User 기준으로 AccessToken + RefreshToken 발급, 쿠키 설정. 반환값은 프론트 리다이렉트 URL에 붙일 AccessToken. */
     @Transactional(readOnly = true)
-    public void issueTokenForOAuthUser(User user, HttpServletResponse response) {
+    public String issueTokenForOAuthUser(User user, HttpServletResponse response) {
         List<String> roles = stringFromUserRole(user);
+        String accessToken = jwtTokenizer.createAccessToken(user.getEmail(), roles);
         String refreshToken = jwtTokenizer.createRefreshToken(user.getEmail(), roles);
         Duration ttl = getRefreshTokenTtl();
         refreshTokenRedisRepository.save(user.getId(), refreshToken, ttl);
-        addCookieAndSetHeader(response, refreshToken, null);
+        addCookieAndSetHeader(response, refreshToken, accessToken);
+        return accessToken;
     }
 
     private User findUserByEmail(String email){
@@ -138,7 +140,9 @@ public class AuthService {
                 maxAgeSeconds,
                 secure);
 
-        response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        if (accessToken != null) {
+            response.setHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken);
+        }
     }
     private Duration getRefreshTokenTtl(){
         long expiration = jwtProperties.getRefreshTokenExpiration();

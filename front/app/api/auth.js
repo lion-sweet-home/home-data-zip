@@ -22,10 +22,11 @@ export async function login(email, password) {
     password,
   });
   
-  // AccessToken 저장 (백엔드 응답은 AccessToken 필드 사용)
-  if (response.AccessToken) {
+  // AccessToken 저장 (백엔드 LoginResponse는 accessToken 필드, 호환을 위해 둘 다 확인)
+  const token = response.AccessToken ?? response.accessToken;
+  if (token) {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', response.AccessToken);
+      localStorage.setItem('accessToken', token);
       // Header 등 전역 UI 즉시 갱신용 이벤트
       window.dispatchEvent(new Event('auth:changed'));
     }
@@ -162,15 +163,11 @@ export async function register(userData) {
  */
 export async function refreshToken() {
   const response = await post('/auth/refresh', {});
-  
-  // AccessToken 저장
-  if (response.AccessToken) {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', response.AccessToken);
-      window.dispatchEvent(new Event('auth:changed'));
-    }
+  const token = response.AccessToken ?? response.accessToken;
+  if (token && typeof window !== 'undefined') {
+    localStorage.setItem('accessToken', token);
+    window.dispatchEvent(new Event('auth:changed'));
   }
-  
   return response;
 }
 
@@ -201,18 +198,12 @@ export async function refreshToken() {
  */
 export async function reissue() {
   // refreshToken은 쿠키로 자동 전송되므로 body에 포함하지 않음
-  // credentials: 'include' 옵션이 api.js에서 자동으로 설정됨
-  // 백엔드 엔드포인트: /api/auth/refresh
   const response = await post('/auth/refresh', {});
-  
-  // AccessToken 저장
-  if (response.AccessToken) {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', response.AccessToken);
-      window.dispatchEvent(new Event('auth:changed'));
-    }
+  const token = response.AccessToken ?? response.accessToken;
+  if (token && typeof window !== 'undefined') {
+    localStorage.setItem('accessToken', token);
+    window.dispatchEvent(new Event('auth:changed'));
   }
-  
   return response;
 }
 
