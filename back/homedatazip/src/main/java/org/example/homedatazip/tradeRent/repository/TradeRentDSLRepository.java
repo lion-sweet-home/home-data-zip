@@ -10,5 +10,5 @@ import java.util.List;
 public interface TradeRentDSLRepository {
     List<TradeRent> findItemsByArea(long areaId, long aptId, LocalDate date);
     List<DotResponse> findDot( long aptId, LocalDate date );
-    List<TradeRent> findRecent5(long aptId);
+    List<RentFromAptResponse> findRecent5(long aptId);
         }

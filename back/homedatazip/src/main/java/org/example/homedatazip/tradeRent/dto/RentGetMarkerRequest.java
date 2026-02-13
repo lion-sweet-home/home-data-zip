@@ -7,5 +7,7 @@ public record RentGetMarkerRequest (
         Long minDeposit,
         Long maxDeposit,
         Integer minMonthlyRent,
-        Integer maxMonthlyRent
+        Integer maxMonthlyRent,
+        Double minExclusive,
+        Double maxExclusive
 ){}

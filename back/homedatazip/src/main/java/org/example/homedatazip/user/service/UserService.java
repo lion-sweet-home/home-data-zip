@@ -163,5 +163,24 @@ public class UserService {
                 .map(Enum::name)
                 .collect(Collectors.toList());
     }
+
+    @Transactional
+    public void changePassword(Long userId, PasswordChangeRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+
+        // 1. 현재 비밀번호 일치 확인
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new RuntimeException("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        // 2. 새 비밀번호와 확인용 비번이 일치하는지 확인
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new RuntimeException("새 비밀번호가 서로 일치하지 않습니다.");
+        }
+
+        // 3. 비밀번호 암호화 및 업데이트
+        user.updatePassword(passwordEncoder.encode(request.newPassword()));
+    }
 }
 

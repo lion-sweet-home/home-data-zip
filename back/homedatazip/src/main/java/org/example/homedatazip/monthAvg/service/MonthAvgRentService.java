@@ -32,12 +32,7 @@ public class MonthAvgRentService {
     public List<MonthTotalTradeResponse> getTotalTrade(Long aptId, int period){
         period = period == 0 ? 6 : period;
 
-        YearMonth periodyyyymm = YearMonth.now().minusMonths(period);
-        String yyyymm = periodyyyymm.format(DateTimeFormatter.ofPattern("yyyyMM"));
-
-        LocalDate today = LocalDate.now();
-
-        String maxYyyymm = Yyyymm.lastMonthYyyymm(today); //현재 Month -1
+        String maxYyyymm = Yyyymm.lastMonthYyyymm(LocalDate.now()); //현재 Month -1
         String minYyyymm = Yyyymm.minYyyymmForMonths(maxYyyymm, period); // 현재 Month -1 ~ -7 총 6달
 
         return monthAvgRepository.findMonthlyTotals(aptId,minYyyymm, maxYyyymm);
@@ -78,9 +73,6 @@ public class MonthAvgRentService {
     //상세보기 카드에 area filter로 적용된 응답dto
     @Transactional(readOnly = true)
     public List<MonthTotalTradeAreaResponse> getTotalTradeWithExclusive(Long aptId, Integer periodRow, Long areaKey){
-
-
-
         Long areaTypeId = aptId * 1_000_000L  + areaKey;
 
         String maxYyyymm = Yyyymm.lastMonthYyyymm(LocalDate.now());
