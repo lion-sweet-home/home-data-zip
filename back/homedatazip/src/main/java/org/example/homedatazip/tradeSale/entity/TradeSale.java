@@ -13,11 +13,14 @@ import java.time.LocalDate;
 @Getter
 @Table(
         name = "trade_sale",
-        indexes = {
-                @Index(
-                        name = "idx_trade_sale_apt_date",
-                        columnList = "apartment_id, deal_date"
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uq_trade_sale_item",
+                        columnNames = {"apartment_id", "dealDate", "dealAmount", "exclusiveArea", "floor"}
                 )
+        },
+        indexes = {
+                @Index(name = "idx_trade_sale_apt_date", columnList = "apartment_id, deal_date")
         }
 )
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

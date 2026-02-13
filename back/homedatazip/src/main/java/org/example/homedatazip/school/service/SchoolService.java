@@ -7,6 +7,7 @@ import org.example.homedatazip.apartment.repository.ApartmentSchoolDistanceRepos
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.SchoolErrorCode;
 import org.example.homedatazip.school.dto.ApartmentNearSchoolResponse;
+import org.example.homedatazip.school.dto.NearbySchoolResponse;
 import org.example.homedatazip.school.dto.SchoolResponse;
 import org.example.homedatazip.school.dto.SchoolSearchRequest;
 import org.example.homedatazip.school.entity.School;
@@ -23,11 +24,12 @@ import java.util.Set;
 public class SchoolService {
 
     private static final Set<Double> ALLOWED_RADIUS_KM = Set.of(0.5, 1.0, 2.0, 3.0, 5.0, 10.0);
+    private static final int NEARBY_SCHOOL_TOP3 = 3;
 
     private final SchoolRepository schoolRepository;
     private final ApartmentSchoolDistanceRepository apartmentSchoolDistanceRepository;
 
-    /** 시도·구군(필수), 동(옵션)으로 학교 목록 조회. 시도·구군 없으면 빈 목록 */
+    /** 시도·구군(필수), 동·schoolLevel(옵션)으로 학교 목록 조회. 시도·구군 없으면 빈 목록 */
     @Transactional(readOnly = true)
     public List<SchoolResponse> searchSchoolsByRegion(SchoolSearchRequest request) {
         if (!StringUtils.hasText(request.sido()) || !StringUtils.hasText(request.gugun())) {
@@ -35,8 +37,14 @@ public class SchoolService {
         }
         String dongOptional = StringUtils.hasText(request.dong()) ? request.dong() : null;
 
-        List<School> schools = schoolRepository.findByRegionSidoAndGugunAndDongOptional(
-                request.sido(), request.gugun(), dongOptional);
+        List<School> schools;
+        if (request.schoolLevel() == null || request.schoolLevel().isEmpty()) {
+            schools = schoolRepository.findByRegionSidoAndGugunAndDongOptional(
+                    request.sido(), request.gugun(), dongOptional);
+        } else {
+            schools = schoolRepository.findByRegionSidoAndGugunAndDongOptionalWithSchoolLevel(
+                    request.sido(), request.gugun(), dongOptional, request.schoolLevel());
+        }
 
         return schools.stream()
                 .map(SchoolResponse::from)
@@ -58,6 +66,33 @@ public class SchoolService {
         return distances.stream()
                 .map(this::toApartmentNearSchoolResponse)
                 .toList();
+    }
+
+    /** 아파트 기준 가까운 학교 top 3 */
+    @Transactional(readOnly = true)
+    public List<NearbySchoolResponse> findNearbySchoolsByApartmentId(Long apartmentId, List<String> schoolLevels) {
+        List<ApartmentSchoolDistance> distances;
+        if (schoolLevels == null || schoolLevels.isEmpty()) {
+            distances = apartmentSchoolDistanceRepository.findByApartmentIdWithSchool(apartmentId, 10.0);
+        } else {
+            distances = apartmentSchoolDistanceRepository.findByApartmentIdWithSchoolAndLevels(
+                    apartmentId, 10.0, schoolLevels);
+        }
+
+        return distances.stream()
+                .limit(NEARBY_SCHOOL_TOP3)
+                .map(this::toNearbySchoolResponse)
+                .toList();
+    }
+
+    private NearbySchoolResponse toNearbySchoolResponse(ApartmentSchoolDistance asd) {
+        School school = asd.getSchool();
+        double distanceKm = Math.round(asd.getDistanceKm() * 1000.0) / 1000.0;
+        return new NearbySchoolResponse(
+                school.getName(),
+                school.getSchoolLevel(),
+                distanceKm
+        );
     }
 
     private ApartmentNearSchoolResponse toApartmentNearSchoolResponse(ApartmentSchoolDistance asd) {

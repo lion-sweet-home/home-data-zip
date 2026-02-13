@@ -44,8 +44,8 @@ public class ApartmentBatchConfig {
     @Bean
     public TaskExecutor batchTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(5);
-        executor.setMaxPoolSize(10);
+        executor.setCorePoolSize(3);
+        executor.setMaxPoolSize(5);
         executor.setThreadNamePrefix("apt-batch-");
         executor.initialize();
         return executor;
@@ -64,7 +64,7 @@ public class ApartmentBatchConfig {
         return new StepBuilder("apartmentTradeManagerStep", jobRepository)
                 .partitioner("workerStep", new ApartmentIdPartitioner(regionRepository))
                 .step(apartmentTradeSaleStep())
-                .gridSize(5)
+                .gridSize(3)
                 .taskExecutor(batchTaskExecutor())
                 .build();
     }
@@ -81,7 +81,7 @@ public class ApartmentBatchConfig {
                 .retry(BatchRetryException.class)
                 .retry(org.springframework.dao.DeadlockLoserDataAccessException.class)
                 .retry(org.springframework.dao.CannotAcquireLockException.class)
-                .retryLimit(3) // 3번까지 다시 시도
+                .retryLimit(10) // 3번까지 다시 시도
                 .backOffPolicy(fixedBackOffPolicy) // BackOff 설정 : 재시도 사이의 대기시간
                 .build();
     }
