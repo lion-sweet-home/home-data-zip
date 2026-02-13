@@ -328,10 +328,10 @@ export default function Filter({ onSearch, initialParams }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-      {/* 매매/전월세 선택 */}
-      <div className="mb-4">
-        <div className="flex gap-2">
+    <div className="bg-white border-b border-gray-200 py-1 px-3 h-16 flex items-center">
+      <div className="flex items-center gap-2 w-full overflow-x-auto">
+        {/* 매매/전월세 선택 */}
+        <div className="flex gap-1 flex-shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -342,7 +342,7 @@ export default function Filter({ onSearch, initialParams }) {
               setMonthlyRentMin('');
               setMonthlyRentMax('');
             }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               tradeType === '매매'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -358,7 +358,7 @@ export default function Filter({ onSearch, initialParams }) {
               setPriceMin('');
               setPriceMax('');
             }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               tradeType === '전월세'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -367,340 +367,238 @@ export default function Filter({ onSearch, initialParams }) {
             전/월세
           </button>
         </div>
-      </div>
 
-      {/* 검색 조건 타입 선택 */}
-      <div className="mb-4">
-        <div className="flex gap-2">
+        {/* 검색 조건 타입 선택 */}
+        <div className="flex gap-1 flex-shrink-0">
           <button
             type="button"
             onClick={() => {
               setSearchConditionType('region');
-              setSubwaySearchKeyword('');
-              setSubwayResults([]);
-              setSelectedSubwayStation(null);
-              setSubwayRadiusActive(false);
+              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
+              // 다른 모드의 상태는 유지한다.
             }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               searchConditionType === 'region'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            지역 검색
+            지역
           </button>
           <button
             type="button"
             onClick={() => {
               setSearchConditionType('subway');
-              setSelectedSido('');
-              setSelectedGugun('');
-              setSelectedDong('');
-              setSchoolList([]);
+              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
+              // 다른 모드의 상태는 유지한다.
             }}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
               searchConditionType === 'subway'
                 ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
-            지하철역 검색
+            지하철
           </button>
         </div>
-      </div>
 
-      {/* 필터 바 */}
-      <div className="flex flex-wrap items-center gap-3">
-        {/* 지역 검색일 때 */}
-        {searchConditionType === 'region' && (
+        {/* 필터 바 */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+          {/* 지역 검색일 때 */}
+          {searchConditionType === 'region' && (
           <>
             {/* 시/도 선택 */}
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600 mb-1">시/도</label>
-              <select
-                value={selectedSido}
-                onChange={(e) => setSelectedSido(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 min-w-[120px]"
-              >
-                <option value="">시/도 선택</option>
-                {sidoList.filter((sido) => sido != null).map((sido) => (
-                  <option key={sido} value={sido}>
-                    {sido}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedSido}
+              onChange={(e) => setSelectedSido(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 min-w-[100px] flex-shrink-0"
+            >
+              <option value="">시/도</option>
+              {sidoList.filter((sido) => sido != null).map((sido) => (
+                <option key={sido} value={sido}>
+                  {sido}
+                </option>
+              ))}
+            </select>
 
             {/* 구/군 선택 */}
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600 mb-1">구/군</label>
-              <select
-                value={selectedGugun}
-                onChange={(e) => setSelectedGugun(e.target.value)}
-                disabled={!selectedSido}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600 min-w-[120px]"
-              >
-                <option value="">구/군 선택</option>
-                {gugunList.filter((gugun) => gugun != null).map((gugun) => (
-                  <option key={gugun} value={gugun}>
-                    {gugun}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedGugun}
+              onChange={(e) => setSelectedGugun(e.target.value)}
+              disabled={!selectedSido}
+              className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600 min-w-[100px] flex-shrink-0"
+            >
+              <option value="">구/군</option>
+              {gugunList.filter((gugun) => gugun != null).map((gugun) => (
+                <option key={gugun} value={gugun}>
+                  {gugun}
+                </option>
+              ))}
+            </select>
 
             {/* 동 선택 */}
-            <div className="flex flex-col">
-              <label className="text-xs text-gray-600 mb-1">동</label>
-              <select
-                value={selectedDong}
-                onChange={(e) => setSelectedDong(e.target.value)}
-                disabled={!selectedGugun}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600 min-w-[120px]"
-              >
-                <option value="">동 선택</option>
-                {dongList.filter((dong) => dong != null).map((dong) => (
-                  <option key={dong} value={dong}>
-                    {dong}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedDong}
+              onChange={(e) => setSelectedDong(e.target.value)}
+              disabled={!selectedGugun}
+              className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600 min-w-[100px] flex-shrink-0"
+            >
+              <option value="">동</option>
+              {dongList.filter((dong) => dong != null).map((dong) => (
+                <option key={dong} value={dong}>
+                  {dong}
+                </option>
+              ))}
+            </select>
           </>
-        )}
+          )}
 
-        {/* 지하철역 검색일 때 */}
-        {searchConditionType === 'subway' && (
-          <div className="flex-1 min-w-[300px]">
-            <div className="flex gap-2">
-              <select
-                value={subwaySearchType}
-                onChange={(e) => setSubwaySearchType(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-              >
-                <option value="stationName">역명</option>
-                <option value="lineName">호선</option>
-              </select>
-              <input
-                type="text"
-                value={subwaySearchKeyword}
-                onChange={(e) => setSubwaySearchKeyword(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSubwaySearch()}
-                placeholder={subwaySearchType === 'stationName' ? '역명 입력' : '호선 입력'}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
-              />
-              <button
-                type="button"
-                onClick={handleSubwaySearch}
-                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 transition-colors"
-              >
-                검색
-              </button>
-            </div>
-            {/* 지하철역 검색 결과 */}
-            {subwayResults.length > 0 && (
-              <div className="mt-2 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
-                {subwayResults.slice(0, 5).map((station) => (
-                  <button
-                    key={station.stationId}
-                    type="button"
-                    onClick={() => handleSelectSubwayStation(station)}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${
-                      selectedSubwayStation?.stationId === station.stationId
-                        ? 'bg-blue-50 border-blue-200'
-                        : ''
-                    }`}
-                  >
-                    <div className="font-medium text-gray-900">{station.stationName}</div>
-                    <div className="text-xs text-gray-600">
-                      {station.lineNames?.join(', ') || '-'}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
+          {/* 지하철역 검색일 때 */}
+          {searchConditionType === 'subway' && (
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <select
+              value={subwaySearchType}
+              onChange={(e) => setSubwaySearchType(e.target.value)}
+              className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 flex-shrink-0"
+            >
+              <option value="stationName">역명</option>
+              <option value="lineName">호선</option>
+            </select>
+            <input
+              type="text"
+              value={subwaySearchKeyword}
+              onChange={(e) => setSubwaySearchKeyword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSubwaySearch()}
+              placeholder={subwaySearchType === 'stationName' ? '역명 입력' : '호선 입력'}
+              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 min-w-0"
+            />
+            <button
+              type="button"
+              onClick={handleSubwaySearch}
+              className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition-colors flex-shrink-0"
+            >
+              검색
+            </button>
             {selectedSubwayStation && (
-              <div className="mt-2 flex flex-wrap items-center gap-3">
-                <div className="text-sm text-gray-700">
-                  선택: <span className="font-medium">{selectedSubwayStation.stationName}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700 font-medium">반경</span>
-                  <select
-                    value={subwayRadius}
-                    onChange={(e) => {
-                      setSubwayRadius(parseFloat(e.target.value));
-                      setSubwayRadiusActive(true);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
-                  >
-                    <option value={0.5}>0.5km</option>
-                    <option value={1.0}>1km</option>
-                    <option value={2.0}>2km</option>
-                    <option value={3.0}>3km</option>
-                    <option value={5.0}>5km</option>
-                    <option value={10.0}>10km</option>
-                  </select>
-                </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs text-gray-700">{selectedSubwayStation.stationName}</span>
+                <select
+                  value={subwayRadius}
+                  onChange={(e) => {
+                    setSubwayRadius(parseFloat(e.target.value));
+                    setSubwayRadiusActive(true);
+                  }}
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                >
+                  <option value={0.5}>0.5km</option>
+                  <option value={1.0}>1km</option>
+                  <option value={2.0}>2km</option>
+                  <option value={3.0}>3km</option>
+                  <option value={5.0}>5km</option>
+                  <option value={10.0}>10km</option>
+                </select>
               </div>
             )}
           </div>
-        )}
+          )}
 
-        {/* 기간 선택 */}
-        <div className="flex flex-col">
-          <label className="text-xs text-gray-600 mb-1">기간</label>
+          {/* 기간 선택 */}
           <select
-            value={period}
-            onChange={(e) => setPeriod(Number(e.target.value))}
-            className="px-3 py-2 border-2 border-blue-500 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 bg-white font-medium min-w-[120px]"
-          >
-            <option value={6}>최근 6개월</option>
-            <option value={12}>최근 1년</option>
-            <option value={24}>최근 2년</option>
-            <option value={36}>최근 3년</option>
-            <option value={48}>최근 4년</option>
+          value={period}
+          onChange={(e) => setPeriod(Number(e.target.value))}
+          className="px-2 py-1 border-2 border-blue-500 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 bg-white font-medium min-w-[90px] flex-shrink-0"
+        >
+          <option value={6}>6개월</option>
+          <option value={12}>1년</option>
+          <option value={24}>2년</option>
+          <option value={36}>3년</option>
+          <option value={48}>4년</option>
           </select>
-        </div>
 
-        {/* 가격 범위 */}
-        {searchConditionType === 'region' && (
+          {/* 가격 범위 */}
+          {searchConditionType === 'region' && (
           <>
             {tradeType === '매매' ? (
               <>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">최소(만원)</label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      value={priceMin}
-                      onChange={(e) => setPriceMin(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32 pr-8"
-                    />
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col">
-                      <button
-                        type="button"
-                        onClick={() => setPriceMin(String(Number(priceMin || 0) + 1000))}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        ▲
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPriceMin(String(Math.max(0, Number(priceMin || 0) - 1000)))}
-                        className="text-xs text-gray-500 hover:text-gray-700"
-                      >
-                        ▼
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                <span className="text-gray-500 mt-6">~</span>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">최대(만원)</label>
-                  <input
-                    type="number"
-                    value={priceMax}
-                    onChange={(e) => setPriceMax(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32"
-                  />
-                </div>
+                <input
+                  type="number"
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  placeholder="최소"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-gray-500 text-xs">~</span>
+                <input
+                  type="number"
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  placeholder="최대"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-500 flex-shrink-0">만원</span>
               </>
             ) : (
               <>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">보증금 최소(만원)</label>
-                  <input
-                    type="number"
-                    value={depositMin}
-                    onChange={(e) => setDepositMin(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32"
-                  />
-                </div>
-                <span className="text-gray-500 mt-6">~</span>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">보증금 최대(만원)</label>
-                  <input
-                    type="number"
-                    value={depositMax}
-                    onChange={(e) => setDepositMax(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32"
-                  />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">월세 최소(만원)</label>
-                  <input
-                    type="number"
-                    value={monthlyRentMin}
-                    onChange={(e) => setMonthlyRentMin(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32"
-                  />
-                </div>
-                <span className="text-gray-500 mt-6">~</span>
-                <div className="flex flex-col">
-                  <label className="text-xs text-gray-600 mb-1">월세 최대(만원)</label>
-                  <input
-                    type="number"
-                    value={monthlyRentMax}
-                    onChange={(e) => setMonthlyRentMax(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-32"
-                  />
-                </div>
+                <input
+                  type="number"
+                  value={depositMin}
+                  onChange={(e) => setDepositMin(e.target.value)}
+                  placeholder="보증금 최소"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-gray-500 text-xs">~</span>
+                <input
+                  type="number"
+                  value={depositMax}
+                  onChange={(e) => setDepositMax(e.target.value)}
+                  placeholder="보증금 최대"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <input
+                  type="number"
+                  value={monthlyRentMin}
+                  onChange={(e) => setMonthlyRentMin(e.target.value)}
+                  placeholder="월세 최소"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-gray-500 text-xs">~</span>
+                <input
+                  type="number"
+                  value={monthlyRentMax}
+                  onChange={(e) => setMonthlyRentMax(e.target.value)}
+                  placeholder="월세 최대"
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
+                />
+                <span className="text-xs text-gray-500 flex-shrink-0">만원</span>
               </>
             )}
           </>
-        )}
+          )}
 
-        {/* 조회하기 버튼 */}
-        <div className="flex items-end">
-          <button
-            onClick={handleSearch}
-            disabled={
-              searchConditionType === 'region'
-                ? !selectedSido || !selectedGugun
-                : !selectedSubwayStation
-            }
-            className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
-              (searchConditionType === 'region' && selectedSido && selectedGugun) ||
-              (searchConditionType === 'subway' && selectedSubwayStation)
-                ? 'bg-blue-600 text-white hover:bg-blue-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-            }`}
-          >
-            조회하기
-          </button>
-        </div>
-      </div>
-
-      {/* 학교 필터 (지역 검색일 때만) */}
-      {searchConditionType === 'region' && selectedSido && selectedGugun && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <label className="block text-sm font-medium text-gray-700 mb-2">학교 필터</label>
-          <div className="flex gap-4 mb-3">
-            {['초등학교', '중학교', '고등학교'].map((type) => (
-              <label key={type} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={schoolTypes[type]}
-                  onChange={() => handleSchoolTypeChange(type)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700">{type}</span>
-              </label>
-            ))}
-          </div>
-
-          {/* 학교 반경 선택 */}
-          {Object.values(schoolTypes).some((selected) => selected) && (
-            <div className="flex items-center gap-4">
-              <label className="text-sm font-medium text-gray-700">반경:</label>
+          {/* 학교 필터 (지역 검색일 때만) */}
+          {searchConditionType === 'region' && selectedSido && selectedGugun && (
+          <>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {['초등학교', '중학교', '고등학교'].map((type) => (
+                <label key={type} className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={schoolTypes[type]}
+                    onChange={() => handleSchoolTypeChange(type)}
+                    className="w-3 h-3 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="text-xs text-gray-700">{type.replace('학교', '')}</span>
+                </label>
+              ))}
+            </div>
+            {Object.values(schoolTypes).some((selected) => selected) && (
               <select
                 value={schoolRadius}
                 onChange={(e) => {
                   setSchoolRadius(parseFloat(e.target.value));
                   setSchoolRadiusActive(true);
                 }}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 flex-shrink-0"
               >
                 <option value={0.5}>0.5km</option>
                 <option value={1.0}>1.0km</option>
@@ -709,27 +607,29 @@ export default function Filter({ onSearch, initialParams }) {
                 <option value={5.0}>5.0km</option>
                 <option value={10.0}>10.0km</option>
               </select>
-            </div>
+            )}
+          </>
           )}
 
-          {/* 학교 목록 표시 */}
-          {schoolList.length > 0 && (
-            <div className="mt-3 border border-gray-200 rounded-lg max-h-40 overflow-y-auto">
-              <div className="px-3 py-2 bg-gray-50 text-xs font-medium text-gray-700 border-b">
-                검색된 학교 ({schoolList.length}개)
-              </div>
-              {schoolList.map((school) => (
-                <div key={school.id} className="px-3 py-2 border-b border-gray-100 last:border-b-0">
-                  <div className="text-sm font-medium text-gray-900">{school.name}</div>
-                  <div className="text-xs text-gray-600">
-                    {school.schoolLevel} · {school.roadAddress}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* 조회하기 버튼 */}
+          <button
+          onClick={handleSearch}
+          disabled={
+            searchConditionType === 'region'
+              ? !selectedSido || !selectedGugun
+              : !selectedSubwayStation
+          }
+          className={`px-4 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
+            (searchConditionType === 'region' && selectedSido && selectedGugun) ||
+            (searchConditionType === 'subway' && selectedSubwayStation)
+              ? 'bg-blue-600 text-white hover:bg-blue-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+          >
+            조회
+          </button>
         </div>
-      )}
+      </div>
     </div>
   );
 }

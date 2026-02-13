@@ -7,6 +7,7 @@ public record MonthTop3JeonsePriceResponse(
         Double exclusive,
         String aptName,
         String gugun,
+        String dong,
         String yyyymm,
         Integer jeonseCount,
         Long avgDeposit,

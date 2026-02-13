@@ -91,4 +91,11 @@ public class MonthAvgRentController {
         List<MonthTop3WolsePriceResponse> wolseTop3ByRegion = monthAvgRentService.getWolseTop3ByRegion();
         return  ResponseEntity.ok(wolseTop3ByRegion);
     }
+
+    //홈에 들어올 거래량 Top 3 등락률 매매
+    @GetMapping("/sale")
+    public ResponseEntity<List<MonthTop3SalePriceResponse>> saleTop3ByRegion() {
+        List<MonthTop3SalePriceResponse> saleTop3ByRegion = monthAvgRentService.getSaleTop3ByRegion();
+        return ResponseEntity.ok(saleTop3ByRegion);
+    }
 }

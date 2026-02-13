@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Filter from './components/filter';
 import Map from './components/map';
@@ -13,6 +13,8 @@ import { getRentMarkers } from '../../api/apartment_rent';
 export default function MapSearchPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasRestoredFromSessionRef = useRef(false);
+  const pendingSelectedApartmentRestoreRef = useRef(null);
   
   // 선택된 아파트 정보
   const [selectedApartment, setSelectedApartment] = useState(null);
@@ -22,10 +24,6 @@ export default function MapSearchPage() {
   const [apartments, setApartments] = useState([]);
   const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
   const [loading, setLoading] = useState(false);
-
-  // 버스 마커 관련
-  const [busMarkers, setBusMarkers] = useState([]);
-  const [showBusMarkers, setShowBusMarkers] = useState(false);
 
   // 학교 마커 관련
   const [schoolMarkers, setSchoolMarkers] = useState([]);
@@ -39,6 +37,48 @@ export default function MapSearchPage() {
 
   // URL 파라미터에서 초기 검색 조건 로드
   useEffect(() => {
+    // URL에 쿼리가 없으면(session 진입 / 새 탭 / 상세에서 복귀 등),
+    // 마지막 검색조건을 sessionStorage에서 복원한다.
+    const queryString = searchParams.toString();
+    if (!queryString && !hasRestoredFromSessionRef.current) {
+      hasRestoredFromSessionRef.current = true;
+      try {
+        // "상세에서 복귀" 케이스면 마지막 선택 아파트도 복원 후보로 저장한다.
+        const shouldRestoreSelected = sessionStorage.getItem('search_map_restoreSelected') === '1';
+        if (shouldRestoreSelected) {
+          const storedSelected = sessionStorage.getItem('search_map_selectedApartment');
+          if (storedSelected) {
+            try {
+              const parsedSelected = JSON.parse(storedSelected);
+              if (parsedSelected && typeof parsedSelected === 'object') {
+                pendingSelectedApartmentRestoreRef.current = parsedSelected;
+              }
+            } catch (e) {
+              // ignore
+            }
+          }
+          sessionStorage.removeItem('search_map_restoreSelected');
+        }
+
+        const stored = sessionStorage.getItem('search_map_lastParams');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            setInitialFilterParams(parsed);
+            // 복원 후 자동 검색
+            if (parsed.searchConditionType === 'region' && parsed.sido && parsed.gugun) {
+              handleSearch(parsed);
+            } else if (parsed.searchConditionType === 'subway' && parsed.subwayStationId) {
+              handleSearch(parsed);
+            }
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
     const sido = searchParams.get('sido');
     const gugun = searchParams.get('gugun');
     const dong = searchParams.get('dong');
@@ -105,8 +145,7 @@ export default function MapSearchPage() {
     if (searchConditionType === 'region' && sido && gugun) {
       handleSearch(initial);
     } else if (searchConditionType === 'subway' && subwayStationId) {
-      // TODO: subway 검색도 마커 조회 로직 완성되면 자동 검색 활성화
-      // handleSearch(initial);
+      handleSearch(initial);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
@@ -116,8 +155,6 @@ export default function MapSearchPage() {
     setLoading(true);
     setSelectedApartment(null);
     setShowSidePanner(false);
-    setBusMarkers([]);
-    setShowBusMarkers(false);
     setSchoolMarkers([]);
     setShowSchoolMarkers(false);
 
@@ -126,6 +163,15 @@ export default function MapSearchPage() {
       
       // 현재 검색 파라미터 저장 (마커 클릭 시 사용)
       setCurrentSearchParams(searchParams);
+      // 검색조건 보존(상세페이지 갔다가 돌아와도 유지)
+      try {
+        sessionStorage.setItem('search_map_lastParams', JSON.stringify(searchParams));
+        sessionStorage.setItem('search_tradeType', tradeType);
+        // 새 검색이면 "마지막 선택 아파트"는 일단 해제(검색결과가 바뀌므로)
+        sessionStorage.removeItem('search_map_selectedApartment');
+      } catch (e) {
+        // ignore
+      }
 
       // 마커 조회
       let markers = [];
@@ -208,13 +254,56 @@ export default function MapSearchPage() {
     }
   };
 
+  // "상세에서 복귀" 시 마지막 선택 아파트(사이드패널)를 다시 열어준다.
+  useEffect(() => {
+    const pending = pendingSelectedApartmentRestoreRef.current;
+    if (!pending) return;
+    if (loading) return;
+    if (!apartments || apartments.length === 0) return;
+
+    const targetId = pending?.id;
+    if (!targetId) {
+      pendingSelectedApartmentRestoreRef.current = null;
+      return;
+    }
+
+    const idx = apartments.findIndex((m) => String(m?.apartmentId) === String(targetId));
+    if (idx < 0) {
+      // 검색 결과에 없으면 복원하지 않는다.
+      pendingSelectedApartmentRestoreRef.current = null;
+      return;
+    }
+
+    const markerData = apartments[idx];
+    const apt = markerData?.apartmentData || markerData || {};
+    const restored = {
+      id: targetId,
+      name: pending?.name || markerData?.title || apt.aptNm || apt.aptName || apt.name || '아파트',
+      address: pending?.address || apt.roadAddress || apt.address || apt.jibunAddress || '',
+      sido: pending?.sido || currentSearchParams?.sido || apt.sido || '',
+      gugun: pending?.gugun || currentSearchParams?.gugun || apt.gugun || '',
+      dong: pending?.dong || currentSearchParams?.dong || apt.dong || '',
+      latitude: pending?.latitude || apt.latitude || apt.lat,
+      longitude: pending?.longitude || apt.longitude || apt.lng,
+    };
+
+    setSelectedApartment(restored);
+    setShowSidePanner(true);
+    if (restored.latitude != null && restored.longitude != null) {
+      setMapCenter({ lat: restored.latitude, lng: restored.longitude });
+    }
+
+    // 복원 완료
+    pendingSelectedApartmentRestoreRef.current = null;
+  }, [apartments, loading, currentSearchParams]);
+
   // 마커 클릭 핸들러
   const handleMarkerClick = async (markerData, index) => {
     const apartment = markerData.apartmentData || markerData;
     const apartmentId = apartment.aptId || apartment.apartmentId || apartment.id;
     
     // 아파트 정보 설정 (사이드 패널에 필요한 모든 정보 포함)
-    setSelectedApartment({
+    const nextSelected = {
       id: apartmentId,
       name: apartment.aptNm || apartment.aptName || apartment.aptName || apartment.name || '아파트',
       address: apartment.roadAddress || apartment.address || apartment.jibunAddress || '',
@@ -223,29 +312,33 @@ export default function MapSearchPage() {
       dong: currentSearchParams?.dong || apartment.dong || '',
       latitude: apartment.latitude || apartment.lat,
       longitude: apartment.longitude || apartment.lng,
-    });
+    };
+    setSelectedApartment(nextSelected);
     setShowSidePanner(true);
+
+    // 마지막 선택 아파트 저장(상세페이지 복귀 시 복원용)
+    try {
+      sessionStorage.setItem('search_map_selectedApartment', JSON.stringify(nextSelected));
+    } catch (e) {
+      // ignore
+    }
   };
 
   // 지도 클릭 핸들러 (사이드 패널 닫기)
   const handleMapClick = () => {
     setShowSidePanner(false);
     setSelectedApartment(null);
+    try {
+      sessionStorage.removeItem('search_map_selectedApartment');
+    } catch (e) {
+      // ignore
+    }
   };
 
   // 버스 마커 토글
   const handleToggleBusMarker = useCallback((stations, visible) => {
-    if (visible && stations) {
-      const markers = stations.map((station) => ({
-        latitude: station.latitude,
-        longitude: station.longitude,
-        name: station.name || station.stationNumber,
-      }));
-      setBusMarkers(markers);
-    } else {
-      setBusMarkers([]);
-    }
-    setShowBusMarkers(visible);
+    // TODO: 버스 마커 기능 구현 필요
+    // 현재는 SidePanner에서 호출되지만 Map 컴포넌트에 버스 마커 지원이 필요
   }, []);
 
   // 학교 마커 토글
@@ -268,6 +361,16 @@ export default function MapSearchPage() {
   const handleShowDetail = (apartmentId) => {
     if (!apartmentId) return;
 
+    // 상세에서 돌아올 때 검색상태를 복원할 수 있도록 현재 URL을 저장
+    try {
+      const currentUrl = `${window.location.pathname}${window.location.search || ''}`;
+      sessionStorage.setItem('search_map_lastUrl', currentUrl);
+      // 상세에서 복귀 시 마지막 선택 아파트까지 복원하도록 플래그 설정
+      sessionStorage.setItem('search_map_restoreSelected', '1');
+    } catch (e) {
+      // ignore
+    }
+
     const params = new URLSearchParams();
     params.append('aptId', String(apartmentId));
     params.append('tradeType', currentSearchParams?.tradeType || '매매');
@@ -289,7 +392,7 @@ export default function MapSearchPage() {
   return (
     <div className="flex flex-col h-screen">
       {/* 상단 필터 */}
-      <div className="flex-shrink-0 p-4 bg-gray-50 border-b">
+      <div className="flex-shrink-0 bg-gray-50 border-b">
         <Filter onSearch={handleSearch} initialParams={initialFilterParams} />
       </div>
 
@@ -303,6 +406,7 @@ export default function MapSearchPage() {
                 apartmentId={selectedApartment.id}
                 apartmentInfo={selectedApartment}
                 schoolLevels={currentSearchParams?.schoolTypes}
+                tradeType={currentSearchParams?.tradeType || '매매'}
                 onShowDetail={handleShowDetail}
                 onToggleBusMarker={handleToggleBusMarker}
                 onToggleSchoolMarker={handleToggleSchoolMarker}
@@ -328,8 +432,6 @@ export default function MapSearchPage() {
             markers={apartments}
             onMarkerClick={handleMarkerClick}
             onMapClick={handleMapClick}
-            busMarkers={busMarkers}
-            showBusMarkers={showBusMarkers}
             schoolMarkers={schoolMarkers}
             showSchoolMarkers={showSchoolMarkers}
           />

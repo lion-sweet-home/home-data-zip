@@ -5,6 +5,7 @@ public record MonthTop3WolsePriceResponse(
         Double exclusive,
         String aptName,
         String gugun,
+        String dong,
         String yyyymm,
         Integer wolseCount,
         Long avgDeposit,
