@@ -2,10 +2,7 @@ package org.example.homedatazip.chat.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.example.homedatazip.chat.dto.ChatMessageRequest;
-import org.example.homedatazip.chat.dto.ChatMessageResponse;
-import org.example.homedatazip.chat.dto.ChatRoomDetailResponse;
-import org.example.homedatazip.chat.dto.ChatRoomListResponse;
+import org.example.homedatazip.chat.dto.*;
 import org.example.homedatazip.chat.entity.ChatMessage;
 import org.example.homedatazip.chat.entity.ChatRoom;
 import org.example.homedatazip.chat.entity.MessageType;
@@ -19,6 +16,7 @@ import org.example.homedatazip.listing.repository.ListingRepository;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -40,8 +38,10 @@ public class ChatService {
     private final SimpMessagingTemplate messagingTemplate;
     private final ChatSessionManager chatSessionManager;
     private final SseEmitterService sseEmitterService;
+    private final ApplicationEventPublisher applicationEventPublisher;
 
     // 채팅방 리스트 조회
+    @Transactional(readOnly = true)
     public List<ChatRoomListResponse> getRooms(Long userId) {
         List<ChatRoom> rooms = chatRoomRepository.findAllByUserId(userId);
 
@@ -162,13 +162,12 @@ public class ChatService {
 
         chatRoom.updateLastMessage(save.getContent(), save.getCreatedAt());
 
-        // 상대방이 방에 없다면
-        if (!isRead) {
-            long totalUnread = chatMessageRepository.countTotalUnreadMessages(opponent.getId());
-            log.info("읽지 않은 메시지 개수 - opponent={}, count={}", opponent.getNickname(), totalUnread);
-            // sse로 숫자 전송
-            sseEmitterService.sendUnreadCount(opponent.getId(), totalUnread);
-        }
+        long totalUnread = chatMessageRepository.countTotalUnreadMessages(opponent.getId());
+
+        // 이벤트 발행 : 이 메서드가 커밋되면 리스너의 메서드가 호출된다.
+        applicationEventPublisher.publishEvent(ChatMessageEvent.create(
+                save, opponent.getId(), sender.getId(), totalUnread
+        ));
 
         ChatMessageResponse response = ChatMessageResponse.create(chatMessage);
 
