@@ -59,6 +59,10 @@ public class ListingController {
             @RequestParam(required = false) RentType rentType,
             @RequestParam(defaultValue = "50") int limit
     ) {
+        if (tradeType == null && rentType != null) {
+            tradeType = TradeType.RENT;
+        }
+
         return ResponseEntity.ok(
                 listingQueryService.search(regionId, apartmentId, tradeType, rentType, limit)
         );

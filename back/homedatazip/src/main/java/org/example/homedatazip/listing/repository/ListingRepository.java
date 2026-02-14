@@ -18,9 +18,11 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
     @Query("""
         SELECT l
         FROM Listing l
-        WHERE l.status = 'ACTIVE'
-          AND (:regionId IS NULL OR l.region.id = :regionId)
-          AND (:apartmentId IS NULL OR l.apartment.id = :apartmentId)
+        JOIN FETCH l.region r
+        JOIN FETCH l.apartment a
+        WHERE l.status = org.example.homedatazip.listing.type.ListingStatus.ACTIVE
+          AND (:regionId IS NULL OR r.id = :regionId)
+          AND (:apartmentId IS NULL OR a.id = :apartmentId)
           AND (:tradeType IS NULL OR l.tradeType = :tradeType)
         ORDER BY l.createdAt DESC
     """)
@@ -29,5 +31,4 @@ public interface ListingRepository extends JpaRepository<Listing, Long> {
     default List<Listing> searchActive(Long regionId, Long apartmentId, TradeType tradeType, int limit) {
         return searchActive(regionId, apartmentId, tradeType, Pageable.ofSize(limit));
     }
-
 }
