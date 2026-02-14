@@ -5,6 +5,7 @@ import org.example.homedatazip.auth.handler.OAuth2SuccessHandler;
 import org.example.homedatazip.global.jwt.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -58,7 +59,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/schools/**").permitAll()
 
                         // 매매, 추후 create,me는 seller만 가능
-                        .requestMatchers("/api/listings/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/listings/me/**").hasRole("SELLER")
+                        .requestMatchers(HttpMethod.POST, "/api/listings/create/**").hasRole("SELLER")
+
+                        .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
 
                         // 구독, 추후 로그인한 사람에 한해 가능
                         .requestMatchers(
