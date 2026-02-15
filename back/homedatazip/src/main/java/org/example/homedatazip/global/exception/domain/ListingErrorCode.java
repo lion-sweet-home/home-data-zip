@@ -15,6 +15,9 @@ public enum ListingErrorCode implements ErrorCode {
     DEPOSIT_REQUIRED(HttpStatus.BAD_REQUEST, "LST_400_3", "전월세는 deposit이 필수이며 0보다 커야 합니다."),
     MONTHLY_RENT_INVALID(HttpStatus.BAD_REQUEST, "LST_400_4", "전월세 monthlyRent는 0 이상이어야 합니다. (전세=0)"),
     TRADE_TYPE_REQUIRED(HttpStatus.BAD_REQUEST, "LST_400_5", "거래유형(tradeType)은 필수입니다."),
+    IMAGE_META_MISMATCH(HttpStatus.BAD_REQUEST, "LST_400_6", "이미지 tempKey 목록과 원본 파일명 목록의 개수가 일치해야 합니다."),
+    IMAGE_TEMP_NOT_FOUND(HttpStatus.BAD_REQUEST, "LST_400_7", "업로드된 임시 이미지가 존재하지 않습니다. (tempKey 확인 필요)"),
+    IMAGE_MOVE_FAILED(HttpStatus.BAD_REQUEST, "LST_400_8", "이미지 이동 처리에 실패했습니다."),
 
     // 403
     FORBIDDEN(HttpStatus.FORBIDDEN, "LST_403_1", "해당 매물에 대한 권한이 없습니다."),

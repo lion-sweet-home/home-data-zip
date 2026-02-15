@@ -23,6 +23,7 @@ public record MyListingResponse(
         String description,
 
         String status,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String mainImageUrl
 ) {
 }

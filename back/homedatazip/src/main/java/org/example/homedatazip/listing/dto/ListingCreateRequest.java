@@ -4,6 +4,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.example.homedatazip.listing.type.TradeType;
 
+import java.util.List;
+
 public record ListingCreateRequest(
 
         @NotNull
@@ -27,9 +29,15 @@ public record ListingCreateRequest(
         // RENT일 때 필수 (전세면 0, 월세면 1 이상)
         Integer monthlyRent,
 
-        // null 가능
         String contactPhone,
+        String description,
 
-        String description
-) {
-}
+        //  이미지: temp 업로드 후 key 목록
+        List<String> imageTempKeys,
+
+        //  원본 파일명 목록
+        List<String> imageOriginalNames,
+
+        //  대표 이미지 인덱스(없으면 0)
+        Integer mainIndex
+) { }
