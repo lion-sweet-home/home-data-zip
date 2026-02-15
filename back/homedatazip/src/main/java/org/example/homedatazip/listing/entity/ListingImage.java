@@ -14,8 +14,8 @@ import org.example.homedatazip.common.BaseTimeEntity;
 )
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@AllArgsConstructor(access = AccessLevel.PRIVATE) // ✅ builder 통해서만 만들도록 막고 싶으면 PRIVATE OK
-@Builder(access = AccessLevel.PUBLIC)              // ✅ 근데 builder()는 PUBLIC 이어야 서비스에서 호출 가능
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder(access = AccessLevel.PUBLIC)
 public class ListingImage extends BaseTimeEntity {
 
     @Id

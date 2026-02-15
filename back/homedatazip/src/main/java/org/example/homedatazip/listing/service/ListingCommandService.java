@@ -29,6 +29,11 @@ public class ListingCommandService {
     @Transactional
     public Long create(Long userId, ListingCreateRequest request) {
 
+        System.out.println(">>> ListingCommandService.create() IN");
+        System.out.println(">>> tempKeys = " + request.imageTempKeys());
+        System.out.println(">>> originalNames = " + request.imageOriginalNames());
+        System.out.println(">>> mainIndex = " + request.mainIndex());
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("user not found"));
 
@@ -84,6 +89,10 @@ public class ListingCommandService {
             List<String> originalNames,
             Integer mainIndex
     ) {
+        System.out.println("### attachImagesOnCreate called. listingId=" + listing.getId());
+        System.out.println("### tempKeys=" + tempKeys);
+        System.out.println("### originalNames=" + originalNames);
+
         if (tempKeys == null || tempKeys.isEmpty()) return;
 
         if (originalNames == null || originalNames.size() != tempKeys.size()) {

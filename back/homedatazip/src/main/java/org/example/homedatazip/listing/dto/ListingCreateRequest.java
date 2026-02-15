@@ -29,18 +29,15 @@ public record ListingCreateRequest(
         // RENT일 때 필수 (전세면 0, 월세면 1 이상)
         Integer monthlyRent,
 
-        // null 가능
         String contactPhone,
-
         String description,
 
-        // 이미지: temp 업로드 후 넘어오는 key들
+        //  이미지: temp 업로드 후 key 목록
         List<String> imageTempKeys,
 
-        // 원본 파일명(확장자 추출용)
+        //  원본 파일명 목록
         List<String> imageOriginalNames,
 
-        // 대표 이미지 인덱스 (null이면 0)
+        //  대표 이미지 인덱스(없으면 0)
         Integer mainIndex
-) {
-}
+) { }
