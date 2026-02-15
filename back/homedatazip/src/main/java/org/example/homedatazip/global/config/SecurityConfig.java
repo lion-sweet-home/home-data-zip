@@ -66,7 +66,6 @@ public class SecurityConfig {
                         //S3 테스트 진행 후 셀로로 교체
                         .requestMatchers(HttpMethod.POST, "/api/s3/**").permitAll()
 
-                        // 구독, 추후 로그인한 사람에 한해 가능
                         .requestMatchers(
                                 "/api/subscriptions/billing/success",
                                 "/api/subscriptions/billing/fail"

@@ -3,9 +3,10 @@ package org.example.homedatazip.listing.controller;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.listing.dto.ListingCreateRequest;
+import org.example.homedatazip.listing.dto.ListingDetailResponse;
 import org.example.homedatazip.listing.dto.ListingSearchResponse;
 import org.example.homedatazip.listing.dto.MyListingResponse;
-import org.example.homedatazip.listing.entity.Listing;
+import org.example.homedatazip.listing.service.ListingCommandService;
 import org.example.homedatazip.listing.service.ListingService;
 import org.example.homedatazip.listing.service.ListingQueryService;
 import org.example.homedatazip.listing.type.RentType;
@@ -23,6 +24,7 @@ import java.util.Map;
 public class ListingController {
 
     private final ListingService listingService;
+    private final ListingCommandService listingCommandService;
     private final ListingQueryService listingQueryService;
 
     // 매물 등록
@@ -31,11 +33,10 @@ public class ListingController {
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestBody ListingCreateRequest request
     ) {
-        Listing saved = listingService.create(principal.getUserId(), request);
+        Long listingId = listingCommandService.create(principal.getUserId(), request);
 
         return ResponseEntity.ok(Map.of(
-                "listingId", saved.getId(),
-                "status", saved.getStatus().name()
+                "listingId", listingId
         ));
     }
 
@@ -91,5 +92,24 @@ public class ListingController {
         return ResponseEntity.ok(
                 listingQueryService.search(regionId, apartmentId, TradeType.RENT, rentType, limit)
         );
+    }
+
+    // 상세 조회 (이미지 포함)
+    @GetMapping("/{listingId}")
+    public ResponseEntity<ListingDetailResponse> detail(@PathVariable Long listingId) {
+        return ResponseEntity.ok(listingQueryService.detail(listingId));
+    }
+
+    // 삭제(soft delete) - 본인 매물만
+    @DeleteMapping("/{listingId}")
+    public ResponseEntity<Map<String, Object>> delete(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @PathVariable Long listingId
+    ) {
+        listingService.delete(principal.getUserId(), listingId);
+        return ResponseEntity.ok(Map.of(
+                "listingId", listingId,
+                "deleted", true
+        ));
     }
 }

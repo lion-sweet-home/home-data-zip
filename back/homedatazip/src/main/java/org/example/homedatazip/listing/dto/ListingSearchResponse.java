@@ -24,6 +24,7 @@ public record ListingSearchResponse(
         Integer monthlyRent,
 
         String description,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        String mainImageUrl
 ) {
 }

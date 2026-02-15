@@ -21,8 +21,15 @@ public class S3KeyGenerator {
      * 매물 확정 시 listings/{listingId}/ 아래로 이동(실제로는 copy + delete)
      */
     public String listingKey(Long listingId, String originalFilename) {
-        String ext = extensionOrEmpty(originalFilename);
-        return "listings/" + listingId + "/" + UUID.randomUUID() + ext;
+        String ext = "";
+        if (originalFilename != null) {
+            int dot = originalFilename.lastIndexOf('.');
+            if (dot >= 0 && dot < originalFilename.length() - 1) {
+                ext = originalFilename.substring(dot); // ".png"
+            }
+        }
+        // 원본파일명 버리고 안전한 이름으로
+        return "listing/" + listingId + "/" + java.util.UUID.randomUUID() + ext;
     }
 
     private String extensionOrEmpty(String filename) {
