@@ -11,6 +11,9 @@ import org.example.homedatazip.listing.type.ListingStatus;
 import org.example.homedatazip.listing.type.TradeType;
 import org.example.homedatazip.user.entity.User;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -160,5 +163,22 @@ public class Listing extends BaseTimeEntity {
 
     public void delete() {
         this.status = ListingStatus.DELETED;
+    }
+
+    //S3 이미지 삽입
+    @OneToMany(mappedBy = "listing", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ListingImage> images = new ArrayList<>();
+
+    public void addImage(ListingImage image) {
+        this.images.add(image);
+        image.setListing(this);
+    }
+
+
+    public void clearImages() {
+        for (ListingImage img : images) {
+            img.setListing(null);
+        }
+        images.clear();
     }
 }

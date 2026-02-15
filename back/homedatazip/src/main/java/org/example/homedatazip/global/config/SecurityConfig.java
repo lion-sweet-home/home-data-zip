@@ -58,17 +58,19 @@ public class SecurityConfig {
                         // 학교 지역 검색·반경 내 아파트
                         .requestMatchers("/api/schools/**").permitAll()
 
-                        // 매매, 추후 create,me는 seller만 가능
+                        // 매매
                         .requestMatchers(HttpMethod.GET, "/api/listings/me/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/listings/create/**").hasRole("SELLER")
-
                         .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
+
+                        //S3 테스트 진행 후 셀로로 교체
+                        .requestMatchers(HttpMethod.POST, "/api/s3/**").permitAll()
 
                         // 구독, 추후 로그인한 사람에 한해 가능
                         .requestMatchers(
                                 "/api/subscriptions/billing/success",
                                 "/api/subscriptions/billing/fail"
-                        ).permitAll()
+                        ).hasRole("USER")
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
