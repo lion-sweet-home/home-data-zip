@@ -76,7 +76,8 @@ public class TradeSaleQueryService {
                 apt.getAptName(),
                 monthlyVolumes,
                 recentTradeSales,
-                monthLabels
+                monthLabels,
+                apt.getBuildYear()
         );
     }
 
@@ -109,7 +110,8 @@ public class TradeSaleQueryService {
                 apt.getRoadAddress(),
                 latestAvgAmount,
                 pyeongTrades,
-                pyeongChartDataMap
+                pyeongChartDataMap,
+                apt.getBuildYear()
         );
     }
 
