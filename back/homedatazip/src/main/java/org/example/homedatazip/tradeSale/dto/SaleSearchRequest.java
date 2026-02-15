@@ -12,5 +12,9 @@ public record   SaleSearchRequest(
 
         Long minAmount,
         Long maxAmount,
-        Integer periodMonths
+        Integer periodMonths,
+        Double minArea,
+        Double maxArea,
+        Integer minBuildYear,
+        Integer maxBuildYear
 ) {}
