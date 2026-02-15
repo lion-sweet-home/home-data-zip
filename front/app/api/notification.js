@@ -4,25 +4,43 @@
  */
 
 import { get, put, del } from './api';
+import { EventSourcePolyfill } from 'event-source-polyfill';
 
 /**
  * SSE 연결 (알림 수신)
  * Server-Sent Events를 통해 실시간 알림을 수신합니다.
+ * EventSourcePolyfill을 사용하여 Authorization 헤더를 설정할 수 있습니다.
  * 
- * @returns {Promise<EventSource>} EventSource 객체
+ * @returns {EventSourcePolyfill} EventSourcePolyfill 객체
  * 
  * 사용 예시:
- * const eventSource = await subscribeNotifications();
+ * const eventSource = subscribeNotifications();
  * eventSource.onmessage = (event) => {
  *   console.log('알림:', JSON.parse(event.data));
  * };
  */
-export async function subscribeNotifications() {
-  // SSE는 EventSource를 사용하므로 별도 처리 필요
+export function subscribeNotifications() {
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
-  return new EventSource(`${API_BASE_URL}/users/notifications/Allow-reception`, {
-    withCredentials: true
-  });
+  
+  // localStorage에서 accessToken 가져오기
+  const accessToken = typeof window !== 'undefined' 
+    ? localStorage.getItem('accessToken') 
+    : null;
+
+  if (!accessToken) {
+    throw new Error('Access token이 없습니다. 로그인이 필요합니다.');
+  }
+
+  // EventSourcePolyfill을 사용하여 Authorization 헤더 설정
+  return new EventSourcePolyfill(
+    `${API_BASE_URL}/users/notifications/Allow-reception`,
+    {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      withCredentials: true, // 쿠키(refreshToken)도 함께 전송
+    }
+  );
 }
 
 /**
@@ -135,3 +153,4 @@ export default {
   deleteNotification,
   deleteAllReadNotifications,
 };
+

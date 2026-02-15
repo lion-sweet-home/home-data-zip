@@ -4,11 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout } from '../api/auth';
+import { connectSSE, disconnectSSE, onUnreadCount, offUnreadCount } from '../utils/sseManager';
 
 export default function Header() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
 
   // Access Token으로만 로그인 상태 및 사용자 정보 확인
@@ -84,6 +86,38 @@ export default function Header() {
       document.removeEventListener('visibilitychange', onFocus);
     };
   }, [checkLoginStatus]);
+
+  // 로그인 상태에 따라 SSE 연결/해제
+  useEffect(() => {
+    if (isLoggedIn) {
+      // 로그인 시 SSE 연결
+      connectSSE();
+    } else {
+      // 로그아웃 시 SSE 연결 해제
+      disconnectSSE();
+      setUnreadCount(0); // 로그아웃 시 읽지 않은 메시지 개수 초기화
+    }
+
+    // 컴포넌트 언마운트 시 SSE 연결 해제
+    return () => {
+      disconnectSSE();
+    };
+  }, [isLoggedIn]);
+
+  // 읽지 않은 메시지 개수 구독
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const handleUnreadCount = (count) => {
+      setUnreadCount(count);
+    };
+
+    onUnreadCount(handleUnreadCount);
+
+    return () => {
+      offUnreadCount(handleUnreadCount);
+    };
+  }, [isLoggedIn]);
 
   // 사용자 역할 배열 가져오기
   const getUserRoles = () => {
@@ -161,6 +195,9 @@ export default function Header() {
   // 로그아웃 핸들러
   const handleLogout = async () => {
     try {
+      // 로그아웃 전 SSE 연결 해제
+      disconnectSSE();
+      
       await logout();
       // 로그아웃 성공 시 상태 초기화
       setUser(null);
@@ -170,7 +207,8 @@ export default function Header() {
       router.refresh();
     } catch (error) {
       console.error('Logout error:', error);
-      // 에러가 발생해도 로컬 상태는 정리
+      // 에러가 발생해도 SSE 연결 해제 및 로컬 상태 정리
+      disconnectSSE();
       setUser(null);
       setIsLoggedIn(false);
       if (typeof window !== 'undefined') {
@@ -256,7 +294,7 @@ export default function Header() {
                 {/* 메시지 아이콘 */}
                 <button
                   onClick={() => router.push('/chat')}
-                  className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                  className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
                   aria-label="메시지"
                 >
                   <svg
@@ -273,6 +311,11 @@ export default function Header() {
                       d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
                     />
                   </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-0 right-0 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-600 rounded-full">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </button>
 
                 {/* 마이페이지 */}
