@@ -40,6 +40,8 @@ public class TradeSaleQueryRepository {
                         region.gugun.contains(request.gugun()),
                         region.dong.contains(request.dong()),
                         amountBetween(request.minAmount(), request.maxAmount()),
+                        areaBetween(request.minArea(), request.maxArea()),
+                        buildYearBetween(request.minBuildYear(), request.maxBuildYear()),
                         periodBetween(request.periodMonths()),
                         tradeSale.canceled.ne(true)
                 )
@@ -70,6 +72,27 @@ public class TradeSaleQueryRepository {
         } else {
             return tradeSale.dealAmount.loe(maxAmount); // max 이하
         }
+    }
+
+    // 면적 범위 동적 쿼리 생성 메서드
+    private BooleanExpression areaBetween(Double minArea, Double maxArea) {
+        if (minArea == null && maxArea == null) return null;
+
+        // minArea와 maxArea가 모두 있을 때 .between() 사용
+        if (minArea != null && maxArea != null) {
+            return tradeSale.exclusiveArea.between(minArea, maxArea);
+        }
+        // 하나만 있을 때 처리
+        if (minArea != null) return tradeSale.exclusiveArea.goe(minArea);
+        return tradeSale.exclusiveArea.loe(maxArea);
+    }
+
+    // 건축 일자 범위 동적 쿼리 생성 메서드
+    private BooleanExpression buildYearBetween(Integer minYear, Integer maxYear) {
+        if (minYear == null && maxYear == null) return null;
+        if (minYear != null && maxYear != null) return apartment.buildYear.between(minYear, maxYear);
+        if (minYear != null) return apartment.buildYear.goe(minYear);
+        return apartment.buildYear.loe(maxYear);
     }
 
     public List<RecentTradeSale> findRecentTrades(Long aptId) {
