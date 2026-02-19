@@ -1,13 +1,15 @@
 package org.example.homedatazip.apartment.repository;
 
-import com.querydsl.core.types.Projections;
-import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.BooleanBuilder;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.dto.AptSaleAggregation;
+import org.example.homedatazip.apartment.entity.Apartment;
+import org.example.homedatazip.apartment.entity.QApartment;
 import org.example.homedatazip.monthAvg.entity.MonthAvg;
 import org.example.homedatazip.monthAvg.entity.QMonthAvg;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,39 @@ import java.util.stream.Collectors;
 public class ApartmentSearchRepositoryImpl implements ApartmentSearchRepository {
 
     private final JPAQueryFactory queryFactory;
+
+    /**
+     * 키워드를 포함하는 아파트를 지역 필터를 사용하여 조회
+     */
+    @Override
+    public List<Apartment> findAptListContaining(
+        String keyworkd,
+        String sido,
+        String gugun,
+        String dong
+    ) {
+        QApartment apartment = QApartment.apartment;
+
+        BooleanBuilder where = new BooleanBuilder();
+
+        // null 또는 빈 문자열이 아닐 때만 조건 추가
+        if (StringUtils.hasText(sido)) {
+            where.and(apartment.region.sido.eq(sido));
+        }
+
+        if (StringUtils.hasText(gugun)) {
+            where.and(apartment.region.gugun.eq(gugun));
+        }
+
+        if (StringUtils.hasText(dong)) {
+            where.and(apartment.region.dong.eq(dong));
+        }
+
+        return queryFactory.selectFrom(apartment)
+                .where(where)
+                .where(apartment.aptName.containsIgnoreCase(keyworkd))
+                .fetch();
+    }
 
     /**
      * 여러 아파트의 매매 집계 조회

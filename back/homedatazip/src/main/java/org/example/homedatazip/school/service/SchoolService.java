@@ -15,6 +15,7 @@ import org.example.homedatazip.school.repository.SchoolRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.data.domain.PageRequest;
 
 import java.util.List;
 import java.util.Set;
@@ -46,6 +47,27 @@ public class SchoolService {
                     request.sido(), request.gugun(), dongOptional, request.schoolLevel());
         }
 
+        return schools.stream()
+                .map(SchoolResponse::from)
+                .toList();
+    }
+
+    /** 학교명 키워드(부분일치)로 학교 검색 */
+    @Transactional(readOnly = true)
+    public List<SchoolResponse> searchSchoolsByName(String keyword, Integer limit) {
+        if (!StringUtils.hasText(keyword)) {
+            return List.of();
+        }
+        int size = 20;
+        if (limit != null) {
+            int n = limit;
+            if (n > 0) size = Math.min(n, 50);
+        }
+
+        List<School> schools = schoolRepository.searchByNameContaining(
+                keyword.trim(),
+                PageRequest.of(0, size)
+        );
         return schools.stream()
                 .map(SchoolResponse::from)
                 .toList();

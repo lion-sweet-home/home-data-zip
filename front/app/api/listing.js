@@ -3,7 +3,7 @@
  * 매물 등록, 조회, 검색 기능을 제공합니다.
  */
 
-import { get, post } from './api';
+import { get, post, del, upload } from './api';
 
 /**
  * 매물 등록
@@ -136,6 +136,26 @@ export async function getRentListings(params = {}) {
   return get(`/listings/rent${queryString ? `?${queryString}` : ''}`);
 }
 
+/**
+ * 매물 삭제 (본인 매물만)
+ * @param {number} listingId - 매물 ID
+ * @returns {Promise<{listingId: number, deleted: boolean}>}
+ */
+export async function deleteListing(listingId) {
+  return del(`/listings/${listingId}`);
+}
+
+/**
+ * 매물 이미지 임시 업로드 (등록 전 업로드, 등록 시 imageTempKeys로 전달)
+ * @param {File} file
+ * @returns {Promise<{key: string, url: string}>}
+ */
+export async function uploadListingImageTemp(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return upload('/listings/images/temp', formData);
+}
+
 // 기본 export
 export default {
   createListing,
@@ -143,4 +163,6 @@ export default {
   searchListings,
   getSaleListings,
   getRentListings,
+  deleteListing,
+  uploadListingImageTemp,
 };

@@ -1,6 +1,7 @@
 package org.example.homedatazip.school.repository;
 
 import org.example.homedatazip.school.entity.School;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -37,5 +38,16 @@ public interface SchoolRepository extends JpaRepository<School, Long> {
             @Param("gugun") String gugun,
             @Param("dong") String dong,
             @Param("schoolLevels") List<String> schoolLevels
+    );
+
+    /** 학교명 키워드로 검색 (부분일치, 이름 오름차순) */
+    @Query("""
+            SELECT s FROM School s
+            WHERE s.name LIKE CONCAT('%', :keyword, '%')
+            ORDER BY s.name
+            """)
+    List<School> searchByNameContaining(
+            @Param("keyword") String keyword,
+            Pageable pageable
     );
 }

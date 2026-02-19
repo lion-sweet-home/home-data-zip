@@ -158,7 +158,12 @@ public class ApartmentService {
      * 4. 집계 데이터 조회
      * 5. 응답 DTO 생성 (전월 거래량 내림차순 정렬)
      */
-    public List<AptSummaryResponse> searchByKeyword(String keyword) {
+    public List<AptSummaryResponse> searchByKeyword(
+            String keyword,
+            String sido,
+            String gugun,
+            String dong
+    ) {
         // 1. 키워드 유효성 검증
         validateKeyword(keyword);
 
@@ -166,7 +171,12 @@ public class ApartmentService {
 
         // 2. 키워드를 포함하는 아파트 목록 조회
         List<Apartment> apartments
-                = apartmentRepository.findByAptNameContaining(keyword);
+                = apartmentSearchRepository.findAptListContaining(
+                keyword,
+                sido,
+                gugun,
+                dong
+        );
 
         // 조회 결과 없음
         if (apartments == null || apartments.isEmpty()) {
@@ -248,9 +258,16 @@ public class ApartmentService {
                 ? apt.getRegion().getGugun()
                 : null;
 
+        String dong = (apt != null && apt.getRegion() != null)
+                ? apt.getRegion().getDong()
+                : null;
+
         String aptName = (apt != null)
                 ? apt.getAptName()
                 : null;
+
+        // 평수
+        double areaType = (aggregation.areaTypeId() % 1_000_000) / 100.00;
 
         // 전월 거래량
         Integer tradeCount = aggregation.lastMonthSaleCount() != null
@@ -268,7 +285,8 @@ public class ApartmentService {
                     aggregation.aptId(),
                     aptName,
                     gu,
-                    aggregation.areaTypeId(),
+                    dong,
+                    areaType,
                     null,
                     null,
                     0
@@ -291,7 +309,8 @@ public class ApartmentService {
                 aggregation.aptId(),
                 aptName,
                 gu,
-                aggregation.areaTypeId(),
+                dong,
+                areaType,
                 avgDealAmount,
                 priceChangeRate,
                 tradeCount

@@ -7,7 +7,7 @@
  * 백엔드 기준 prefix: /api/admin/**
  */
 
-import { get, post, put, del } from "./api";
+import { get, post, put, del, request } from "./api";
 
 // -----------------------------
 // Dashboard
@@ -66,6 +66,17 @@ export async function getAdminUsersList({ page = 0, size = 10 } = {}) {
   return get(`/admin/users/list?${params.toString()}`);
 }
 
+/**
+ * 관리자 회원 검색 (type: ALL | NICKNAME | EMAIL, keyword 필수)
+ */
+export async function searchAdminUsers({ type = "ALL", keyword, page = 0, size = 10 } = {}) {
+  const params = new URLSearchParams();
+  params.append("page", String(page));
+  params.append("size", String(size));
+  const url = `/admin/search?${params.toString()}`;
+  return request(url, { method: "GET", body: { type, keyword: keyword ?? "" } });
+}
+
 export async function deleteAdminUser(userId) {
   if (userId === undefined || userId === null) {
     throw new Error("userId가 필요합니다.");
@@ -103,6 +114,7 @@ export default {
   getListingsCount,
   getDashboardStats,
   getAdminUsersList,
+  searchAdminUsers,
   deleteAdminUser,
   getAdminNotifications,
   createAdminNotification,

@@ -31,6 +31,16 @@ public class SchoolController {
         return ResponseEntity.ok(list);
     }
 
+    /** 학교명 키워드로 학교 검색 (부분일치) */
+    @GetMapping("/search")
+    public ResponseEntity<List<SchoolResponse>> searchSchoolsByName(
+            @RequestParam String keyword,
+            @RequestParam(required = false) Integer limit
+    ) {
+        List<SchoolResponse> list = schoolService.searchSchoolsByName(keyword, limit);
+        return ResponseEntity.ok(list);
+    }
+
     /** 해당 학교 반경 내 아파트 검색 */
     @GetMapping("/{schoolId}/apartments")
     public ResponseEntity<List<ApartmentNearSchoolResponse>> getApartmentsNearSchool(
