@@ -3,87 +3,59 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { formatDate, getLocalJSON, setLocalJSON } from './_utils';
-
-const LS_KEY = 'myPage:chatMock';
-
-const DEFAULT_ITEMS = [
-  {
-    id: 1,
-    name: '김중개사',
-    lastMessage: '해당 매물 방문 가능하십니까?',
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 2,
-  },
-  {
-    id: 2,
-    name: '이중개사',
-    lastMessage: '가격 조정 가능합니다.',
-    updatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 0,
-  },
-  {
-    id: 3,
-    name: '박중개사',
-    lastMessage: '주차 가능 여부 문의 주셔서 확인 중입니다.',
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 1,
-  },
-  {
-    id: 4,
-    name: '최중개사',
-    lastMessage: '전세도 가능하고 월세 조건도 함께 안내드릴게요.',
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 0,
-  },
-  {
-    id: 5,
-    name: '정중개사',
-    lastMessage: '계약 일정은 다음 주 중으로 조율 가능하십니다.',
-    updatedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 0,
-  },
-  {
-    id: 6,
-    name: '한중개사',
-    lastMessage: '해당 동/호수는 현재 다른 분이 문의 중이라 빠른 확인 권장드립니다.',
-    updatedAt: new Date(Date.now() - 9 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 3,
-  },
-  {
-    id: 7,
-    name: '오중개사',
-    lastMessage: '관리비는 평균 18~22만원 선입니다. 세부 내역 공유드릴까요?',
-    updatedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 0,
-  },
-  {
-    id: 8,
-    name: '류중개사',
-    lastMessage: '내부 사진이 도착하는대로 바로 전달드리겠습니다.',
-    updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    unreadCount: 0,
-  },
-];
+import { getChatRooms } from '../../api/chat';
+import { onRoomListUpdate, offRoomListUpdate } from '../../utils/sseManager';
+import { formatChatTime } from '../../utils/chatUtils';
 
 export default function ChatCard() {
-  const [items, setItems] = useState([]);
-  const [loaded, setLoaded] = useState(false);
+  const [rooms, setRooms] = useState([]);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const saved = getLocalJSON(LS_KEY, null);
-    if (Array.isArray(saved) && saved.length > 0) {
-      setItems(saved);
-    } else {
-      setItems(DEFAULT_ITEMS);
-      setLocalJSON(LS_KEY, DEFAULT_ITEMS);
+  // 채팅방 목록 로드
+  const loadRooms = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setInitialLoading(true);
+      }
+      const data = await getChatRooms();
+      setRooms(data || []);
+    } catch (error) {
+      console.error('채팅방 목록 로드 실패:', error);
+      // 에러 발생 시에도 기존 데이터 유지
+      if (rooms.length === 0) {
+        setRooms([]);
+      }
+    } finally {
+      setInitialLoading(false);
+      setRefreshing(false);
     }
-    setLoaded(true);
+  };
+
+  // 초기 로드
+  useEffect(() => {
+    loadRooms();
   }, []);
 
-  const onDetail = (id) => {
-    router.push(`/my_page/chat/${id}`);
+  // SSE roomListUpdate 이벤트 구독
+  useEffect(() => {
+    const handleRoomListUpdate = () => {
+      loadRooms(true); // 새로고침이므로 true 전달
+    };
+
+    onRoomListUpdate(handleRoomListUpdate);
+
+    return () => {
+      offRoomListUpdate(handleRoomListUpdate);
+    };
+  }, []);
+
+  // 채팅방 클릭 핸들러
+  const handleRoomClick = (roomId) => {
+    router.push(`/chat/${roomId}`);
   };
 
   return (
@@ -111,33 +83,37 @@ export default function ChatCard() {
         </Link>
       </div>
 
-      {!loaded ? (
+      {initialLoading ? (
         <div className="h-56 rounded-xl bg-gray-50 border border-gray-100 animate-pulse" />
-      ) : items.length === 0 ? (
+      ) : rooms.length === 0 ? (
         <div className="py-10 text-center text-sm text-gray-500">채팅이 없습니다.</div>
       ) : (
         <div className="divide-y max-h-[420px] overflow-y-auto pr-1">
-          {items.slice(0, 8).map((it) => (
+          {rooms.slice(0, 8).map((room) => (
             <button
-              key={it.id}
+              key={room.roomId}
               type="button"
-              onClick={() => onDetail(it.id)}
+              onClick={() => handleRoomClick(room.roomId)}
               className="w-full text-left py-3 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm font-bold text-gray-900 truncate">{it.name}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold text-gray-900 truncate">
+                    {room.listingName}
+                  </div>
                   <div className="text-sm text-gray-600 mt-1 whitespace-normal break-words">
-                    {it.lastMessage}
+                    {room.lastMessage || '메시지가 없습니다.'}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
-                  <div className="text-xs text-gray-500">{formatDate(it.updatedAt)}</div>
-                  {it.unreadCount ? (
+                  <div className="text-xs text-gray-500">
+                    {room.lastMessageTime ? formatChatTime(room.lastMessageTime) : ''}
+                  </div>
+                  {room.unReadCount > 0 && (
                     <div className="mt-1 inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-600 text-white text-xs font-bold">
-                      {it.unreadCount}
+                      {room.unReadCount > 99 ? '99+' : room.unReadCount}
                     </div>
-                  ) : null}
+                  )}
                 </div>
               </div>
             </button>
@@ -147,4 +123,3 @@ export default function ChatCard() {
     </div>
   );
 }
-
