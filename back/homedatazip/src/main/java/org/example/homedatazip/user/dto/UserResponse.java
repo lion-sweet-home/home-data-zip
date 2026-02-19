@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record UserResponse(
+        Long userId,
         String nickname,
         String email,
         LocalDateTime createdAt,
@@ -20,6 +21,7 @@ public record UserResponse(
                 .toList();
 
         return new UserResponse(
+                user.getId(),
                 user.getNickname(),
                 user.getEmail(),
                 user.getCreatedAt(),

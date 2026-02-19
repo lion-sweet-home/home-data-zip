@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { getSidoList, getGugunList, getDongList } from '../../../api/region';
 import { searchSubwayStations } from '../../../api/subway';
-import { searchSchoolsByRegion } from '../../../api/school';
+import { searchSchoolsByName, searchSchoolsByRegion } from '../../../api/school';
 
 export default function Filter({ onSearch, initialParams }) {
   // 매매/전월세 선택
   const [tradeType, setTradeType] = useState('매매');
 
   // 검색 조건 타입 선택
-  const [searchConditionType, setSearchConditionType] = useState('region'); // 'region' 또는 'subway'
+  const [searchConditionType, setSearchConditionType] = useState('region'); // 'region' | 'subway' | 'school'
 
   // 지역 선택
   const [sidoList, setSidoList] = useState([]);
@@ -27,6 +27,13 @@ export default function Filter({ onSearch, initialParams }) {
   const [selectedSubwayStation, setSelectedSubwayStation] = useState(null);
   const [subwayRadius, setSubwayRadius] = useState(1.0);
   const [subwayRadiusActive, setSubwayRadiusActive] = useState(false);
+
+  // 학교 검색 (학교명)
+  const [schoolSearchKeyword, setSchoolSearchKeyword] = useState('');
+  const [schoolSearchResults, setSchoolSearchResults] = useState([]);
+  const [selectedSchool, setSelectedSchool] = useState(null);
+  const [schoolSearchRadius, setSchoolSearchRadius] = useState(1.0);
+  const [schoolSearchRadiusActive, setSchoolSearchRadiusActive] = useState(false);
 
   // 기간 선택 (최근 N개월)
   const [period, setPeriod] = useState(6);
@@ -50,8 +57,6 @@ export default function Filter({ onSearch, initialParams }) {
     중학교: false,
     고등학교: false,
   });
-  const [schoolRadius, setSchoolRadius] = useState(1.0);
-  const [schoolRadiusActive, setSchoolRadiusActive] = useState(false);
   const [schoolList, setSchoolList] = useState([]);
 
   // URL/부모에서 넘어온 초기값을 안전하게 주입하기 위한 ref
@@ -80,8 +85,14 @@ export default function Filter({ onSearch, initialParams }) {
     }
 
     // searchConditionType 복원
-    if (initialParams.searchConditionType === 'region' || initialParams.searchConditionType === 'subway') {
+    if (
+      initialParams.searchConditionType === 'region' ||
+      initialParams.searchConditionType === 'subway' ||
+      initialParams.searchConditionType === 'school'
+    ) {
       setSearchConditionType(initialParams.searchConditionType);
+    } else if (initialParams.schoolId) {
+      setSearchConditionType('school');
     } else if (initialParams.subwayStationId) {
       setSearchConditionType('subway');
     } else {
@@ -116,11 +127,16 @@ export default function Filter({ onSearch, initialParams }) {
         고등학교: types.includes('고등학교'),
       });
     }
-    if (initialParams.schoolRadius != null) {
-      const r = Number(initialParams.schoolRadius);
+    // schoolRadius는 '학교 검색' 모드에서만 사용 (지역의 학교필터에는 반경 없음)
+    if (initialParams.schoolId) {
+      setSelectedSchool({
+        id: Number(initialParams.schoolId),
+        name: initialParams.schoolName || '',
+      });
+      const r = initialParams.schoolRadius != null ? Number(initialParams.schoolRadius) : NaN;
       if (!Number.isNaN(r)) {
-        setSchoolRadius(r);
-        setSchoolRadiusActive(true);
+        setSchoolSearchRadius(r);
+        setSchoolSearchRadiusActive(true);
       }
     }
 
@@ -277,6 +293,28 @@ export default function Filter({ onSearch, initialParams }) {
     setSubwayRadiusActive(true);
   };
 
+  // 학교명 검색
+  const handleSchoolSearch = async () => {
+    if (!schoolSearchKeyword.trim()) {
+      setSchoolSearchResults([]);
+      return;
+    }
+    try {
+      const results = await searchSchoolsByName(schoolSearchKeyword.trim(), 20);
+      setSchoolSearchResults(results || []);
+    } catch (error) {
+      console.error('학교 검색 실패:', error);
+      alert('학교 검색에 실패했습니다.');
+      setSchoolSearchResults([]);
+    }
+  };
+
+  // 학교 선택
+  const handleSelectSchool = (school) => {
+    setSelectedSchool(school);
+    setSchoolSearchRadiusActive(true);
+  };
+
   // 학교 타입 체크박스 변경
   const handleSchoolTypeChange = (type) => {
     setSchoolTypes((prev) => ({
@@ -298,6 +336,15 @@ export default function Filter({ onSearch, initialParams }) {
         return;
       }
       if (!subwayRadiusActive) {
+        alert('반경을 선택해주세요.');
+        return;
+      }
+    } else if (searchConditionType === 'school') {
+      if (!selectedSchool?.id) {
+        alert('학교를 선택해주세요.');
+        return;
+      }
+      if (!schoolSearchRadiusActive) {
         alert('반경을 선택해주세요.');
         return;
       }
@@ -334,12 +381,17 @@ export default function Filter({ onSearch, initialParams }) {
             schoolTypes: Object.entries(schoolTypes)
               .filter(([_, selected]) => selected)
               .map(([type]) => type),
-            schoolRadius: schoolRadiusActive ? schoolRadius : undefined,
           }
-        : {
+        : searchConditionType === 'subway'
+        ? {
             subwayStationId: selectedSubwayStation?.stationId,
             subwayStationName: selectedSubwayStation?.stationName,
             subwayRadius: subwayRadiusActive ? subwayRadius : undefined,
+          }
+        : {
+            schoolId: selectedSchool?.id,
+            schoolName: selectedSchool?.name,
+            schoolRadius: schoolSearchRadiusActive ? schoolSearchRadius : undefined,
           }),
     };
 
@@ -422,6 +474,20 @@ export default function Filter({ onSearch, initialParams }) {
             }`}
           >
             지하철
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchConditionType('school');
+              // NOTE: 모드 전환 시 다른 모드 상태는 유지한다.
+            }}
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+              searchConditionType === 'school'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            학교
           </button>
         </div>
 
@@ -523,6 +589,67 @@ export default function Filter({ onSearch, initialParams }) {
               </div>
             )}
           </div>
+          )}
+
+          {/* 학교 검색일 때 */}
+          {searchConditionType === 'school' && (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <input
+                type="text"
+                value={schoolSearchKeyword}
+                onChange={(e) => setSchoolSearchKeyword(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSchoolSearch()}
+                placeholder="학교명"
+                className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 min-w-0"
+              />
+              <button
+                type="button"
+                onClick={handleSchoolSearch}
+                className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-xs hover:bg-gray-200 transition-colors flex-shrink-0"
+              >
+                검색
+              </button>
+
+              {schoolSearchResults.length > 0 && (
+                <select
+                  value={selectedSchool?.id ?? ''}
+                  onChange={(e) => {
+                    const id = Number(e.target.value);
+                    const found = schoolSearchResults.find((s) => Number(s?.id) === id);
+                    if (found) handleSelectSchool(found);
+                  }}
+                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 flex-shrink-0 max-w-[220px]"
+                >
+                  <option value="">학교 선택</option>
+                  {schoolSearchResults.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {selectedSchool && (
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <span className="text-xs text-gray-700">{selectedSchool.name}</span>
+                  <select
+                    value={schoolSearchRadius}
+                    onChange={(e) => {
+                      setSchoolSearchRadius(parseFloat(e.target.value));
+                      setSchoolSearchRadiusActive(true);
+                    }}
+                    className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900"
+                  >
+                    <option value={0.5}>0.5km</option>
+                    <option value={1.0}>1km</option>
+                    <option value={2.0}>2km</option>
+                    <option value={3.0}>3km</option>
+                    <option value={5.0}>5km</option>
+                    <option value={10.0}>10km</option>
+                  </select>
+                </div>
+              )}
+            </div>
           )}
 
           {/* 기간 선택 */}
@@ -643,23 +770,6 @@ export default function Filter({ onSearch, initialParams }) {
                 </label>
               ))}
             </div>
-            {Object.values(schoolTypes).some((selected) => selected) && (
-              <select
-                value={schoolRadius}
-                onChange={(e) => {
-                  setSchoolRadius(parseFloat(e.target.value));
-                  setSchoolRadiusActive(true);
-                }}
-                className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 flex-shrink-0"
-              >
-                <option value={0.5}>0.5km</option>
-                <option value={1.0}>1.0km</option>
-                <option value={2.0}>2.0km</option>
-                <option value={3.0}>3.0km</option>
-                <option value={5.0}>5.0km</option>
-                <option value={10.0}>10.0km</option>
-              </select>
-            )}
           </>
           )}
 
@@ -669,11 +779,14 @@ export default function Filter({ onSearch, initialParams }) {
           disabled={
             searchConditionType === 'region'
               ? !selectedSido || !selectedGugun
-              : !selectedSubwayStation
+              : searchConditionType === 'subway'
+                ? !selectedSubwayStation
+                : !selectedSchool
           }
           className={`px-4 py-1 rounded text-xs font-medium transition-colors flex-shrink-0 ${
             (searchConditionType === 'region' && selectedSido && selectedGugun) ||
-            (searchConditionType === 'subway' && selectedSubwayStation)
+            (searchConditionType === 'subway' && selectedSubwayStation) ||
+            (searchConditionType === 'school' && selectedSchool)
               ? 'bg-blue-600 text-white hover:bg-blue-700'
               : 'bg-gray-300 text-gray-500 cursor-not-allowed'
           }`}

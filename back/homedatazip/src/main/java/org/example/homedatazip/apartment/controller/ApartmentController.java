@@ -97,9 +97,18 @@ public class ApartmentController {
      */
     @GetMapping("/search")
     public ResponseEntity<List<AptSummaryResponse>> searchByKeyword(
-            @RequestParam String keyword
+            @RequestParam String keyword,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String gugun,
+            @RequestParam(required = false) String dong
     ) {
         return ResponseEntity.ok()
-                .body(apartmentService.searchByKeyword(keyword));
+                .body(apartmentService.searchByKeyword(
+                                keyword,
+                                sido,
+                                gugun,
+                                dong
+                        )
+                );
     }
 }
