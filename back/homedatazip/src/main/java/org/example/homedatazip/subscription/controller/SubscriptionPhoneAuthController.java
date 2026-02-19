@@ -2,9 +2,11 @@ package org.example.homedatazip.subscription.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.service.SubscriptionPhoneAuthService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,9 +22,12 @@ public class SubscriptionPhoneAuthController {
     }
 
     @PostMapping("/verify")
-    public ResponseEntity<PhoneAuthVerifyResponse> verify(@Valid @RequestBody PhoneAuthVerifyRequest request) {
+    public ResponseEntity<PhoneAuthVerifyResponse> verify(
+            @AuthenticationPrincipal CustomUserDetails principal,
+            @RequestBody PhoneAuthVerifyRequest req
+    ) {
         return ResponseEntity.ok(
-                phoneAuthService.verifyCode(request.phoneNumber(), request.requestId(), request.code())
+                phoneAuthService.verifyCode(principal.getUserId(), req.phoneNumber(), req.requestId(), req.code())
         );
     }
 }

@@ -138,13 +138,9 @@ public class User extends BaseTimeEntity {
         return phoneVerifiedAt != null;
     }
 
-    //구독 시작 전에 체크하는 용도
-    public void verifyPhoneNow() {
+    public void verifyPhone(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
         this.phoneVerifiedAt = LocalDateTime.now();
     }
 
-    //인증 성공했을 때 현재 시각으로 인증 완료 처리
-    public void clearPhoneVerification() {
-        this.phoneVerifiedAt = null;
-    }
 }
