@@ -179,15 +179,21 @@ export async function getSaleTop3() {
 }
 
 /**
- * 아파트명(키워드) 검색
- * ApartmentController: GET /api/apartments/search?keyword=...
+ * 아파트명(키워드) + 지역 필터 검색
+ * ApartmentController: GET /api/apartments/search?keyword=...&sido=...&gugun=...&dong=...
  *
  * @param {string} keyword
+ * @param {string} [sido] - 시/도 (선택)
+ * @param {string} [gugun] - 구/군 (선택)
+ * @param {string} [dong] - 동 (선택)
  * @returns {Promise<Array|null>} AptSummaryResponse[]
  */
-export async function searchApartmentsByName(keyword) {
+export async function searchApartmentsByName(keyword, sido, gugun, dong) {
   const params = new URLSearchParams();
   params.append('keyword', keyword);
+  if (sido) params.append('sido', sido);
+  if (gugun) params.append('gugun', gugun);
+  if (dong) params.append('dong', dong);
   return get(`/apartments/search?${params.toString()}`);
 }
 
