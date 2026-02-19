@@ -10,6 +10,7 @@ import org.example.homedatazip.role.RoleType;
 import org.example.homedatazip.subscription.entity.Subscription;
 import org.example.homedatazip.role.Role;
 import org.example.homedatazip.role.UserRole;
+import java.time.LocalDateTime;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,6 +71,14 @@ public class User extends BaseTimeEntity {
         return "CUSTOMER_" + this.id;
     }
 
+    // 전화번호 컬럼 추가
+    @Column(name = "phone_number", unique = true)
+    private String phoneNumber;
+
+    // 전화번호 인증 여부 체크
+    @Column(name = "phone_verified_at")
+    private LocalDateTime phoneVerifiedAt;
+
     /** 이메일/비밀번호 가입용 */
     public static User create(String email, String nickname, String password, Role role) {
         User user = new User();
@@ -122,5 +131,20 @@ public class User extends BaseTimeEntity {
         this.roles.removeIf(ur -> ur.getRole().getRoleType() == roleType);
     }
 
+    //전화번호 인증관련 메서드
 
+    //인증여부
+    public boolean isPhoneVerified() {
+        return phoneVerifiedAt != null;
+    }
+
+    //구독 시작 전에 체크하는 용도
+    public void verifyPhoneNow() {
+        this.phoneVerifiedAt = LocalDateTime.now();
+    }
+
+    //인증 성공했을 때 현재 시각으로 인증 완료 처리
+    public void clearPhoneVerification() {
+        this.phoneVerifiedAt = null;
+    }
 }

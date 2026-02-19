@@ -104,8 +104,15 @@ public class SubscriptionService {
     public void startSubscription(Long userId) {
         Subscription sub = getSubscription(userId);
 
+        // 카드 등록(billingKey) 체크 (기존)
         if (!sub.hasBillingKey()) {
             throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
+        }
+
+        // 전화번호 인증 체크 (추가)
+        User user = getUser(userId);
+        if (!user.isPhoneVerified()) {
+            throw new BusinessException(SubscriptionErrorCode.PHONE_NOT_VERIFIED);
         }
 
         LocalDate today = LocalDate.now();
@@ -153,6 +160,7 @@ public class SubscriptionService {
         sub.start(today, PRICE);          // status ACTIVE + 기간 세팅
         grantSeller(sub.getSubscriber()); // SELLER 부여
     }
+
 
     @Transactional
     public void cancelAutoPay(Long userId) {
