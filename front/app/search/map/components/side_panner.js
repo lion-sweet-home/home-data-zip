@@ -6,7 +6,7 @@ import { getAptSaleSummary } from '../../../api/apartment_sale';
 import { getRecentRentTrades } from '../../../api/apartment_rent';
 import { getHospitalCount, getHospitalStats, getHospitalListByDong } from '../../../api/hospital';
 
-export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onToggleBusMarker, onToggleSchoolMarker }) {
+export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onBackToList, onToggleBusMarker, onToggleSchoolMarker }) {
   // 월별 거래량
   const [monthlyData, setMonthlyData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(6);
@@ -383,6 +383,22 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
 
   return (
     <div className="w-full h-full overflow-y-auto bg-white p-6 space-y-6">
+      {/* 아파트 목록으로 돌아가기 */}
+      {onBackToList && (
+        <div className="flex-shrink-0 pb-2 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={onBackToList}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            목록 보기
+          </button>
+        </div>
+      )}
+
       {/* 선택된 아파트 기본 정보 */}
       <div className="pb-4 border-b">
         <div className="text-xl font-bold text-gray-900">
