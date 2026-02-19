@@ -30,14 +30,16 @@ public class ListingQueryService {
      */
     @Transactional(readOnly = true)
     public List<ListingSearchResponse> search(
-            Long regionId,
-            Long apartmentId,
+            String sido,
+            String gugun,
+            String dong,
+            String apartmentName,
             TradeType tradeType,
             RentType rentType,
             int limit
     ) {
         List<Listing> list =
-                listingRepository.searchActive(regionId, apartmentId, tradeType, limit);
+                listingRepository.searchActiveByFilters(sido, gugun, dong, apartmentName, tradeType, limit);
 
         // RENT + rentType 필터
         if (tradeType == TradeType.RENT && rentType != null) {
@@ -63,6 +65,7 @@ public class ListingQueryService {
 
     /**
      * 내 매물 조회
+     * (이미지 fetch join 안 했으면 대표이미지 안 나옴 주의)
      */
     @Transactional(readOnly = true)
     public List<MyListingResponse> myListings(Long userId, String status) {
@@ -162,10 +165,10 @@ public class ListingQueryService {
     }
 
     /**
-     * 대표 이미지 URL 뽑기 규칙
-     * 1) isMain=true 우선
-     * 2) sortOrder 낮은 거 우선
-     * 3) id 낮은 거 우선
+     * 대표 이미지 선택 규칙
+     * 1) main=true 우선
+     * 2) sortOrder 낮은 순
+     * 3) id 낮은 순
      */
     private String extractMainImageUrl(Listing l) {
         if (l.getImages() == null || l.getImages().isEmpty()) return null;
@@ -182,15 +185,13 @@ public class ListingQueryService {
     }
 
     /**
-     *  상세조회
-     * - 삭제된(DELETED) 매물은 404 처리
+     * 상세조회
      */
     @Transactional(readOnly = true)
     public ListingDetailResponse detail(Long listingId) {
         Listing l = listingRepository.findDetailWithImages(listingId)
                 .orElseThrow(() -> new BusinessException(ListingErrorCode.LISTING_NOT_FOUND));
 
-        // 여기서 ACTIVE 체크 (B안 핵심)
         if (l.getStatus() != ListingStatus.ACTIVE) {
             throw new BusinessException(ListingErrorCode.LISTING_NOT_FOUND);
         }
