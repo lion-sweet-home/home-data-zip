@@ -70,6 +70,8 @@ export default function MapSearchPage() {
               handleSearch(parsed);
             } else if (parsed.searchConditionType === 'subway' && parsed.subwayStationId) {
               handleSearch(parsed);
+            } else if (parsed.searchConditionType === 'school' && parsed.schoolId) {
+              handleSearch(parsed);
             }
             return;
           }
@@ -86,6 +88,9 @@ export default function MapSearchPage() {
     const subwayStationId = searchParams.get('subwayStationId');
     const subwayStationName = searchParams.get('subwayStationName');
     const subwayRadius = searchParams.get('subwayRadius');
+
+    const schoolId = searchParams.get('schoolId');
+    const schoolName = searchParams.get('schoolName');
 
     const priceMin = searchParams.get('priceMin');
     const priceMax = searchParams.get('priceMax');
@@ -117,7 +122,7 @@ export default function MapSearchPage() {
       tradeType = '전월세';
     }
 
-    const searchConditionType = subwayStationId ? 'subway' : 'region';
+    const searchConditionType = schoolId ? 'school' : (subwayStationId ? 'subway' : 'region');
 
     const initial = {
       tradeType,
@@ -137,6 +142,9 @@ export default function MapSearchPage() {
       ...(maxExclusive ? { maxExclusive } : {}),
       ...(schoolTypesStr ? { schoolTypes: schoolTypesStr } : {}),
       ...(schoolRadius ? { schoolRadius } : {}),
+      // school
+      ...(schoolId ? { schoolId } : {}),
+      ...(schoolName ? { schoolName } : {}),
       // subway
       ...(subwayStationId ? { subwayStationId } : {}),
       ...(subwayStationName ? { subwayStationName } : {}),
@@ -149,6 +157,8 @@ export default function MapSearchPage() {
     if (searchConditionType === 'region' && sido && gugun) {
       handleSearch(initial);
     } else if (searchConditionType === 'subway' && subwayStationId) {
+      handleSearch(initial);
+    } else if (searchConditionType === 'school' && schoolId) {
       handleSearch(initial);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -246,6 +256,21 @@ export default function MapSearchPage() {
           lng: apt.longitude,
           title: apt.aptName,
           info: apt.distanceKm != null ? `역까지 ${Number(apt.distanceKm).toFixed(2)}km` : '',
+          apartmentId: apt.apartmentId,
+          apartmentData: apt,
+        }));
+      } else if (searchParams.searchConditionType === 'school') {
+        // 학교 검색: 선택한 학교 + 반경 내 아파트 마커 표시
+        const distanceKm = Number(searchParams.schoolRadius || 1.0);
+        const schoolResponse = await get(
+          `/schools/${searchParams.schoolId}/apartments?distanceKm=${distanceKm}`
+        );
+
+        markers = (schoolResponse || []).map((apt) => ({
+          lat: apt.latitude,
+          lng: apt.longitude,
+          title: apt.aptName,
+          info: apt.distanceKm != null ? `학교까지 ${Number(apt.distanceKm).toFixed(2)}km` : '',
           apartmentId: apt.apartmentId,
           apartmentData: apt,
         }));

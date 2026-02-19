@@ -37,6 +37,20 @@ export async function searchSchoolsByRegion(params) {
 }
 
 /**
+ * 학교명 키워드로 학교 검색 (부분일치)
+ *
+ * @param {string} keyword - 학교명 키워드
+ * @param {number} [limit=20] - 최대 개수 (기본값: 20, 최대 50)
+ * @returns {Promise<Array>} 학교 목록
+ */
+export async function searchSchoolsByName(keyword, limit = 20) {
+  const queryParams = new URLSearchParams();
+  queryParams.append('keyword', keyword);
+  if (limit != null) queryParams.append('limit', String(limit));
+  return get(`/schools/search?${queryParams.toString()}`);
+}
+
+/**
  * 학교 반경 내 아파트 검색
  * 
  * @param {number} schoolId - 학교 ID
@@ -56,5 +70,6 @@ export async function getApartmentsNearSchool(schoolId, distanceKm) {
 // 기본 export
 export default {
   searchSchoolsByRegion,
+  searchSchoolsByName,
   getApartmentsNearSchool,
 };

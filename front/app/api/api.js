@@ -331,8 +331,8 @@ export async function request(endpoint, options = {}) {
     const response = await fetchWithTimeout(url, requestOptions, timeout);
     return await handleResponse(response, skipReissue);
   } catch (error) {
-    // 401 에러이고 reissue를 건너뛰지 않는 경우 토큰 재발급 시도
-    if (error.status === 401 && !skipReissue && !endpoint.includes('/auth/refresh')) {
+    // 401 에러이고 reissue를 건너뛰지 않는 경우 토큰 재발급 시도 (로그인은 제외 → 백엔드 에러 메시지 그대로 표시)
+    if (error.status === 401 && !skipReissue && !endpoint.includes('/auth/refresh') && !endpoint.includes('/auth/login')) {
       const newToken = await reissueToken();
       
       if (newToken) {

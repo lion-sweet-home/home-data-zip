@@ -257,7 +257,7 @@ export default function Header() {
                     href="/listing"
                     className="text-gray-700 hover:text-gray-900 transition-colors font-medium"
                   >
-                    매물 등록
+                    매물 관리
                   </Link>
                 )}
               </>
