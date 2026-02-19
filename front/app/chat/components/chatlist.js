@@ -79,7 +79,7 @@ export default function ChatList({ selectedRoomId, onRoomSelect }) {
               <button
                 key={room.roomId}
                 type="button"
-                onClick={() => handleRoomClick(room.roomId)}
+                onDoubleClick={() => handleRoomClick(room.roomId)}
                 className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
                   selectedRoomId === room.roomId ? 'bg-blue-50' : ''
                 }`}

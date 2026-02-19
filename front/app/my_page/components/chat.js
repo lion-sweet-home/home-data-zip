@@ -93,7 +93,7 @@ export default function ChatCard() {
             <button
               key={room.roomId}
               type="button"
-              onClick={() => handleRoomClick(room.roomId)}
+              onDoubleClick={() => handleRoomClick(room.roomId)}
               className="w-full text-left py-3 hover:bg-gray-50 transition-colors"
             >
               <div className="flex items-start justify-between gap-3">

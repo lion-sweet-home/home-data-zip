@@ -151,23 +151,35 @@ public class ChatService {
 
         // 입장 혹은 퇴장시 채팅 내용 변경
         String content = request.content();
-        // if (request.type() == MessageType.ENTER) {                   todo: 나중에 다시 구현 예정
-        //     content = sender.getNickname() + "님이 입장하셨습니다.";
-        // } else if (request.type() == MessageType.LEAVE) {
-        //     content = sender.getNickname() + "님이 퇴장하셨습니다.";
-        // }
+        if (chatRoom.isBuyerAndNotEntered(sender.getId())
+                && (request.type() == MessageType.ENTER)) {
+            content = sender.getNickname() + "님이 입장하셨습니다.";
+            chatRoom.enterBuyer();
+        } else if (chatRoom.isSellerAndNotEntered(sender.getId())
+                && (request.type() == MessageType.ENTER)) {
+            content = sender.getNickname() + "님이 입장하셨습니다.";
+            chatRoom.enterSeller();
+        } else if (request.type() == MessageType.LEAVE) {
+            content = sender.getNickname() + "님이 퇴장하셨습니다.";
+        } else if ((!chatRoom.isBuyerAndNotEntered(sender.getId())
+                || !chatRoom.isSellerAndNotEntered(sender.getId()))
+                && request.type() != MessageType.TALK) {
+            return;
+        }
 
         ChatMessage chatMessage = ChatMessage.create(chatRoom, sender, content, request.type(), isRead);
         ChatMessage save = chatMessageRepository.save(chatMessage);
 
-        chatRoom.updateLastMessage(save.getContent(), save.getCreatedAt());
+        if (request.type() == MessageType.TALK) {
+            chatRoom.updateLastMessage(save.getContent(), save.getCreatedAt());
 
-        long totalUnread = chatMessageRepository.countTotalUnreadMessages(opponent.getId());
+            long totalUnread = chatMessageRepository.countTotalUnreadMessages(opponent.getId());
 
-        // 이벤트 발행 : 이 메서드가 커밋되면 리스너의 메서드가 호출된다.
-        applicationEventPublisher.publishEvent(ChatMessageEvent.create(
-                save, opponent.getId(), sender.getId(), totalUnread
-        ));
+            // 이벤트 발행 : 이 메서드가 커밋되면 리스너의 메서드가 호출된다.
+            applicationEventPublisher.publishEvent(ChatMessageEvent.create(
+                    save, opponent.getId(), sender.getId(), totalUnread
+            ));
+        }
 
         ChatMessageResponse response = ChatMessageResponse.create(chatMessage);
 
