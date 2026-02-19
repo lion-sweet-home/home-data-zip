@@ -8,6 +8,7 @@ public record AptDetailResponse(
         String address,
         Long avgAmount,
         Map<Double, List<TradeSaleHistory>> pyeongTrades,
-        Map<Double,List<TradeSaleChartData>> chartData
+        Map<Double,List<TradeSaleChartData>> chartData,
+        Integer buildYear
 ) {
 }

@@ -7,6 +7,7 @@ public record AptSaleSummaryResponse(
         String aptNm,
         List<Long> monthlyVolumes,
         List<RecentTradeSale> recentTradeSales,
-        List<String> monthLabels
+        List<String> monthLabels,
+        Integer buildYear
 ) {
 }
