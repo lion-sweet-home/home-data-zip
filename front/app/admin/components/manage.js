@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { deleteAdminUser, getAdminUsersList } from '../../api/admin';
+import { deleteAdminUser, getAdminUsersList, searchAdminUsers } from '../../api/admin';
 
 function safeDate(d) {
   if (!d) return null;
@@ -80,13 +80,15 @@ function UserRow({ user, onDelete }) {
   );
 }
 
+const PAGE_SIZE = 10;
+
 export default function ManageUsers() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [page, setPage] = useState(0);
-  const [size, setSize] = useState(6);
-  const [showAll, setShowAll] = useState(false);
+  const [searchType, setSearchType] = useState('ALL');
   const [keyword, setKeyword] = useState('');
+  const [appliedKeyword, setAppliedKeyword] = useState('');
   const [data, setData] = useState({
     content: [],
     totalElements: 0,
@@ -99,14 +101,15 @@ export default function ManageUsers() {
     setLoading(true);
     setError(null);
     try {
-      const res = await getAdminUsersList({ page, size });
-      // Spring Page 응답: {content, totalElements, totalPages, number, size, ...}
+      const res = appliedKeyword
+        ? await searchAdminUsers({ type: searchType, keyword: appliedKeyword, page, size: PAGE_SIZE })
+        : await getAdminUsersList({ page, size: PAGE_SIZE });
       setData({
         content: Array.isArray(res?.content) ? res.content : [],
         totalElements: Number(res?.totalElements ?? 0),
         totalPages: Number(res?.totalPages ?? 0),
         number: Number(res?.number ?? page),
-        size: Number(res?.size ?? size),
+        size: Number(res?.size ?? PAGE_SIZE),
       });
     } catch (e) {
       setError(e?.message ?? '회원 목록을 불러오지 못했습니다.');
@@ -118,26 +121,12 @@ export default function ManageUsers() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, size]);
-
-  const filtered = useMemo(() => {
-    const k = keyword.trim().toLowerCase();
-    if (!k) return data.content;
-    return data.content.filter((u) => {
-      const nick = String(u?.nickname ?? '').toLowerCase();
-      const email = String(u?.email ?? '').toLowerCase();
-      return nick.includes(k) || email.includes(k);
-    });
-  }, [data.content, keyword]);
+  }, [page, searchType, appliedKeyword]);
 
   const totalLabel = useMemo(() => {
     const n = Number.isFinite(data.totalElements) ? data.totalElements : 0;
     return n.toLocaleString('ko-KR');
   }, [data.totalElements]);
-
-  const visibleUsers = useMemo(() => {
-    return showAll ? filtered : filtered.slice(0, 3);
-  }, [filtered, showAll]);
 
   const handleDelete = async (userId) => {
     if (!userId) return;
@@ -154,46 +143,47 @@ export default function ManageUsers() {
 
   return (
     <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-bold text-gray-900">회원 관리</span>
-          <span className="text-xs text-gray-500">총 {totalLabel}명</span>
-        </div>
-        <button
-          onClick={() => {
-            setPage(0);
-            setShowAll((v) => !v);
-            if (!showAll && size < 20) setSize(20);
-            if (showAll) setSize(6);
-          }}
-          className="px-3 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
-        >
-          {showAll ? '접기' : '전체 보기'}
-        </button>
+      <div className="flex items-center gap-2">
+        <span className="text-base font-bold text-gray-900">회원 관리</span>
+        <span className="text-xs text-gray-500">총 {totalLabel}명</span>
       </div>
 
-      <div className="mt-4 flex items-center gap-2">
+      <div className="mt-4 flex items-center gap-2 flex-wrap">
+        <select
+          value={searchType}
+          onChange={(e) => {
+            setPage(0);
+            setSearchType(e.target.value);
+          }}
+          className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
+          title="검색 타입"
+        >
+          <option value="ALL">전체</option>
+          <option value="NICKNAME">닉네임</option>
+          <option value="EMAIL">이메일</option>
+        </select>
         <input
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder="닉네임 또는 이메일 검색"
-          className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm"
-        />
-        <select
-          value={size}
-          onChange={(e) => {
-            setPage(0);
-            setSize(Number(e.target.value));
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              setPage(0);
+              setAppliedKeyword(keyword.trim());
+            }
           }}
-          className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white"
-          title="페이지 크기"
+          placeholder={searchType === 'ALL' ? '닉네임 또는 이메일 검색' : searchType === 'NICKNAME' ? '닉네임 검색' : '이메일 검색'}
+          className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-gray-200 text-sm"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            setPage(0);
+            setAppliedKeyword(keyword.trim());
+          }}
+          className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm font-semibold hover:bg-gray-200"
         >
-          {[6, 10, 20].map((n) => (
-            <option key={n} value={n}>
-              {n}개
-            </option>
-          ))}
-        </select>
+          검색
+        </button>
       </div>
 
       {error ? (
@@ -213,11 +203,11 @@ export default function ManageUsers() {
             ))}
           </div>
         ) : (
-          <div className={`mt-2 ${showAll ? 'max-h-[360px] overflow-y-auto pr-1' : ''}`}>
-            {visibleUsers.length === 0 ? (
+          <div className="mt-2 max-h-[360px] overflow-y-auto pr-1">
+            {data.content.length === 0 ? (
               <div className="py-10 text-center text-sm text-gray-500">표시할 회원이 없습니다.</div>
             ) : (
-              visibleUsers.map((u, idx) => (
+              data.content.map((u, idx) => (
                 <UserRow key={getUserId(u) ?? `${u?.email ?? 'user'}-${idx}`} user={u} onDelete={handleDelete} />
               ))
             )}

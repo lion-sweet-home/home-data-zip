@@ -129,6 +129,7 @@ public class ListingQueryService {
         } catch (Exception ignored) {}
 
         String mainImageUrl = extractMainImageUrl(l);
+        String regionName = addressFromApartment(l.getApartment());
 
         return new MyListingResponse(
                 l.getId(),
@@ -145,8 +146,19 @@ public class ListingQueryService {
                 l.getDescription(),
                 l.getStatus().name(),
                 l.getCreatedAt(),
-                mainImageUrl
+                mainImageUrl,
+                regionName
         );
+    }
+
+    /** 매물 표시용 주소: 아파트 지번주소 사용, 없으면 도로주소 */
+    private static String addressFromApartment(org.example.homedatazip.apartment.entity.Apartment apt) {
+        if (apt == null) return null;
+        String jibun = apt.getJibunAddress();
+        if (jibun != null && !jibun.isBlank()) return jibun;
+        String road = apt.getRoadAddress();
+        if (road != null && !road.isBlank()) return road;
+        return null;
     }
 
     /**

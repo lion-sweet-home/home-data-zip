@@ -24,6 +24,9 @@ public record MyListingResponse(
 
         String status,
         LocalDateTime createdAt,
-        String mainImageUrl
+        String mainImageUrl,
+
+        /** 지역 주소 (시/도 구/군 동), 표시용 */
+        String regionName
 ) {
 }
