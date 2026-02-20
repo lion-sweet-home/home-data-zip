@@ -109,6 +109,12 @@ export default function ListingSearchPage() {
 
   const handleToggleFavorite = async (e, listingId) => {
     e.stopPropagation();
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth/login');
+      return;
+    }
     if (favoriteLoadingId === listingId) return;
     setFavoriteLoadingId(listingId);
     const id = String(listingId);
@@ -125,11 +131,6 @@ export default function ListingSearchPage() {
         setFavoriteIds((prev) => new Set(prev).add(id));
       }
     } catch (err) {
-      if (err.status === 401) {
-        alert('로그인이 필요합니다.');
-        router.push('/auth/login');
-        return;
-      }
       console.error('관심 매물 처리 실패:', err);
     } finally {
       setFavoriteLoadingId(null);
