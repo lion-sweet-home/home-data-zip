@@ -209,6 +209,7 @@ public class UserService {
                 user.getPhoneNumber(),
                 phoneVerified,
                 user.getPhoneVerifiedAt(),
+                user.getCustomerKey(),
                 roles
         );
     }

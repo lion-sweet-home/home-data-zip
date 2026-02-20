@@ -35,11 +35,30 @@ function extractPhoneVerifiedAt(payload) {
   );
 }
 
+function extractCustomerKey(payload) {
+  if (!payload) return null;
+  return (
+    payload.customerKey ||
+    payload.customer_key ||
+    payload.user?.customerKey ||
+    payload.user?.customer_key ||
+    null
+  );
+}
+
+function normalizeApiData(res) {
+  return res?.data ?? res ?? null;
+}
+
 export default function SubscribePage() {
   const router = useRouter();
   const [subscription, setSubscription] = useState(null);
+
+  // ✅ user 관련 상태
   const [phoneVerifiedAt, setPhoneVerifiedAt] = useState(null);
+  const [customerKey, setCustomerKey] = useState(null);
   const [userApiAvailable, setUserApiAvailable] = useState(true);
+
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -76,20 +95,27 @@ export default function SubscribePage() {
 
     let nextSubscription = subscription;
     let nextPhoneVerifiedAt = phoneVerifiedAt;
+    let nextCustomerKey = customerKey;
     let nextUserApiAvailable = userApiAvailable;
 
     if (subscriptionResult.status === "fulfilled") {
-      nextSubscription = subscriptionResult.value;
-      setSubscription(subscriptionResult.value);
+      nextSubscription = normalizeApiData(subscriptionResult.value);
+      setSubscription(nextSubscription);
     } else {
       setError(parseApiError(subscriptionResult.reason));
     }
 
     if (userResult.status === "fulfilled") {
+      const userPayload = normalizeApiData(userResult.value);
+
       nextUserApiAvailable = true;
-      nextPhoneVerifiedAt = extractPhoneVerifiedAt(userResult.value);
       setUserApiAvailable(true);
+
+      nextPhoneVerifiedAt = extractPhoneVerifiedAt(userPayload);
       setPhoneVerifiedAt(nextPhoneVerifiedAt);
+
+      nextCustomerKey = extractCustomerKey(userPayload);
+      setCustomerKey(nextCustomerKey);
     } else if (userResult.reason?.status === 404) {
       nextUserApiAvailable = false;
       setUserApiAvailable(false);
@@ -98,9 +124,11 @@ export default function SubscribePage() {
     }
 
     if (showLoading) setLoading(false);
+
     return {
       subscription: nextSubscription,
       phoneVerifiedAt: nextPhoneVerifiedAt,
+      customerKey: nextCustomerKey,
       userApiAvailable: nextUserApiAvailable,
     };
   }
@@ -123,19 +151,23 @@ export default function SubscribePage() {
         return;
       }
 
+      // ✅ customerKey 없으면 절대 카드 등록 진행하면 안 됨 (undefined.customerKey 방지)
+      const ck = latest.customerKey || customerKey;
+      if (!ck) {
+        throw new Error(
+          "customerKey를 가져오지 못했습니다. /users/me 응답에 customerKey가 내려오는지 확인하세요."
+        );
+      }
+
       if (!latest.subscription?.hasBillingKey) {
         const billingInfoRes = await issueBillingKey({
           orderName: "HomeDataZip 구독",
           amount: PLAN_PRICE,
         });
 
-        // =======================
-        // ✅✅ 1분 디버깅 (여기!)
-        // =======================
         console.log("[BILLING] issueBillingKey raw response =", billingInfoRes);
 
-        // 응답이 { data: {...} } 형태일 수도 있어서 정규화
-        const billingInfo = billingInfoRes?.data ?? billingInfoRes;
+        const billingInfo = normalizeApiData(billingInfoRes);
 
         console.log("[BILLING] normalized billingInfo =", billingInfo);
         console.log("[BILLING] keys check =", {
@@ -146,6 +178,11 @@ export default function SubscribePage() {
 
         if (!billingInfo) {
           throw new Error("빌링키 발급 응답이 undefined 입니다. (issueBillingKey 결과 확인)");
+        }
+
+        // ✅ 혹시 백엔드가 customerKey를 안 내려주는 구조면, 여기서 강제로 주입
+        if (!billingInfo.customerKey) {
+          billingInfo.customerKey = ck;
         }
 
         await startBillingAuth(billingInfo);
@@ -162,13 +199,9 @@ export default function SubscribePage() {
   }
 
   async function startBillingAuth(billingInfo) {
-    // =======================
-    // ✅✅ 1분 디버깅 (여기!)
-    // =======================
     console.log("[BILLING] startBillingAuth input =", billingInfo);
 
-    // 혹시 여기에서도 {data:{...}} 넘어오는 케이스 방어
-    const info = billingInfo?.data ?? billingInfo;
+    const info = normalizeApiData(billingInfo);
 
     console.log("[BILLING] startBillingAuth normalized =", info);
     console.log("[BILLING] required fields =", {
@@ -203,11 +236,8 @@ export default function SubscribePage() {
       throw new Error("TossPayments SDK 초기화에 실패했습니다.");
     }
 
-    await tossPayments.requestBillingAuth({
-      method: "CARD",
+    await tossPayments.requestBillingAuth("CARD", {
       customerKey: info.customerKey,
-      orderName: info.orderName || "HomeDataZip 구독",
-      amount: info.amount && info.amount > 0 ? info.amount : PLAN_PRICE,
       successUrl: info.successUrl,
       failUrl: info.failUrl,
     });
@@ -222,9 +252,8 @@ export default function SubscribePage() {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await sendPhoneAuth(phoneNumber);
+      const response = normalizeApiData(await sendPhoneAuth(phoneNumber));
 
-      // ✅ 백엔드 응답키에 맞춤: expiresInSeconds
       setRequestId(response.requestId);
       setTtlSeconds(response.expiresInSeconds ?? null);
 
@@ -245,9 +274,10 @@ export default function SubscribePage() {
     setActionLoading(true);
     setError(null);
     try {
-      const response = await verifyPhoneAuth({ phoneNumber, requestId, code });
+      const response = normalizeApiData(
+        await verifyPhoneAuth({ phoneNumber, requestId, code })
+      );
 
-      // ✅ 백엔드 응답키에 맞춤: verified
       if (!response?.verified) {
         throw new Error("인증에 실패했습니다. 인증번호를 확인해주세요.");
       }
@@ -323,6 +353,10 @@ export default function SubscribePage() {
               <p className="text-sm text-gray-500">카드 등록</p>
               <p className="mt-2 text-lg font-semibold text-gray-900">
                 {hasBillingKey ? "등록 완료" : "미등록"}
+              </p>
+              {/* ✅ 디버깅용 표시 (원하면 지워) */}
+              <p className="mt-2 text-xs text-gray-400">
+                customerKey: {customerKey ? "OK" : "없음"}
               </p>
             </div>
             <div className="rounded-xl border border-gray-200 p-4">

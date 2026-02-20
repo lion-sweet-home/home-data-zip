@@ -10,5 +10,6 @@ public record UserMeResponse(
         String phoneNumber,
         boolean phoneVerified,
         LocalDateTime phoneVerifiedAt,
+        String customerKey,
         List<String> roles
 ) {}
