@@ -91,6 +91,12 @@ export default function ListingDetailPage() {
   }, [listingId]);
 
   const handleToggleFavorite = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth/login');
+      return;
+    }
     if (favoriteLoading) return;
     setFavoriteLoading(true);
     try {
@@ -102,11 +108,6 @@ export default function ListingDetailPage() {
         setIsFavorited(true);
       }
     } catch (err) {
-      if (err.status === 401) {
-        alert('로그인이 필요합니다.');
-        router.push('/auth/login');
-        return;
-      }
       console.error('관심 매물 처리 실패:', err);
     } finally {
       setFavoriteLoading(false);

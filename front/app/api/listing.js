@@ -54,25 +54,22 @@ export async function getMyListings(status) {
  * 전체 매물 검색
  * 
  * @param {object} params - 검색 파라미터
- * @param {number} [params.regionId] - 지역 ID
- * @param {number} [params.apartmentId] - 아파트 ID
+ * @param {string} [params.sido] - 시/도
+ * @param {string} [params.gugun] - 구/군
+ * @param {string} [params.dong] - 동
+ * @param {string} [params.apartmentName] - 아파트명
  * @param {string} [params.tradeType] - 거래 유형 ('SALE' | 'RENT')
- * @param {string} [params.rentType] - 전월세 유형 ('JEONSE' | 'WOLSE')
+ * @param {string} [params.rentType] - 전월세 유형 ('CHARTER' | 'MONTHLY')
  * @param {number} [params.limit=50] - 최대 개수
  * @returns {Promise<Array>} 매물 목록
- * 
- * 사용 예시:
- * const listings = await searchListings({
- *   regionId: 123,
- *   tradeType: 'SALE',
- *   limit: 20
- * });
  */
 export async function searchListings(params = {}) {
   const queryParams = new URLSearchParams();
   
-  if (params.regionId) queryParams.append('regionId', params.regionId);
-  if (params.apartmentId) queryParams.append('apartmentId', params.apartmentId);
+  if (params.sido) queryParams.append('sido', params.sido);
+  if (params.gugun) queryParams.append('gugun', params.gugun);
+  if (params.dong) queryParams.append('dong', params.dong);
+  if (params.apartmentName) queryParams.append('apartmentName', params.apartmentName);
   if (params.tradeType) queryParams.append('tradeType', params.tradeType);
   if (params.rentType) queryParams.append('rentType', params.rentType);
   if (params.limit) queryParams.append('limit', params.limit);
@@ -85,22 +82,20 @@ export async function searchListings(params = {}) {
  * 매매 매물만 조회
  * 
  * @param {object} params - 검색 파라미터
- * @param {number} [params.regionId] - 지역 ID
- * @param {number} [params.apartmentId] - 아파트 ID
+ * @param {string} [params.sido] - 시/도
+ * @param {string} [params.gugun] - 구/군
+ * @param {string} [params.dong] - 동
+ * @param {string} [params.apartmentName] - 아파트명
  * @param {number} [params.limit=50] - 최대 개수
  * @returns {Promise<Array>} 매매 매물 목록
- * 
- * 사용 예시:
- * const saleListings = await getSaleListings({
- *   regionId: 123,
- *   limit: 20
- * });
  */
 export async function getSaleListings(params = {}) {
   const queryParams = new URLSearchParams();
   
-  if (params.regionId) queryParams.append('regionId', params.regionId);
-  if (params.apartmentId) queryParams.append('apartmentId', params.apartmentId);
+  if (params.sido) queryParams.append('sido', params.sido);
+  if (params.gugun) queryParams.append('gugun', params.gugun);
+  if (params.dong) queryParams.append('dong', params.dong);
+  if (params.apartmentName) queryParams.append('apartmentName', params.apartmentName);
   if (params.limit) queryParams.append('limit', params.limit);
   
   const queryString = queryParams.toString();
@@ -111,24 +106,21 @@ export async function getSaleListings(params = {}) {
  * 전월세 매물만 조회
  * 
  * @param {object} params - 검색 파라미터
- * @param {number} [params.regionId] - 지역 ID
- * @param {number} [params.apartmentId] - 아파트 ID
- * @param {string} [params.rentType] - 전월세 유형 ('JEONSE' | 'WOLSE')
+ * @param {string} [params.sido] - 시/도
+ * @param {string} [params.gugun] - 구/군
+ * @param {string} [params.dong] - 동
+ * @param {string} [params.apartmentName] - 아파트명
+ * @param {string} [params.rentType] - 전월세 유형 ('CHARTER' | 'MONTHLY')
  * @param {number} [params.limit=50] - 최대 개수
  * @returns {Promise<Array>} 전월세 매물 목록
- * 
- * 사용 예시:
- * const rentListings = await getRentListings({
- *   regionId: 123,
- *   rentType: 'JEONSE',
- *   limit: 20
- * });
  */
 export async function getRentListings(params = {}) {
   const queryParams = new URLSearchParams();
   
-  if (params.regionId) queryParams.append('regionId', params.regionId);
-  if (params.apartmentId) queryParams.append('apartmentId', params.apartmentId);
+  if (params.sido) queryParams.append('sido', params.sido);
+  if (params.gugun) queryParams.append('gugun', params.gugun);
+  if (params.dong) queryParams.append('dong', params.dong);
+  if (params.apartmentName) queryParams.append('apartmentName', params.apartmentName);
   if (params.rentType) queryParams.append('rentType', params.rentType);
   if (params.limit) queryParams.append('limit', params.limit);
   
