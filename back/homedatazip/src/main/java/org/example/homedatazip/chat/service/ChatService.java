@@ -48,7 +48,11 @@ public class ChatService {
         return rooms.stream()
                 .map(room -> {
                     // 특정 방에서 내가 읽지 않은 메시지 개수
-                    long unReadCount = chatMessageRepository.countByChatRoomAndIsReadFalseAndSenderIdNot(room, userId);
+                    long unReadCount =
+                            chatMessageRepository.countByChatRoomAndIsReadFalseAndSenderIdNotAndType(
+                                    room,
+                                    userId,
+                                    MessageType.TALK);
 
                     return ChatRoomListResponse.create(
                             room.getId(),
@@ -109,7 +113,7 @@ public class ChatService {
         chatMessageRepository.markAsReadByRoomIdAndReceiverId(roomId, userId);
 
         // sse로 안읽은 메시지 개수 갱신해서 다시 보내주기
-        long totalUnread = chatMessageRepository.countTotalUnreadMessages(userId);
+        long totalUnread = chatMessageRepository.countTotalUnreadMessages(userId, MessageType.TALK);
         sseEmitterService.sendUnreadCount(userId, totalUnread);
 
         // 상대방 찾기 - 내가 구매자면 판매자로, 판매자면 구매자로
@@ -175,7 +179,9 @@ public class ChatService {
         if (request.type() == MessageType.TALK) {
             chatRoom.updateLastMessage(save.getContent(), save.getCreatedAt());
 
-            long totalUnread = chatMessageRepository.countTotalUnreadMessages(opponent.getId());
+            long totalUnread = chatMessageRepository.countTotalUnreadMessages(
+                    opponent.getId(),
+                    MessageType.TALK);
 
             // 이벤트 발행 : 이 메서드가 커밋되면 리스너의 메서드가 호출된다.
             applicationEventPublisher.publishEvent(ChatMessageEvent.create(
@@ -209,8 +215,13 @@ public class ChatService {
         // 두명 다 나갔다면 채팅방 삭제
         if (chatRoom.isBuyerExited() && chatRoom.isSellerExited()) {
             chatRoomRepository.delete(chatRoom);
+        } else {
+            // 아니면 상대방에게 나갔다는 신호(이벤트)를 발행
+            applicationEventPublisher.publishEvent(
+                    ChatRoomExitEvent.create(
+                            findOpponent(userId, chatRoom).getId()
+                    ));
         }
-
     }
 
     // 상대방 찾기

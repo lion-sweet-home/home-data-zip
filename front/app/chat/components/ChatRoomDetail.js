@@ -7,6 +7,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import MessageInput from './MessageInput';
 import { useRouter } from 'next/navigation';
+import { onRoomDetailUpdate, offRoomDetailUpdate } from '../../utils/sseManager';
 
 export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   const [roomDetail, setRoomDetail] = useState(null);
@@ -98,6 +99,22 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
     if (roomId) {
       loadRoomDetail(0);
     }
+  }, [roomId, loadRoomDetail]);
+
+  // SSE roomDetailUpdate 이벤트 구독
+  useEffect(() => {
+    const handleRoomDetailUpdate = () => {
+      // roomId가 있을 때만 메시지 재요청
+      if (roomId) {
+        loadRoomDetail(0);
+      }
+    };
+
+    onRoomDetailUpdate(handleRoomDetailUpdate);
+
+    return () => {
+      offRoomDetailUpdate(handleRoomDetailUpdate);
+    };
   }, [roomId, loadRoomDetail]);
 
   // 메시지 로드 후 스크롤 처리

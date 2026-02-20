@@ -29,6 +29,8 @@ const notificationCallbacks = new Set();
 const unreadCountCallbacks = new Set();
 // 채팅방 목록 갱신 콜백 함수들
 const roomListUpdateCallbacks = new Set();
+// 채팅방 상세 갱신 콜백 함수들
+const roomDetailUpdateCallbacks = new Set();
 
 /**
  * 알림 수신 콜백 등록
@@ -82,6 +84,24 @@ export function onRoomListUpdate(callback) {
  */
 export function offRoomListUpdate(callback) {
   roomListUpdateCallbacks.delete(callback);
+}
+
+/**
+ * 채팅방 상세 갱신 콜백 등록
+ * @param {Function} callback - 채팅방 상세 갱신 신호 수신 시 호출될 콜백 함수
+ */
+export function onRoomDetailUpdate(callback) {
+  if (typeof callback === 'function') {
+    roomDetailUpdateCallbacks.add(callback);
+  }
+}
+
+/**
+ * 채팅방 상세 갱신 콜백 제거
+ * @param {Function} callback - 제거할 콜백 함수
+ */
+export function offRoomDetailUpdate(callback) {
+  roomDetailUpdateCallbacks.delete(callback);
 }
 
 /**
@@ -185,6 +205,16 @@ export function connectChatSSE() {
           callback();
         } catch (error) {
           console.error('RoomListUpdate callback error:', error);
+        }
+      });
+    });
+
+    chatEventSource.addEventListener('roomDetailUpdate', () => {
+      roomDetailUpdateCallbacks.forEach((callback) => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('RoomDetailUpdate callback error:', error);
         }
       });
     });
@@ -308,6 +338,7 @@ export function disconnectAllSSE() {
   notificationCallbacks.clear();
   unreadCountCallbacks.clear();
   roomListUpdateCallbacks.clear();
+  roomDetailUpdateCallbacks.clear();
 }
 
 /**
@@ -369,6 +400,8 @@ export default {
   offUnreadCount,
   onRoomListUpdate,
   offRoomListUpdate,
+  onRoomDetailUpdate,
+  offRoomDetailUpdate,
   isChatSSEConnected,
   isNotificationSSEConnected,
   getChatSSEState,
