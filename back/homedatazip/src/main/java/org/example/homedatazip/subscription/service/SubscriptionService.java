@@ -64,8 +64,12 @@ public class SubscriptionService {
 
         User user = getUser(userId);
 
+        log.info("userId: {}", user.getId());
+
         Subscription sub = subscriptionRepository.findBySubscriber_Id(user.getId())
                 .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
+
+        log.info("sub: {}", sub.getId());
 
         var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
 
