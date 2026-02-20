@@ -189,4 +189,27 @@ public class UserService {
         // 4. 비밀번호 업데이트
         user.updatePassword(passwordEncoder.encode(request.newPassword()));
     }
+
+    // 유저 정보 조회
+    @Transactional(readOnly = true)
+    public UserMeResponse getMe(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+        boolean phoneVerified = user.isPhoneVerified(); // 엔티티 메서드 그대로 씀
+
+        List<String> roles = user.getRoles().stream()
+                .map(ur -> ur.getRole().getRoleType().name())
+                .toList();
+
+        return new UserMeResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getNickname(),
+                user.getPhoneNumber(),
+                phoneVerified,
+                user.getPhoneVerifiedAt(),
+                roles
+        );
+    }
 }

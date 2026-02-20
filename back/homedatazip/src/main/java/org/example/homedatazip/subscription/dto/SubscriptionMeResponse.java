@@ -27,4 +27,17 @@ public record SubscriptionMeResponse(
                 s.getBillingKey() != null && !s.getBillingKey().isBlank()
         );
     }
+
+    public static SubscriptionMeResponse none() {
+        return new SubscriptionMeResponse(
+                null,
+                null,
+                0L,
+                SubscriptionStatus.NONE,
+                false,
+                null,
+                null,
+                false
+        );
+    }
 }

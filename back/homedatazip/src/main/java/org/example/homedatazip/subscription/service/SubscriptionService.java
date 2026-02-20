@@ -78,10 +78,23 @@ public class SubscriptionService {
 
     public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
         User user = getUser(userId);
+
+        // 요청이 null로 올 수 있으니 기본값 처리
+        String orderName = (req != null && req.orderName() != null && !req.orderName().isBlank())
+                ? req.orderName()
+                : PLAN_NAME;
+
+        Long amount = (req != null && req.amount() != null && req.amount() > 0)
+                ? req.amount()
+                : PRICE; //  기본 9900
+
+        log.info("[BILLING] issueBillingKey userId={}, customerKey={}, orderName={}, amount={}, successUrl={}, failUrl={}",
+                userId, user.getCustomerKey(), orderName, amount, successUrl, failUrl);
+
         return new BillingKeyIssueResponse(
-                user.getCustomerKey(),
-                PLAN_NAME,
-                0L,
+                user.getCustomerKey(), // "CUSTOMER_1" 이런 거
+                orderName,
+                amount,                //  0이 아니라 9900 or req.amount
                 successUrl,
                 failUrl
         );
@@ -189,8 +202,11 @@ public class SubscriptionService {
         grantSeller(sub.getSubscriber()); // SELLER 부여
     }
 
+    @Transactional(readOnly = true)
     public SubscriptionMeResponse getMySubscription(Long userId) {
-        return SubscriptionMeResponse.from(getSubscription(userId));
+        return subscriptionRepository.findBySubscriber_Id(userId)
+                .map(SubscriptionMeResponse::from)
+                .orElseGet(SubscriptionMeResponse::none);
     }
 
     // ===== private =====
