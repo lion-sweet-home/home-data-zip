@@ -90,6 +90,9 @@ dependencies {
 
     //S3
     implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+
+    //솔라피 SMS
+    implementation "net.nurigo:sdk:4.3.0"
 }
 
 tasks.named('test') {

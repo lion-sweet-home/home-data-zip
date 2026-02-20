@@ -27,7 +27,10 @@ public enum SubscriptionErrorCode implements ErrorCode {
     // 추가: 카드 등록 안된 상태에서 '구독 시작(첫 결제)' 시도
     BILLING_AUTH_KEY_REQUIRED(HttpStatus.BAD_REQUEST, "SUB_400_7", "authKey가 필요합니다."),
     BILLING_KEY_ISSUE_FAILED(HttpStatus.BAD_REQUEST, "SUB_400_8", "billingKey 발급에 실패했습니다."),
-    BILLING_KEY_NOT_REGISTERED(HttpStatus.BAD_REQUEST, "SUB_400_9", "카드 등록이 필요합니다. billingKey가 없습니다.");
+    BILLING_KEY_NOT_REGISTERED(HttpStatus.BAD_REQUEST, "SUB_400_9", "카드 등록이 필요합니다. billingKey가 없습니다."),
+    SMS_SEND_FAILED(HttpStatus.BAD_REQUEST, "SUB_400_10", "문자 발송에 실패했습니다."),
+
+    PHONE_NOT_VERIFIED(HttpStatus.FORBIDDEN, "SUB_403_1", "전화번호 인증이 필요합니다.");
 
     private final HttpStatus status;
     private final String code;

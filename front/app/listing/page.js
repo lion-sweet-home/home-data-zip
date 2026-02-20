@@ -119,6 +119,7 @@ export default function ListingPage() {
                 <ListingCard
                   listing={listing}
                   variant="manage"
+                  isDeleted={listing.status === 'DELETED'}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                 />

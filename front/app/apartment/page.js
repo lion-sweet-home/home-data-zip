@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'rea
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   getAptAreaTypes,
+  getApartmentRegion,
   getAreaTypeAvg,
   getNearbySchools,
   getRecentAreaAvg,
@@ -1118,6 +1119,7 @@ function ApartmentPageContent() {
   const [rentTrades, setRentTrades] = useState([]);
 
   const [nearbySchools, setNearbySchools] = useState([]);
+  const [aptRegion, setAptRegion] = useState(null);
 
   const [showGraphModal, setShowGraphModal] = useState(false);
   const [rentGraphView, setRentGraphView] = useState('jeonse'); // 'jeonse' | 'wolse'
@@ -1216,6 +1218,13 @@ function ApartmentPageContent() {
 
     fetchSchools();
   }, [aptId, schoolLevels.join(',')]);
+
+  useEffect(() => {
+    if (!aptId) return;
+    getApartmentRegion(aptId)
+      .then((data) => { if (data) setAptRegion(data); })
+      .catch(() => {});
+  }, [aptId]);
 
   useEffect(() => {
     if (!aptId) return;
@@ -1476,8 +1485,17 @@ function ApartmentPageContent() {
   ]);
 
   const handleBackToMap = () => {
-    // 가장 안전한 복원: 지도 URL이 최신 검색조건을 반영하지 않을 수 있으므로
-    // sessionStorage에 저장된 마지막 검색 파라미터가 있으면 쿼리 없는 /search/map로 이동 후 복원시키자.
+    // 아파트 지역 정보가 있으면 URL 쿼리 파라미터로 전달하여 지도 필터를 해당 지역으로 설정
+    if (aptRegion?.sido && aptRegion?.gugun) {
+      const params = new URLSearchParams();
+      params.set('sido', aptRegion.sido);
+      params.set('gugun', aptRegion.gugun);
+      if (aptRegion.dong) params.set('dong', aptRegion.dong);
+      router.push(`/search/map?${params.toString()}`);
+      return;
+    }
+
+    // 지역 정보가 없으면 기존 복원 로직
     try {
       const lastParams = sessionStorage.getItem('search_map_lastParams');
       if (lastParams) {
@@ -1488,7 +1506,6 @@ function ApartmentPageContent() {
       // ignore
     }
 
-    // 지도에서 상세로 넘어올 때 저장한 "마지막 지도 URL"이 있으면 그걸 최우선으로 복원한다.
     try {
       const lastUrl = sessionStorage.getItem('search_map_lastUrl');
       if (lastUrl && lastUrl.startsWith('/search/map')) {
@@ -1499,13 +1516,11 @@ function ApartmentPageContent() {
       // ignore
     }
 
-    // next: 브라우저 히스토리로 복귀(쿼리 포함) 시도
     if (window.history.length > 1) {
       router.back();
       return;
     }
 
-    // 마지막: 쿼리 없는 지도
     router.push('/search/map');
   };
 

@@ -11,6 +11,7 @@ public record ListingSearchResponse(
         Long regionId,
         Long apartmentId,
         String apartmentName,
+        String jibunAddress,
         Integer buildYear,
 
         TradeType tradeType,

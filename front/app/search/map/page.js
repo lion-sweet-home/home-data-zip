@@ -451,6 +451,10 @@ function MapSearchPageContent() {
                 schoolLevels={currentSearchParams?.schoolTypes}
                 tradeType={currentSearchParams?.tradeType || '매매'}
                 onShowDetail={handleShowDetail}
+                onBackToList={() => {
+                  setShowSidePanner(false);
+                  setSelectedApartment(null);
+                }}
                 onToggleBusMarker={handleToggleBusMarker}
                 onToggleSchoolMarker={handleToggleSchoolMarker}
               />
