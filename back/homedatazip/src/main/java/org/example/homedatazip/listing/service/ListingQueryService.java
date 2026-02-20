@@ -110,6 +110,7 @@ public class ListingQueryService {
                 l.getRegion().getId(),
                 l.getApartment().getId(),
                 l.getApartment().getAptName(),
+                l.getApartment().getJibunAddress(),
                 buildYear,
                 l.getTradeType(),
                 rentType,
@@ -215,6 +216,29 @@ public class ListingQueryService {
                                 .toList()
                 );
 
-        return new ListingDetailResponse(l.getId(), title, images);
+        RentType rentType = null;
+        if (l.getTradeType() == TradeType.RENT) {
+            rentType = (l.getMonthlyRent() != null && l.getMonthlyRent() == 0)
+                    ? RentType.CHARTER
+                    : RentType.MONTHLY;
+        }
+
+        return new ListingDetailResponse(
+                l.getId(),
+                title,
+                images,
+                l.getTradeType(),
+                rentType,
+                l.getExclusiveArea(),
+                l.getFloor(),
+                l.getSalePrice(),
+                l.getDeposit(),
+                l.getMonthlyRent(),
+                l.getApartment().getBuildYear(),
+                l.getDescription(),
+                l.getContactPhone(),
+                l.getCreatedAt(),
+                l.getApartment().getJibunAddress()
+        );
     }
 }
