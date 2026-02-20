@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getLocalJSON, setLocalJSON } from '../_utils';
+import { getNotificationSetting, updateNotificationSetting } from '../../../api/user';
 
 const LS_KEY = 'myPage:notificationSettings';
 
@@ -9,23 +10,62 @@ export default function SettingCard() {
   const [loaded, setLoaded] = useState(false);
   const [settings, setSettings] = useState({
     announcement: true,
-    priceChange: true,
-    chatMessage: true,
   });
 
   useEffect(() => {
     const saved = getLocalJSON(LS_KEY, null);
-    if (saved) setSettings((prev) => ({ ...prev, ...saved }));
+    if (saved) setSettings((prev) => ({ ...prev, announcement: saved?.announcement ?? prev.announcement }));
     setLoaded(true);
+
+    // 서버 알림 수신 설정(단일 boolean)과 announcement 토글을 동기화
+    (async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const accessToken = localStorage.getItem('accessToken');
+        if (!accessToken) return;
+
+        const res = await getNotificationSetting();
+        const enabled = !!res?.notificationEnabled;
+        setSettings((prev) => {
+          const next = { ...prev, announcement: enabled };
+          setLocalJSON(LS_KEY, next);
+          return next;
+        });
+      } catch {
+        // 조회 실패 시엔 로컬값 유지
+      }
+    })();
   }, []);
 
-  const toggle = (key) => {
+  const toggleAnnouncement = async () => {
+    const nextEnabled = !settings.announcement;
+
+    // UI는 즉시 반영
     setSettings((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = { ...prev, announcement: nextEnabled };
       setLocalJSON(LS_KEY, next);
-      // TODO: 알림 설정 서버 연동
       return next;
     });
+
+    try {
+      await updateNotificationSetting(nextEnabled);
+      // 헤더 등에서 SSE on/off를 할 수 있게 이벤트로 브로드캐스트
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('notificationSetting:changed', {
+            detail: { notificationEnabled: nextEnabled },
+          })
+        );
+      }
+    } catch (e) {
+      // 실패하면 롤백
+      setSettings((prev) => {
+        const rollback = { ...prev, announcement: !nextEnabled };
+        setLocalJSON(LS_KEY, rollback);
+        return rollback;
+      });
+      alert(e?.message ?? '알림 설정 변경에 실패했습니다.');
+    }
   };
 
   return (
@@ -61,33 +101,13 @@ export default function SettingCard() {
             <input
               type="checkbox"
               checked={!!settings.announcement}
-              onChange={() => toggle('announcement')}
-              className="h-4 w-4"
-            />
-          </label>
-
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-gray-800">실거래가 변동 알림</span>
-            <input
-              type="checkbox"
-              checked={!!settings.priceChange}
-              onChange={() => toggle('priceChange')}
-              className="h-4 w-4"
-            />
-          </label>
-
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span className="text-gray-800">채팅 메시지 알림</span>
-            <input
-              type="checkbox"
-              checked={!!settings.chatMessage}
-              onChange={() => toggle('chatMessage')}
+              onChange={toggleAnnouncement}
               className="h-4 w-4"
             />
           </label>
 
           <div className="text-xs text-gray-500 pt-1">
-            현재는 로컬 저장소에만 반영됩니다. (TODO: 서버 연동)
+            공지사항 알림은 서버 설정과 연동됩니다.
           </div>
         </div>
       )}

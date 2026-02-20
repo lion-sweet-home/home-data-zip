@@ -23,7 +23,7 @@ function formatPrice(value) {
  * @param {function} [props.onEdit] - 수정 클릭 (variant=manage)
  * @param {function} [props.onDelete] - 삭제 클릭 (variant=manage)
  */
-export default function ListingCard({ listing, variant = 'manage', onEdit, onDelete }) {
+export default function ListingCard({ listing, variant = 'manage', isDeleted = false, onEdit, onDelete }) {
   if (!listing) return null;
 
   const {
@@ -129,22 +129,32 @@ export default function ListingCard({ listing, variant = 'manage', onEdit, onDel
 
           <div className="mt-4 flex flex-wrap gap-2 justify-end">
             {variant === 'manage' && (
-              <>
+              isDeleted ? (
                 <button
                   type="button"
-                  onClick={() => onEdit?.(listing)}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                  disabled
+                  className="px-4 py-2 rounded-lg bg-gray-400 text-white text-sm font-medium cursor-not-allowed"
                 >
-                  수정
+                  삭제된 매물
                 </button>
-                <button
-                  type="button"
-                  onClick={() => onDelete?.(listing)}
-                  className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
-                >
-                  삭제
-                </button>
-              </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onEdit?.(listing)}
+                    className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                  >
+                    수정
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete?.(listing)}
+                    className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-colors"
+                  >
+                    삭제
+                  </button>
+                </>
+              )
             )}
             {variant === 'favorite' && (
               <>

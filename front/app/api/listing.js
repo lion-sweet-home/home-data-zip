@@ -137,6 +137,15 @@ export async function getRentListings(params = {}) {
 }
 
 /**
+ * 매물 상세 조회 (이미지 포함)
+ * @param {number} listingId - 매물 ID
+ * @returns {Promise<{id: number, title: string, images: Array}>}
+ */
+export async function getListingDetail(listingId) {
+  return get(`/listings/${listingId}`);
+}
+
+/**
  * 매물 삭제 (본인 매물만)
  * @param {number} listingId - 매물 ID
  * @returns {Promise<{listingId: number, deleted: boolean}>}
@@ -163,6 +172,7 @@ export default {
   searchListings,
   getSaleListings,
   getRentListings,
+  getListingDetail,
   deleteListing,
   uploadListingImageTemp,
 };

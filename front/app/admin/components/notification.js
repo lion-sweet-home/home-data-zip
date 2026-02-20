@@ -150,7 +150,8 @@ export default function AdminNotifications() {
         </div>
       ) : null}
 
-      <div className="mt-4">
+      {/* 목록이 길어져도 카드 높이가 과도하게 늘지 않도록 내부 스크롤 적용 */}
+      <div className="mt-4 max-h-[520px] overflow-y-auto pr-1">
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 2 }).map((_, i) => (

@@ -15,7 +15,7 @@ public class RoleValidation {
     private final UserRepository userRepository;
 
     public void validateAdmin(Long userId) {
-        User admin = userRepository.findById(userId)
+        User admin = userRepository.findByIdWithRoles(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
         if (!admin.hasRole(RoleType.ADMIN)) {

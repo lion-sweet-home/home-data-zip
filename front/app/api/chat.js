@@ -4,6 +4,29 @@
  */
 
 import { get, post, patch } from './api';
+import { EventSourcePolyfill } from 'event-source-polyfill';
+
+/**
+ * SSE 연결 (채팅 이벤트 수신)
+ * - unreadCount
+ * - roomListUpdate
+ *
+ * @returns {EventSourcePolyfill}
+ */
+export function subscribeChatEvents() {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+  const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  if (!accessToken) {
+    throw new Error('Access token이 없습니다. 로그인이 필요합니다.');
+  }
+
+  return new EventSourcePolyfill(`${API_BASE_URL}/sse/chat`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+    withCredentials: true,
+  });
+}
 
 /**
  * 채팅방 목록 조회
@@ -75,6 +98,7 @@ export default {
   createOrJoinRoom,
   getChatRoomDetail,
   exitChatRoom,
+  subscribeChatEvents,
 };
 
 
