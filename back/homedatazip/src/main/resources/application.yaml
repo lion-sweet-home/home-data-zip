@@ -185,3 +185,9 @@ apartment:
   school-distance:
     sync:
       cron: ${APARTMENT_SCHOOL_DISTANCE_SYNC_CRON:0 0 4 * * ?}
+
+sms:
+  solapi:
+    api-key: ${SOLAPI_API_KEY}
+    api-secret: ${SOLAPI_API_SECRET}
+    from: ${SOLAPI_FROM_NUMBER}

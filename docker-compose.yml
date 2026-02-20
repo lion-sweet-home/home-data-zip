@@ -125,6 +125,14 @@ services:
       QUARTZ_TRADE_RENT_CRON: ${QUARTZ_TRADE_RENT_CRON}
       QUARTZ_HOSPITAL_CRON: ${QUARTZ_HOSPITAL_CRON}
 
+      # SOLAPI SMS
+      SOLAPI_API_KEY: ${SOLAPI_API_KEY}
+      SOLAPI_API_SECRET: ${SOLAPI_API_SECRET}
+      SOLAPI_FROM_NUMBER: ${SOLAPI_FROM_NUMBER}
+
+      # 프로필(실문자 발송용 sender 활성화)
+      SPRING_PROFILES_ACTIVE: prod
+
   # 3. Frontend 서비스
   frontend:
     build:

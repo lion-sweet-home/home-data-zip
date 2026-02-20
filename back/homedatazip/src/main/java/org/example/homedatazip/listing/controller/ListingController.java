@@ -54,8 +54,10 @@ public class ListingController {
     // 전체 매물 조회
     @GetMapping
     public ResponseEntity<List<ListingSearchResponse>> search(
-            @RequestParam(required = false) Long regionId,
-            @RequestParam(required = false) Long apartmentId,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String gugun,
+            @RequestParam(required = false) String dong,
+            @RequestParam(required = false) String apartmentName,
             @RequestParam(required = false) TradeType tradeType,
             @RequestParam(required = false) RentType rentType,
             @RequestParam(defaultValue = "50") int limit
@@ -65,34 +67,39 @@ public class ListingController {
         }
 
         return ResponseEntity.ok(
-                listingQueryService.search(regionId, apartmentId, tradeType, rentType, limit)
+                listingQueryService.search(sido, gugun, dong, apartmentName, tradeType, rentType, limit)
         );
     }
 
     // 매매만
     @GetMapping("/sale")
     public ResponseEntity<List<ListingSearchResponse>> sale(
-            @RequestParam(required = false) Long regionId,
-            @RequestParam(required = false) Long apartmentId,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String gugun,
+            @RequestParam(required = false) String dong,
+            @RequestParam(required = false) String apartmentName,
             @RequestParam(defaultValue = "50") int limit
     ) {
         return ResponseEntity.ok(
-                listingQueryService.search(regionId, apartmentId, TradeType.SALE, null, limit)
+                listingQueryService.search(sido, gugun, dong, apartmentName, TradeType.SALE, null, limit)
         );
     }
 
     // 전/월세만
     @GetMapping("/rent")
     public ResponseEntity<List<ListingSearchResponse>> rent(
-            @RequestParam(required = false) Long regionId,
-            @RequestParam(required = false) Long apartmentId,
+            @RequestParam(required = false) String sido,
+            @RequestParam(required = false) String gugun,
+            @RequestParam(required = false) String dong,
+            @RequestParam(required = false) String apartmentName,
             @RequestParam(required = false) RentType rentType,
             @RequestParam(defaultValue = "50") int limit
     ) {
         return ResponseEntity.ok(
-                listingQueryService.search(regionId, apartmentId, TradeType.RENT, rentType, limit)
+                listingQueryService.search(sido, gugun, dong, apartmentName, TradeType.RENT, rentType, limit)
         );
     }
+
 
     // 상세 조회 (이미지 포함)
     @GetMapping("/{listingId}")
