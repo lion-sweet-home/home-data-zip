@@ -10,6 +10,28 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
 import { subscribeChatEvents } from '../api/chat';
 import { subscribeNotifications } from '../api/notification';
 
+// event-source-polyfill 내부에서 찍는 타임아웃/재연결 에러는 콘솔에 안 나오게 필터
+(function suppressSSETimeoutConsoleError() {
+  if (typeof console === 'undefined' || !console.error) return;
+  const original = console.error;
+  function getMessage(arg) {
+    if (arg == null) return '';
+    if (typeof arg === 'string') return arg;
+    if (typeof arg === 'object' && arg.message != null) return String(arg.message);
+    return '';
+  }
+  console.error = function (...args) {
+    const combined = args.map(getMessage).join(' ');
+    if (
+      combined.includes('No activity within') ||
+      combined.includes('Reconnecting')
+    ) {
+      return;
+    }
+    original.apply(console, args);
+  };
+})();
+
 // 채널별 EventSource 인스턴스
 let chatEventSource = null;
 let notificationEventSource = null;
@@ -190,11 +212,16 @@ export function connectChatSSE() {
     });
 
     chatEventSource.onerror = (error) => {
-      // 연결이 끊어진 경우 재연결 시도
-      if (chatEventSource && chatEventSource.readyState === EventSourcePolyfill.CLOSED) {
-        if (!chatReconnectTimer) attemptChatReconnect();
+      const willReconnect =
+        chatEventSource &&
+        chatEventSource.readyState === EventSourcePolyfill.CLOSED &&
+        !chatReconnectTimer;
+      if (willReconnect) {
+        attemptChatReconnect();
+        console.log('Chat SSE 재연결 중...');
+      } else if (!chatReconnectTimer) {
+        console.error('Chat SSE 연결 오류:', error);
       }
-      console.error('Chat SSE 연결 오류:', error);
     };
   } catch (error) {
     console.error('Chat SSE 연결 생성 실패:', error);
@@ -253,13 +280,16 @@ export function connectNotificationSSE() {
     };
 
     notificationEventSource.onerror = (error) => {
-      if (
+      const willReconnect =
         notificationEventSource &&
-        notificationEventSource.readyState === EventSourcePolyfill.CLOSED
-      ) {
-        if (!notificationReconnectTimer) attemptNotificationReconnect();
+        notificationEventSource.readyState === EventSourcePolyfill.CLOSED &&
+        !notificationReconnectTimer;
+      if (willReconnect) {
+        attemptNotificationReconnect();
+        console.log('Notification SSE 재연결 중...');
+      } else if (!notificationReconnectTimer) {
+        console.error('Notification SSE 연결 오류:', error);
       }
-      console.error('Notification SSE 연결 오류:', error);
     };
   } catch (error) {
     console.error('Notification SSE 연결 생성 실패:', error);
