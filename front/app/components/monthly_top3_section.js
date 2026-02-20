@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { getJeonseTop3, getSaleTop3, getWolseTop3 } from '../api/apartment';
 import SaleCard from './apartment_card/sale';
 import RentJeonseCard from './apartment_card/rent_jeose';
@@ -23,6 +24,7 @@ function CategoryPanel({ title, subtitle, accentClassName, children }) {
 }
 
 export default function MonthlyTop3Section() {
+  const router = useRouter();
   const [saleTop3, setSaleTop3] = useState([]);
   const [jeonseTop3, setJeonseTop3] = useState([]);
   const [wolseTop3, setWolseTop3] = useState([]);
@@ -54,9 +56,24 @@ export default function MonthlyTop3Section() {
     };
   }, []);
 
-  const handleCardClick = () => {
-    // TODO: 클릭 시 상세/지도 이동 연결 (요청대로 현재는 미구현)
-  };
+  const navigateToDetail = useCallback((item, tradeType) => {
+    if (!item?.aptId) return;
+    const params = new URLSearchParams();
+    params.append('aptId', String(item.aptId));
+    params.append('tradeType', tradeType);
+    if (item.aptName) params.append('aptName', item.aptName);
+    if (item.dong) params.append('dong', item.dong);
+    if (item.gugun) params.append('gugun', item.gugun);
+    router.push(`/apartment?${params.toString()}`);
+  }, [router]);
+
+  const handleSaleCardClick = useCallback((item) => {
+    navigateToDetail(item, '매매');
+  }, [navigateToDetail]);
+
+  const handleRentCardClick = useCallback((item) => {
+    navigateToDetail(item, '전월세');
+  }, [navigateToDetail]);
 
   return (
     <section className="px-6 md:px-10 py-8 bg-gray-50">
@@ -101,7 +118,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-blue-600"
             >
               {(saleTop3 || []).slice(0, 3).map((item, idx) => (
-                <SaleCard key={`sale-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <SaleCard key={`sale-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleSaleCardClick} />
               ))}
               {(!saleTop3 || saleTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
@@ -115,7 +132,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-violet-600"
             >
               {(jeonseTop3 || []).slice(0, 3).map((item, idx) => (
-                <RentJeonseCard key={`jeonse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <RentJeonseCard key={`jeonse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleRentCardClick} />
               ))}
               {(!jeonseTop3 || jeonseTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
@@ -129,7 +146,7 @@ export default function MonthlyTop3Section() {
               accentClassName="border-l-4 border-l-emerald-600"
             >
               {(wolseTop3 || []).slice(0, 3).map((item, idx) => (
-                <RentWolseCard key={`wolse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleCardClick} />
+                <RentWolseCard key={`wolse-${item?.aptId ?? idx}-${idx}`} item={item} rank={idx + 1} onClick={handleRentCardClick} />
               ))}
               {(!wolseTop3 || wolseTop3.length === 0) && (
                 <div className="text-sm text-gray-500 bg-white border border-gray-200 rounded-2xl p-5">
