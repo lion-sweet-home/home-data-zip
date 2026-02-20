@@ -38,7 +38,8 @@ public class SubscriptionController {
         subscriptionService.registerBillingKey(userId, customerKey, authKey);
 
         return ResponseEntity.status(302)
-                .header("Location", "http://localhost:5173/billing/success")
+//                .header("Location", "http://localhost:5173/billing/success")
+                .header("Location", "http://localhost:3000/subscription/success")
                 .build();
     }
 
@@ -48,7 +49,8 @@ public class SubscriptionController {
             @RequestParam(required = false) String customerKey
     ) {
         return ResponseEntity.status(302)
-                .header("Location", "http://localhost:5173/billing/fail")
+//                .header("Location", "http://localhost:5173/billing/fail")
+                .header("Location", "http://localhost:3000/subscription/fail")
                 .build();
     }
 

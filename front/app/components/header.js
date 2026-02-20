@@ -247,7 +247,7 @@ export default function Header() {
             {isLoggedIn && (
               <>
                 <Link
-                  href="/favorites"
+                  href="/favorite"
                   className="text-gray-700 hover:text-gray-900 transition-colors font-medium"
                 >
                   내 관심매물
