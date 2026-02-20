@@ -125,7 +125,9 @@ public class ChatService {
                 roomId,
                 chatRoom.getListing().getApartment().getAptName(),
                 opponent.getNickname(),
-                messages
+                messages,
+                chatRoom.isBuyerExited(),
+                chatRoom.isSellerExited()
         );
     }
 

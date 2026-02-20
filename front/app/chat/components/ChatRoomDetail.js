@@ -251,7 +251,14 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
 
   // 채팅방 나가기
   const handleExitRoom = async () => {
-    if (!confirm('정말 채팅방을 나가시겠습니까?')) {
+    // 한 명이 이미 나간 상태인지 확인
+    const isSomeoneExited = roomDetail?.buyerExited || roomDetail?.sellerExited;
+    
+    const confirmMessage = isSomeoneExited
+      ? '나가면 채팅방이 삭제됩니다. 그래도 나가시겠습니까?'
+      : '정말 채팅방을 나가시겠습니까?';
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
