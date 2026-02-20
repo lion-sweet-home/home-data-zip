@@ -33,7 +33,7 @@ export function subscribeNotifications() {
 
   // EventSourcePolyfill을 사용하여 Authorization 헤더 설정
   return new EventSourcePolyfill(
-    `${API_BASE_URL}/users/notifications/Allow-reception`,
+    `${API_BASE_URL}/sse/notifications`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,

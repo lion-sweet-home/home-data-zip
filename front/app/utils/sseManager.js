@@ -1,15 +1,25 @@
 /**
  * SSE (Server-Sent Events) 연결 관리 유틸리티
- * 로그인 시 알림 구독, 로그아웃 시 연결 해제를 담당합니다.
+ *
+ * A안: 채팅 SSE / 공지 SSE를 분리한다.
+ * - chat SSE: unreadCount, roomListUpdate
+ * - notification SSE: notification (named event)
  */
 
-import { subscribeNotifications } from '../api/notification';
 import { EventSourcePolyfill } from 'event-source-polyfill';
+import { subscribeChatEvents } from '../api/chat';
+import { subscribeNotifications } from '../api/notification';
 
-// 전역 EventSource 인스턴스
-let eventSource = null;
-let reconnectAttempts = 0;
-let reconnectTimer = null;
+// 채널별 EventSource 인스턴스
+let chatEventSource = null;
+let notificationEventSource = null;
+
+let chatReconnectAttempts = 0;
+let chatReconnectTimer = null;
+
+let notificationReconnectAttempts = 0;
+let notificationReconnectTimer = null;
+
 const MAX_RECONNECT_ATTEMPTS = 5;
 const RECONNECT_DELAY = 3000; // 3초
 
@@ -89,84 +99,74 @@ function notifyCallbacks(notification) {
 }
 
 /**
- * SSE 연결 재시도
+ * SSE 연결 재시도 (chat)
  */
-function attemptReconnect() {
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error('SSE 재연결 시도 횟수 초과');
+function attemptChatReconnect() {
+  if (chatReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('Chat SSE 재연결 시도 횟수 초과');
     return;
   }
 
-  reconnectAttempts++;
-  console.log(`SSE 재연결 시도 ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+  chatReconnectAttempts++;
+  console.log(`Chat SSE 재연결 시도 ${chatReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
 
-  reconnectTimer = setTimeout(() => {
-    connectSSE();
+  chatReconnectTimer = setTimeout(() => {
+    connectChatSSE();
   }, RECONNECT_DELAY);
 }
 
 /**
- * SSE 연결 초기화
+ * SSE 연결 재시도 (notification)
  */
-export function connectSSE() {
-  // 이미 연결되어 있으면 중복 연결 방지
-  // EventSourcePolyfill도 EventSource와 동일한 readyState 상수를 사용
-  if (eventSource && eventSource.readyState !== EventSourcePolyfill.CLOSED) {
-    console.log('SSE가 이미 연결되어 있습니다.');
+function attemptNotificationReconnect() {
+  if (notificationReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+    console.error('Notification SSE 재연결 시도 횟수 초과');
     return;
   }
 
-  // 로그인 상태 확인
-  if (typeof window === 'undefined') {
+  notificationReconnectAttempts++;
+  console.log(
+    `Notification SSE 재연결 시도 ${notificationReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`
+  );
+
+  notificationReconnectTimer = setTimeout(() => {
+    connectNotificationSSE();
+  }, RECONNECT_DELAY);
+}
+
+/**
+ * Chat SSE 연결 초기화
+ */
+export function connectChatSSE() {
+  if (chatEventSource && chatEventSource.readyState !== EventSourcePolyfill.CLOSED) {
     return;
   }
 
+  if (typeof window === 'undefined') return;
   const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken) {
-    console.log('로그인되지 않아 SSE 연결을 시작할 수 없습니다.');
-    return;
-  }
+  if (!accessToken) return;
 
   try {
-    // 기존 연결이 있으면 먼저 정리
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
+    if (chatEventSource) {
+      chatEventSource.close();
+      chatEventSource = null;
     }
 
-    // 재연결 시도 횟수 초기화
-    reconnectAttempts = 0;
-    // 재연결 타이머 초기화
-    if (reconnectTimer) {
-      clearTimeout(reconnectTimer);
-      reconnectTimer = null;
+    chatReconnectAttempts = 0;
+    if (chatReconnectTimer) {
+      clearTimeout(chatReconnectTimer);
+      chatReconnectTimer = null;
     }
 
-    // SSE 연결 생성
-    eventSource = subscribeNotifications();
+    chatEventSource = subscribeChatEvents();
 
-    // 연결 성공 시
-    eventSource.onopen = () => {
-      console.log('SSE 연결 성공');
-      reconnectAttempts = 0; // 성공 시 재시도 횟수 초기화
+    chatEventSource.onopen = () => {
+      chatReconnectAttempts = 0;
     };
 
-    // 메시지 수신 시 (기본 이벤트 - notification 이벤트)
-    eventSource.onmessage = (event) => {
-      try {
-        const notification = JSON.parse(event.data);
-        console.log('알림 수신:', notification);
-        notifyCallbacks(notification);
-      } catch (error) {
-        console.error('알림 데이터 파싱 오류:', error);
-      }
-    };
-
-    // 읽지 않은 메시지 개수 이벤트 구독
-    eventSource.addEventListener('unreadCount', (event) => {
+    chatEventSource.addEventListener('unreadCount', (event) => {
       try {
         const count = parseInt(event.data, 10);
-        console.log('읽지 않은 메시지 개수:', count);
         unreadCountCallbacks.forEach((callback) => {
           try {
             callback(count);
@@ -179,96 +179,188 @@ export function connectSSE() {
       }
     });
 
-    // 채팅방 목록 갱신 이벤트 구독
-    eventSource.addEventListener('roomListUpdate', (event) => {
-      try {
-        console.log('채팅방 목록 갱신 신호 수신');
-        roomListUpdateCallbacks.forEach((callback) => {
-          try {
-            callback();
-          } catch (error) {
-            console.error('RoomListUpdate callback error:', error);
-          }
-        });
-      } catch (error) {
-        console.error('채팅방 목록 갱신 신호 처리 오류:', error);
-      }
+    chatEventSource.addEventListener('roomListUpdate', () => {
+      roomListUpdateCallbacks.forEach((callback) => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('RoomListUpdate callback error:', error);
+        }
+      });
     });
 
-    // 에러 발생 시
-    eventSource.onerror = (error) => {
-      console.error('SSE 연결 오류:', error);
-      
+    chatEventSource.onerror = (error) => {
       // 연결이 끊어진 경우 재연결 시도
-      if (eventSource && eventSource.readyState === EventSourcePolyfill.CLOSED) {
-        // 재연결 타이머가 없을 때만 재연결 시도
-        if (!reconnectTimer) {
-          attemptReconnect();
-        }
+      if (chatEventSource && chatEventSource.readyState === EventSourcePolyfill.CLOSED) {
+        if (!chatReconnectTimer) attemptChatReconnect();
       }
+      console.error('Chat SSE 연결 오류:', error);
     };
   } catch (error) {
-    console.error('SSE 연결 생성 실패:', error);
-    eventSource = null;
+    console.error('Chat SSE 연결 생성 실패:', error);
+    chatEventSource = null;
   }
 }
 
 /**
- * SSE 연결 해제
+ * Notification SSE 연결 초기화
  */
-export function disconnectSSE() {
-  // 재연결 타이머 취소
-  if (reconnectTimer) {
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
+export function connectNotificationSSE() {
+  if (notificationEventSource && notificationEventSource.readyState !== EventSourcePolyfill.CLOSED) {
+    return;
   }
 
-  // 재연결 시도 횟수 초기화
-  reconnectAttempts = 0;
+  if (typeof window === 'undefined') return;
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken) return;
 
-  // EventSource 연결 종료
-  if (eventSource) {
-    try {
-      eventSource.close();
-      console.log('SSE 연결 해제');
-    } catch (error) {
-      console.error('SSE 연결 해제 오류:', error);
+  try {
+    if (notificationEventSource) {
+      notificationEventSource.close();
+      notificationEventSource = null;
     }
-    eventSource = null;
-  }
 
-  // 모든 콜백 제거
+    notificationReconnectAttempts = 0;
+    if (notificationReconnectTimer) {
+      clearTimeout(notificationReconnectTimer);
+      notificationReconnectTimer = null;
+    }
+
+    notificationEventSource = subscribeNotifications();
+
+    notificationEventSource.onopen = () => {
+      notificationReconnectAttempts = 0;
+    };
+
+    // named event: notification
+    notificationEventSource.addEventListener('notification', (event) => {
+      try {
+        const notification = JSON.parse(event.data);
+        notifyCallbacks(notification);
+      } catch (error) {
+        console.error('알림 데이터 파싱 오류:', error);
+      }
+    });
+
+    // fallback (혹시 기본 message로 오는 경우)
+    notificationEventSource.onmessage = (event) => {
+      try {
+        const notification = JSON.parse(event.data);
+        notifyCallbacks(notification);
+      } catch (error) {
+        console.error('알림 데이터 파싱 오류:', error);
+      }
+    };
+
+    notificationEventSource.onerror = (error) => {
+      if (
+        notificationEventSource &&
+        notificationEventSource.readyState === EventSourcePolyfill.CLOSED
+      ) {
+        if (!notificationReconnectTimer) attemptNotificationReconnect();
+      }
+      console.error('Notification SSE 연결 오류:', error);
+    };
+  } catch (error) {
+    console.error('Notification SSE 연결 생성 실패:', error);
+    notificationEventSource = null;
+  }
+}
+
+export function disconnectChatSSE() {
+  if (chatReconnectTimer) {
+    clearTimeout(chatReconnectTimer);
+    chatReconnectTimer = null;
+  }
+  chatReconnectAttempts = 0;
+
+  if (chatEventSource) {
+    try {
+      chatEventSource.close();
+    } catch (error) {
+      console.error('Chat SSE 연결 해제 오류:', error);
+    }
+    chatEventSource = null;
+  }
+}
+
+export function disconnectNotificationSSE() {
+  if (notificationReconnectTimer) {
+    clearTimeout(notificationReconnectTimer);
+    notificationReconnectTimer = null;
+  }
+  notificationReconnectAttempts = 0;
+
+  if (notificationEventSource) {
+    try {
+      notificationEventSource.close();
+    } catch (error) {
+      console.error('Notification SSE 연결 해제 오류:', error);
+    }
+    notificationEventSource = null;
+  }
+}
+
+export function disconnectAllSSE() {
+  disconnectChatSSE();
+  disconnectNotificationSSE();
+
   notificationCallbacks.clear();
   unreadCountCallbacks.clear();
   roomListUpdateCallbacks.clear();
 }
 
 /**
- * SSE 연결 상태 확인
- * @returns {boolean} 연결되어 있으면 true
+ * (하위 호환) 기존 함수명 유지
+ * - connectSSE: chat SSE 연결
+ * - disconnectSSE: 모든 SSE 해제
  */
-export function isSSEConnected() {
-  return eventSource !== null && eventSource.readyState === EventSourcePolyfill.OPEN;
+export function connectSSE() {
+  connectChatSSE();
 }
 
-/**
- * SSE 연결 상태 가져오기
- * @returns {string} 연결 상태 ('CONNECTING', 'OPEN', 'CLOSED')
- */
-export function getSSEState() {
-  if (!eventSource) return 'CLOSED';
-  
+export function disconnectSSE() {
+  disconnectAllSSE();
+}
+
+export function isChatSSEConnected() {
+  return chatEventSource !== null && chatEventSource.readyState === EventSourcePolyfill.OPEN;
+}
+
+export function isNotificationSSEConnected() {
+  return (
+    notificationEventSource !== null &&
+    notificationEventSource.readyState === EventSourcePolyfill.OPEN
+  );
+}
+
+export function getChatSSEState() {
+  if (!chatEventSource) return 'CLOSED';
   const states = {
     [EventSourcePolyfill.CONNECTING]: 'CONNECTING',
     [EventSourcePolyfill.OPEN]: 'OPEN',
     [EventSourcePolyfill.CLOSED]: 'CLOSED',
   };
-  
-  return states[eventSource.readyState] || 'UNKNOWN';
+  return states[chatEventSource.readyState] || 'UNKNOWN';
+}
+
+export function getNotificationSSEState() {
+  if (!notificationEventSource) return 'CLOSED';
+  const states = {
+    [EventSourcePolyfill.CONNECTING]: 'CONNECTING',
+    [EventSourcePolyfill.OPEN]: 'OPEN',
+    [EventSourcePolyfill.CLOSED]: 'CLOSED',
+  };
+  return states[notificationEventSource.readyState] || 'UNKNOWN';
 }
 
 // 기본 export
 export default {
+  connectChatSSE,
+  disconnectChatSSE,
+  connectNotificationSSE,
+  disconnectNotificationSSE,
+  disconnectAllSSE,
   connectSSE,
   disconnectSSE,
   onNotification,
@@ -277,7 +369,9 @@ export default {
   offUnreadCount,
   onRoomListUpdate,
   offRoomListUpdate,
-  isSSEConnected,
-  getSSEState,
+  isChatSSEConnected,
+  isNotificationSSEConnected,
+  getChatSSEState,
+  getNotificationSSEState,
 };
 
