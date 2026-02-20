@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   getAptAreaTypes,
@@ -1092,7 +1092,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
   );
 }
 
-export default function ApartmentPage() {
+function ApartmentPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isInternalUrlSyncRef = useRef(false);
@@ -1611,5 +1611,21 @@ export default function ApartmentPage() {
         )}
       </GraphModal>
     </div>
+  );
+}
+
+export default function ApartmentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gray-50 p-6">
+          <div className="max-w-5xl mx-auto bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-600">
+            로딩 중...
+          </div>
+        </div>
+      }
+    >
+      <ApartmentPageContent />
+    </Suspense>
   );
 }

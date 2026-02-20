@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Filter from './components/filter';
 import Map from './components/map';
@@ -10,7 +10,7 @@ import { get } from '../../api/api';
 import { getSaleMarkers } from '../../api/apartment_sale';
 import { getRentMarkers } from '../../api/apartment_rent';
 
-export default function MapSearchPage() {
+function MapSearchPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hasRestoredFromSessionRef = useRef(false);
@@ -481,5 +481,19 @@ export default function MapSearchPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MapSearchPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+          <div className="text-center text-gray-500">로딩 중...</div>
+        </div>
+      }
+    >
+      <MapSearchPageContent />
+    </Suspense>
   );
 }

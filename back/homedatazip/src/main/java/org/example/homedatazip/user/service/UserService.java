@@ -1,6 +1,5 @@
 package org.example.homedatazip.user.service;
 
-import jdk.jshell.spi.ExecutionControl;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
@@ -92,10 +91,16 @@ public class UserService {
         boolean previousSetting = user.isNotificationEnabled();
         user.setNotificationEnabled(request.notificationEnabled());
 
-        // 알림 수신 설정을 false로 변경한 경우 SSE 연결 종료
+        // 알림 수신 설정을 false로 변경한 경우 "알림 채널" SSE만 종료
         if (previousSetting && !request.notificationEnabled()) {
-            sseEmitterService.removeEmitter(userId);
+            sseEmitterService.removeNotificationEmitter(userId);
         }
+    }
+
+    public NotificationSettingResponse getNotificationSetting(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+        return NotificationSettingResponse.from(user.isNotificationEnabled());
     }
 
     //FIXME: 관리자가 임의로 사용자의 정보를 수정할 수 있다면 관리자 검증로직이 추가되어야함

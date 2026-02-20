@@ -62,8 +62,22 @@ public class UserController {
     public ResponseEntity<Void> updateNotificationSetting(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @Valid @RequestBody NotificationSettingRequest request) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         userService.updateNotificationSetting(userDetails.getUserId(), request);
         return ResponseEntity.ok().build();
+    }
+
+    // 알림 수신 설정 조회
+    @GetMapping("/notification-setting")
+    public ResponseEntity<NotificationSettingResponse> getNotificationSetting(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(userService.getNotificationSetting(userDetails.getUserId()));
     }
 
     @GetMapping("/{userId}/my-page")

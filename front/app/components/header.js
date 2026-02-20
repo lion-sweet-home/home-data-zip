@@ -1,10 +1,27 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout } from '../api/auth';
-import { connectSSE, disconnectSSE, onUnreadCount, offUnreadCount } from '../utils/sseManager';
+import { getNotificationSetting } from '../api/user';
+import {
+  deleteNotification,
+  getUnreadCount as getNotificationUnreadCount,
+  getUnreadNotifications,
+  markAllAsRead,
+  markAsRead,
+} from '../api/notification';
+import {
+  connectChatSSE,
+  connectNotificationSSE,
+  disconnectAllSSE,
+  disconnectNotificationSSE,
+  onNotification,
+  offNotification,
+  onUnreadCount,
+  offUnreadCount,
+} from '../utils/sseManager';
 
 export default function Header() {
   const [user, setUser] = useState(null);
@@ -12,6 +29,21 @@ export default function Header() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const router = useRouter();
+
+  // 알림(공지) 팝오버
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifItems, setNotifItems] = useState([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError, setNotifError] = useState('');
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0);
+  const notifRef = useRef(null);
+
+  const formatDate = (value) => {
+    if (!value) return '';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toISOString().slice(0, 10);
+  };
 
   // Access Token으로만 로그인 상태 및 사용자 정보 확인
   const checkLoginStatus = useCallback(() => {
@@ -89,18 +121,42 @@ export default function Header() {
 
   // 로그인 상태에 따라 SSE 연결/해제
   useEffect(() => {
-    if (isLoggedIn) {
-      // 로그인 시 SSE 연결
-      connectSSE();
-    } else {
-      // 로그아웃 시 SSE 연결 해제
-      disconnectSSE();
-      setUnreadCount(0); // 로그아웃 시 읽지 않은 메시지 개수 초기화
+    let cancelled = false;
+
+    async function syncNotificationSse() {
+      try {
+        const res = await getNotificationSetting();
+        if (cancelled) return;
+        if (res?.notificationEnabled) connectNotificationSSE();
+        else disconnectNotificationSSE();
+      } catch (e) {
+        // 조회 실패 시(미로그인/만료 등) 알림 SSE는 끊어둔다
+        if (!cancelled) disconnectNotificationSSE();
+      }
     }
 
-    // 컴포넌트 언마운트 시 SSE 연결 해제
+    if (isLoggedIn) {
+      // 채팅 SSE는 로그인 시 항상 연결
+      connectChatSSE();
+      syncNotificationSse();
+    } else {
+      // 로그아웃 시 SSE 연결 해제
+      disconnectAllSSE();
+      setUnreadCount(0);
+    }
+
+    // 알림 설정 변경(마이페이지 토글) 이벤트 수신 → 알림 SSE on/off
+    const onNotificationSettingChanged = (e) => {
+      const enabled = e?.detail?.notificationEnabled;
+      if (enabled) connectNotificationSSE();
+      else disconnectNotificationSSE();
+    };
+    window.addEventListener('notificationSetting:changed', onNotificationSettingChanged);
+
     return () => {
-      disconnectSSE();
+      cancelled = true;
+      window.removeEventListener('notificationSetting:changed', onNotificationSettingChanged);
+      disconnectAllSSE();
     };
   }, [isLoggedIn]);
 
@@ -118,6 +174,147 @@ export default function Header() {
       offUnreadCount(handleUnreadCount);
     };
   }, [isLoggedIn]);
+
+  // 공지 알림 SSE 구독 (헤더에서 뱃지/팝오버 갱신)
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const handleNotification = (notification) => {
+      // SSE payload는 UserNotificationResponse 형태(id/title/message/createdAt/readAt)
+      setNotifItems((prev) => [notification, ...prev].slice(0, 20));
+      setNotifUnreadCount((prev) => prev + 1);
+    };
+
+    onNotification(handleNotification);
+    return () => offNotification(handleNotification);
+  }, [isLoggedIn]);
+
+  // 미읽음 개수(뱃지) 동기화 (초기 + 알림 페이지에서 읽음/삭제 시)
+  const refreshNotifUnreadCount = useCallback(async () => {
+    if (!isLoggedIn) return;
+    try {
+      const res = await getNotificationUnreadCount();
+      setNotifUnreadCount(Number(res?.count ?? 0));
+    } catch {
+      // ignore
+    }
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setNotifUnreadCount(0);
+      setNotifItems([]);
+      setNotifError('');
+      setIsNotifOpen(false);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await getNotificationUnreadCount();
+        if (cancelled) return;
+        setNotifUnreadCount(Number(res?.count ?? 0));
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  // 알림 페이지에서 읽음/삭제 시 헤더 뱃지 즉시 갱신
+  useEffect(() => {
+    const onNotificationUpdated = () => refreshNotifUnreadCount();
+    window.addEventListener('notification:updated', onNotificationUpdated);
+    return () => window.removeEventListener('notification:updated', onNotificationUpdated);
+  }, [refreshNotifUnreadCount]);
+
+  // 팝오버 열릴 때 미읽음 목록 로드
+  const loadUnreadNotifications = useCallback(async () => {
+    setNotifError('');
+    setNotifLoading(true);
+    try {
+      const list = await getUnreadNotifications();
+      const arr = Array.isArray(list) ? list : [];
+      setNotifItems(arr);
+      setNotifUnreadCount(arr.length);
+    } catch (e) {
+      setNotifError(e?.message ?? '알림을 불러오지 못했습니다.');
+    } finally {
+      setNotifLoading(false);
+    }
+  }, []);
+
+  const notifTitle = useMemo(() => {
+    if (notifUnreadCount > 0) return `공지 알림 (${notifUnreadCount})`;
+    return '공지 알림';
+  }, [notifUnreadCount]);
+
+  // 바깥 클릭 / ESC로 팝오버 닫기
+  useEffect(() => {
+    if (!isNotifOpen) return;
+
+    const onDown = (e) => {
+      const el = notifRef.current;
+      if (!el) return;
+      if (el.contains(e.target)) return;
+      setIsNotifOpen(false);
+    };
+
+    const onKey = (e) => {
+      if (e.key === 'Escape') setIsNotifOpen(false);
+    };
+
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isNotifOpen]);
+
+  const onToggleNotif = async () => {
+    const next = !isNotifOpen;
+    setIsNotifOpen(next);
+    if (next) {
+      await loadUnreadNotifications();
+    }
+  };
+
+  const onMarkRead = async (userNotificationId) => {
+    try {
+      await markAsRead(userNotificationId);
+      setNotifItems((prev) => prev.filter((it) => it?.id !== userNotificationId));
+      setNotifUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (e) {
+      alert(e?.message ?? '읽음 처리에 실패했습니다.');
+    }
+  };
+
+  const onDelete = async (userNotificationId) => {
+    const ok = window.confirm('해당 공지를 삭제하겠습니까?');
+    if (!ok) return;
+    try {
+      await deleteNotification(userNotificationId);
+      setNotifItems((prev) => prev.filter((it) => it?.id !== userNotificationId));
+      setNotifUnreadCount((prev) => Math.max(0, prev - 1));
+    } catch (e) {
+      alert(e?.message ?? '삭제에 실패했습니다.');
+    }
+  };
+
+  const onMarkAllRead = async () => {
+    try {
+      await markAllAsRead();
+      setNotifItems([]);
+      setNotifUnreadCount(0);
+    } catch (e) {
+      alert(e?.message ?? '전체 읽음 처리에 실패했습니다.');
+    }
+  };
 
   // 사용자 역할 배열 가져오기
   const getUserRoles = () => {
@@ -196,7 +393,7 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       // 로그아웃 전 SSE 연결 해제
-      disconnectSSE();
+      disconnectAllSSE();
       
       await logout();
       // 로그아웃 성공 시 상태 초기화
@@ -208,7 +405,7 @@ export default function Header() {
     } catch (error) {
       console.error('Logout error:', error);
       // 에러가 발생해도 SSE 연결 해제 및 로컬 상태 정리
-      disconnectSSE();
+      disconnectAllSSE();
       setUser(null);
       setIsLoggedIn(false);
       if (typeof window !== 'undefined') {
@@ -266,32 +463,133 @@ export default function Header() {
 
           {/* 우측 메뉴 */}
           <div className="flex items-center gap-4">
-            {/* 로그인 상태일 때만 알림/메시지 아이콘 표시 */}
+            {/* 로그인 상태일 때만 알림/메시지 아이콘 표시 - 종·메시지 붙여서 표시 */}
             {isLoggedIn && (
               <>
-                {/* 알림 아이콘 */}
-                <button
-                  onClick={() => router.push('/notification')}
-                  className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-                  aria-label="알림"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-                    />
-                  </svg>
-                </button>
+                <div className="flex items-center gap-1">
+                  {/* 알림(종) 아이콘 + 팝오버 */}
+                  <div className="relative" ref={notifRef}>
+                    <button
+                      onClick={onToggleNotif}
+                      className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                      aria-label="공지 알림"
+                      aria-haspopup="dialog"
+                      aria-expanded={isNotifOpen}
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-6 w-6"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+                        />
+                      </svg>
+                      {notifUnreadCount > 0 && (
+                        <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-xs font-bold text-white bg-red-600 rounded-full">
+                          {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
+                        </span>
+                      )}
+                    </button>
 
-                {/* 메시지 아이콘 */}
+                    {isNotifOpen && (
+                      <div
+                        className="absolute right-0 mt-2 w-[360px] max-w-[90vw] rounded-2xl border border-gray-200 bg-white shadow-lg overflow-hidden z-50"
+                        role="dialog"
+                        aria-label="공지 알림"
+                      >
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+                          <div className="text-sm font-bold text-gray-900">{notifTitle}</div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={onMarkAllRead}
+                              disabled={notifUnreadCount === 0 || notifLoading}
+                              className={`text-xs font-semibold px-2 py-1 rounded-lg ${
+                                notifUnreadCount === 0 || notifLoading
+                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              모두 읽음
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsNotifOpen(false);
+                                router.push('/notification');
+                              }}
+                              className="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+                            >
+                              상세보기
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="max-h-[420px] overflow-y-auto">
+                          {notifLoading ? (
+                            <div className="p-4 space-y-3">
+                              {Array.from({ length: 3 }).map((_, i) => (
+                                <div
+                                  key={i}
+                                  className="h-16 rounded-xl bg-gray-50 border border-gray-100 animate-pulse"
+                                />
+                              ))}
+                            </div>
+                          ) : notifError ? (
+                            <div className="p-4 text-sm text-red-600">{notifError}</div>
+                          ) : notifItems.length === 0 ? (
+                            <div className="p-6 text-center text-sm text-gray-500">
+                              미읽음 공지 알림이 없습니다.
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-gray-100">
+                              {notifItems.map((it) => (
+                                <div key={it?.id} className="px-4 py-3">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                      <div className="text-sm font-semibold text-gray-900 truncate">
+                                        {it?.title ?? '(제목 없음)'}
+                                      </div>
+                                      <div className="text-xs text-gray-500 mt-0.5">
+                                        {formatDate(it?.createdAt)}
+                                      </div>
+                                      <div className="text-sm text-gray-700 mt-2 line-clamp-2 break-words">
+                                        {it?.message ?? ''}
+                                      </div>
+                                    </div>
+                                    <div className="shrink-0 flex flex-col gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => onMarkRead(it?.id)}
+                                        className="text-xs font-semibold px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                      >
+                                        읽음
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => onDelete(it?.id)}
+                                        className="text-xs font-semibold px-2 py-1 rounded-lg bg-red-50 text-red-700 hover:bg-red-100"
+                                      >
+                                        삭제
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 메시지 아이콘 (종 바로 오른쪽) */}
                 <button
                   onClick={() => router.push('/chat')}
                   className="relative p-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -317,6 +615,7 @@ export default function Header() {
                     </span>
                   )}
                 </button>
+                </div>
 
                 {/* 마이페이지 */}
                 <Link
