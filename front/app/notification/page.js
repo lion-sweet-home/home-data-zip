@@ -71,11 +71,15 @@ export default function NotificationPage() {
   const handleMarkRead = async (userNotificationId) => {
     try {
       await markAsRead(userNotificationId);
-      setItems((prev) =>
-        prev.map((it) =>
+      setItems((prev) => {
+        if (activeTab === 'unread') {
+          // 미읽음 탭에서는 읽음 처리한 항목을 목록에서 바로 제거
+          return prev.filter((it) => it?.id !== userNotificationId);
+        }
+        return prev.map((it) =>
           it?.id === userNotificationId ? { ...it, readAt: new Date().toISOString() } : it
-        )
-      );
+        );
+      });
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(userNotificationId);
