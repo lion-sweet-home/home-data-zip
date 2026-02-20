@@ -30,10 +30,10 @@ public class RegionController {
         List<String> list = regionService.findSidoList().stream()
                 .filter(s -> s != null && !s.isBlank())    // null/빈값 제거
                 .distinct()                 // 혹시 중복 있으면 제거
-                .sorted()                   // 드롭다운 정렬
+//                .sorted()                   // 드롭다운 정렬
                 .toList();
 
-        return ResponseEntity.ok(regionService.findSidoList());
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/gugun")
@@ -45,7 +45,7 @@ public class RegionController {
                 .sorted()
 
                 .toList();
-        return ResponseEntity.ok(regionService.findGugunList(sido));
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/dong")
@@ -59,7 +59,7 @@ public class RegionController {
                 .sorted()
                 .toList();
 
-        return ResponseEntity.ok(regionService.findDongList(sido, gugun));
+        return ResponseEntity.ok(list);
     }
 
     @GetMapping("/dong/rank")

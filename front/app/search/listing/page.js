@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { searchListings, getSaleListings, getRentListings } from '../../api/listing';
 import { searchApartmentsByName } from '../../api/apartment';
 import { getSidoList, getGugunList, getDongList } from '../../api/region';
+import { addFavorite, removeFavorite, getMyFavorites } from '../../api/favorite';
 
 function formatPrice(won) {
   const n = Number(won);
@@ -78,13 +79,62 @@ export default function ListingSearchPage() {
   // 지역 필터
   const [sidoList, setSidoList] = useState([]);
   const [gugunList, setGugunList] = useState([]);
+  const [dongList, setDongList] = useState([]);
   const [selectedSido, setSelectedSido] = useState('');
   const [selectedGugun, setSelectedGugun] = useState('');
+  const [selectedDong, setSelectedDong] = useState('');
 
   // 결과
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  // 관심매물
+  const [favoriteIds, setFavoriteIds] = useState(new Set());
+  const [favoriteLoadingId, setFavoriteLoadingId] = useState(null);
+
+  // 관심매물 목록 로드
+  useEffect(() => {
+    let cancelled = false;
+    getMyFavorites()
+      .then((list) => {
+        if (cancelled) return;
+        if (Array.isArray(list)) {
+          setFavoriteIds(new Set(list.map((f) => String(f.listingId))));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleToggleFavorite = async (e, listingId) => {
+    e.stopPropagation();
+    if (favoriteLoadingId === listingId) return;
+    setFavoriteLoadingId(listingId);
+    const id = String(listingId);
+    try {
+      if (favoriteIds.has(id)) {
+        await removeFavorite(listingId);
+        setFavoriteIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      } else {
+        await addFavorite(listingId);
+        setFavoriteIds((prev) => new Set(prev).add(id));
+      }
+    } catch (err) {
+      if (err.status === 401) {
+        alert('로그인이 필요합니다.');
+        router.push('/auth/login');
+        return;
+      }
+      console.error('관심 매물 처리 실패:', err);
+    } finally {
+      setFavoriteLoadingId(null);
+    }
+  };
 
   // 시도 목록 로드
   useEffect(() => {
@@ -97,11 +147,23 @@ export default function ListingSearchPage() {
   useEffect(() => {
     setSelectedGugun('');
     setGugunList([]);
+    setSelectedDong('');
+    setDongList([]);
     if (!selectedSido) return;
     getGugunList(selectedSido)
       .then((data) => setGugunList(Array.isArray(data) ? data : []))
       .catch(() => setGugunList([]));
   }, [selectedSido]);
+
+  // 동 목록 로드
+  useEffect(() => {
+    setSelectedDong('');
+    setDongList([]);
+    if (!selectedSido || !selectedGugun) return;
+    getDongList(selectedSido, selectedGugun)
+      .then((data) => setDongList(Array.isArray(data) ? data : []))
+      .catch(() => setDongList([]));
+  }, [selectedSido, selectedGugun]);
 
   // 아파트 드롭다운 외부 클릭 닫기
   useEffect(() => {
@@ -154,8 +216,11 @@ export default function ListingSearchPage() {
     setHasSearched(true);
     try {
       const params = { limit };
-      if (selectedApt?.aptId) {
-        params.apartmentId = selectedApt.aptId;
+      if (selectedSido) params.sido = selectedSido;
+      if (selectedGugun) params.gugun = selectedGugun;
+      if (selectedDong) params.dong = selectedDong;
+      if (selectedApt?.aptName) {
+        params.apartmentName = selectedApt.aptName;
       }
 
       let results;
@@ -174,7 +239,7 @@ export default function ListingSearchPage() {
     } finally {
       setLoading(false);
     }
-  }, [activeTab, selectedApt, rentType, limit]);
+  }, [activeTab, selectedApt, rentType, limit, selectedSido, selectedGugun, selectedDong]);
 
   // 초기 로드
   useEffect(() => {
@@ -217,7 +282,7 @@ export default function ListingSearchPage() {
 
         {/* 필터 영역 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
             {/* 지역 필터: 시/도 */}
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1.5">시/도</label>
@@ -245,6 +310,22 @@ export default function ListingSearchPage() {
                 <option value="">전체</option>
                 {gugunList.filter(Boolean).map((gugun) => (
                   <option key={gugun} value={gugun}>{gugun}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* 지역 필터: 동 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">동</label>
+              <select
+                value={selectedDong}
+                onChange={(e) => setSelectedDong(e.target.value)}
+                disabled={!selectedGugun}
+                className={`w-full ${selectBase} ${!selectedGugun ? 'bg-gray-50 cursor-not-allowed text-gray-400' : ''}`}
+              >
+                <option value="">전체</option>
+                {dongList.filter(Boolean).map((dong) => (
+                  <option key={dong} value={dong}>{dong}</option>
                 ))}
               </select>
             </div>
@@ -449,6 +530,26 @@ export default function ListingSearchPage() {
                         <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-semibold ${badge.bg} ${badge.text}`}>
                           {badge.label}
                         </span>
+                        <button
+                          onClick={(e) => handleToggleFavorite(e, item.listingId)}
+                          disabled={favoriteLoadingId === item.listingId}
+                          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all ${
+                            favoriteIds.has(String(item.listingId))
+                              ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                              : 'bg-white/80 text-gray-400 hover:bg-white hover:text-gray-500'
+                          } ${favoriteLoadingId === item.listingId ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={favoriteIds.has(String(item.listingId)) ? '관심 매물 해제' : '관심 매물 등록'}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill={favoriteIds.has(String(item.listingId)) ? 'currentColor' : 'none'}>
+                            <path
+                              d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
                       </div>
 
                       {/* 정보 */}
