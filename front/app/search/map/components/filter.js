@@ -27,6 +27,7 @@ export default function Filter({ onSearch, initialParams }) {
   const [selectedSubwayStation, setSelectedSubwayStation] = useState(null);
   const [subwayRadius, setSubwayRadius] = useState(1.0);
   const [subwayRadiusActive, setSubwayRadiusActive] = useState(false);
+  const [subwayModalOpen, setSubwayModalOpen] = useState(false);
 
   // 학교 검색 (학교명)
   const [schoolSearchKeyword, setSchoolSearchKeyword] = useState('');
@@ -34,6 +35,7 @@ export default function Filter({ onSearch, initialParams }) {
   const [selectedSchool, setSelectedSchool] = useState(null);
   const [schoolSearchRadius, setSchoolSearchRadius] = useState(1.0);
   const [schoolSearchRadiusActive, setSchoolSearchRadiusActive] = useState(false);
+  const [schoolModalOpen, setSchoolModalOpen] = useState(false);
 
   // 기간 선택 (최근 N개월)
   const [period, setPeriod] = useState(6);
@@ -262,9 +264,11 @@ export default function Filter({ onSearch, initialParams }) {
     loadSchoolList();
   }, [selectedSido, selectedGugun, selectedDong, schoolTypes]);
 
-  // 지하철역 검색
+  // 지하철역 검색 (결과는 모달로 표시)
   const handleSubwaySearch = async () => {
     if (!subwaySearchKeyword.trim()) {
+      setSubwayResults([]);
+      setSubwayModalOpen(false);
       alert('역명 또는 호선을 입력해주세요.');
       return;
     }
@@ -279,40 +283,47 @@ export default function Filter({ onSearch, initialParams }) {
 
       const results = await searchSubwayStations(params);
       setSubwayResults(results || []);
+      setSubwayModalOpen(true);
     } catch (error) {
       console.error('지하철역 검색 실패:', error);
       alert('지하철역 검색에 실패했습니다.');
+      setSubwayResults([]);
+      setSubwayModalOpen(false);
     }
   };
 
-  // 지하철역 선택
+  // 지하철역 선택 (모달에서 선택 시)
   const handleSelectSubwayStation = (station) => {
     setSelectedSubwayStation(station);
-    // 역을 선택하면 기본 반경(1km)으로 바로 조회 가능하게 활성화
     setSubwayRadius(1.0);
     setSubwayRadiusActive(true);
+    setSubwayModalOpen(false);
   };
 
-  // 학교명 검색
+  // 학교명 검색 (결과는 모달로 표시)
   const handleSchoolSearch = async () => {
     if (!schoolSearchKeyword.trim()) {
       setSchoolSearchResults([]);
+      setSchoolModalOpen(false);
       return;
     }
     try {
       const results = await searchSchoolsByName(schoolSearchKeyword.trim(), 20);
       setSchoolSearchResults(results || []);
+      setSchoolModalOpen(true);
     } catch (error) {
       console.error('학교 검색 실패:', error);
       alert('학교 검색에 실패했습니다.');
       setSchoolSearchResults([]);
+      setSchoolModalOpen(false);
     }
   };
 
-  // 학교 선택
+  // 학교 선택 (모달에서 선택 시)
   const handleSelectSchool = (school) => {
     setSelectedSchool(school);
     setSchoolSearchRadiusActive(true);
+    setSchoolModalOpen(false);
   };
 
   // 학교 타입 체크박스 변경
@@ -401,95 +412,43 @@ export default function Filter({ onSearch, initialParams }) {
   };
 
   return (
+    <>
     <div className="bg-white border-b border-gray-200 py-1 px-3 h-16 flex items-center">
       <div className="flex items-center gap-2 w-full overflow-x-auto">
         {/* 매매/전월세 선택 */}
-        <div className="flex gap-1 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setTradeType('매매');
-              // 전/월세 관련 필드 초기화
+        <select
+          value={tradeType}
+          onChange={(e) => {
+            const next = e.target.value;
+            setTradeType(next);
+            if (next === '매매') {
               setDepositMin('');
               setDepositMax('');
               setMonthlyRentMin('');
               setMonthlyRentMax('');
               setMinExclusive('');
               setMaxExclusive('');
-            }}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              tradeType === '매매'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            매매
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTradeType('전월세');
-              // 매매 관련 필드 초기화
+            } else {
               setPriceMin('');
               setPriceMax('');
-            }}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              tradeType === '전월세'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            전/월세
-          </button>
-        </div>
+            }
+          }}
+          className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 min-w-[90px] flex-shrink-0"
+        >
+          <option value="매매">매매</option>
+          <option value="전월세">전/월세</option>
+        </select>
 
         {/* 검색 조건 타입 선택 */}
-        <div className="flex gap-1 flex-shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setSearchConditionType('region');
-              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
-              // 다른 모드의 상태는 유지한다.
-            }}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              searchConditionType === 'region'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            지역
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchConditionType('subway');
-              // NOTE: 지역↔지하철 전환 시 선택값이 리셋되지 않도록
-              // 다른 모드의 상태는 유지한다.
-            }}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              searchConditionType === 'subway'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            지하철
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSearchConditionType('school');
-              // NOTE: 모드 전환 시 다른 모드 상태는 유지한다.
-            }}
-            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
-              searchConditionType === 'school'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            학교
-          </button>
-        </div>
+        <select
+          value={searchConditionType}
+          onChange={(e) => setSearchConditionType(e.target.value)}
+          className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 min-w-[90px] flex-shrink-0"
+        >
+          <option value="region">지역</option>
+          <option value="subway">지하철</option>
+          <option value="school">학교</option>
+        </select>
 
         {/* 필터 바 */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -559,7 +518,7 @@ export default function Filter({ onSearch, initialParams }) {
               onChange={(e) => setSubwaySearchKeyword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSubwaySearch()}
               placeholder={subwaySearchType === 'stationName' ? '역명 입력' : '호선 입력'}
-              className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 min-w-0"
+              className="w-32 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 flex-shrink-0"
             />
             <button
               type="button"
@@ -600,7 +559,7 @@ export default function Filter({ onSearch, initialParams }) {
                 onChange={(e) => setSchoolSearchKeyword(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSchoolSearch()}
                 placeholder="학교명"
-                className="flex-1 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 min-w-0"
+                className="w-32 px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600 flex-shrink-0"
               />
               <button
                 type="button"
@@ -609,25 +568,6 @@ export default function Filter({ onSearch, initialParams }) {
               >
                 검색
               </button>
-
-              {schoolSearchResults.length > 0 && (
-                <select
-                  value={selectedSchool?.id ?? ''}
-                  onChange={(e) => {
-                    const id = Number(e.target.value);
-                    const found = schoolSearchResults.find((s) => Number(s?.id) === id);
-                    if (found) handleSelectSchool(found);
-                  }}
-                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 flex-shrink-0 max-w-[220px]"
-                >
-                  <option value="">학교 선택</option>
-                  {schoolSearchResults.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              )}
 
               {selectedSchool && (
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -796,5 +736,121 @@ export default function Filter({ onSearch, initialParams }) {
         </div>
       </div>
     </div>
+
+    {/* 지하철역 검색 결과 모달 */}
+    {subwayModalOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={() => setSubwayModalOpen(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="subway-modal-title"
+      >
+        <div
+          className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[70vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <h2 id="subway-modal-title" className="text-sm font-semibold text-gray-900">
+              지하철역 선택
+            </h2>
+            <button
+              type="button"
+              onClick={() => setSubwayModalOpen(false)}
+              className="p-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              aria-label="닫기"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="overflow-y-auto flex-1 p-2">
+            {subwayResults.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">검색 결과가 없습니다.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {subwayResults.map((s) => {
+                  const stationId = s.stationId ?? s.id;
+                  const stationName = s.stationName ?? s.name ?? '(이름 없음)';
+                  const rawLines = s.lineNames ?? s.lineName;
+                  const lineNames = Array.isArray(rawLines)
+                    ? rawLines.map((l) => (typeof l === 'string' ? l.trim() : String(l))).filter(Boolean).join(', ')
+                    : typeof rawLines === 'string'
+                      ? rawLines.split(/,\s*/).map((l) => l.trim()).filter(Boolean).join(', ')
+                      : '';
+                  return (
+                    <li key={stationId ?? stationName}>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSubwayStation({ stationId, stationName, lineNames: lineNames || undefined })}
+                        className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-sm text-gray-900 hover:bg-blue-50 rounded-lg transition-colors text-left"
+                      >
+                        <span className="min-w-0 truncate">{stationName}</span>
+                        {lineNames && (
+                          <span className="text-gray-500 text-xs flex-shrink-0">{lineNames}</span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* 학교 검색 결과 모달 */}
+    {schoolModalOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+        onClick={() => setSchoolModalOpen(false)}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="school-modal-title"
+      >
+        <div
+          className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[70vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <h2 id="school-modal-title" className="text-sm font-semibold text-gray-900">
+              학교 선택
+            </h2>
+            <button
+              type="button"
+              onClick={() => setSchoolModalOpen(false)}
+              className="p-1 rounded text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              aria-label="닫기"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="overflow-y-auto flex-1 p-2">
+            {schoolSearchResults.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-500">검색 결과가 없습니다.</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {schoolSearchResults.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectSchool(s)}
+                      className="w-full text-left px-3 py-2.5 text-sm text-gray-900 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      {s.name ?? s.schoolName ?? '(이름 없음)'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }

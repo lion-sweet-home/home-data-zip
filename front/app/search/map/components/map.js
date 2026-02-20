@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-export default function Map({ 
+export default function Map({
   center = { lat: 37.5665, lng: 126.9780 }, // 기본값: 서울시청
   markers = [], // 마커 데이터 배열 [{ lat, lng, title, info }]
   level = 3, // 지도 확대 레벨 (1-14)
@@ -10,24 +10,26 @@ export default function Map({
   onMapClick, // 지도 클릭 핸들러
   schoolMarkers = [], // 학교 마커
   showSchoolMarkers = false, // 학교 마커 표시 여부
+  selectedMarkerId = null, // 선택된 아파트 마커 ID (apartmentId 등) – 선택 시 강조 표시
 }) {
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [kakaoLoaded, setKakaoLoaded] = useState(false);
   const markersRef = useRef([]);
+  const apartmentLabelOverlaysRef = useRef([]); // 아파트명 상시 표시용 CustomOverlay[]
   // NOTE: 컴포넌트명이 Map이라 전역 Map 생성자와 이름이 충돌할 수 있어 globalThis.Map을 사용한다.
-  const numberedMarkerImageCacheRef = useRef(new globalThis.Map()); // key: number(string) -> kakao.maps.MarkerImage
+  const numberedMarkerImageCacheRef = useRef(new globalThis.Map()); // key: "num" | "num-selected" -> kakao.maps.MarkerImage
   const schoolMarkerImageCacheRef = useRef(null); // kakao.maps.MarkerImage
   const schoolMarkersRef = useRef([]);
   const schoolLabelOverlaysRef = useRef([]); // kakao.maps.CustomOverlay[]
   const schoolInfoWindowRef = useRef(null); // kakao.maps.InfoWindow
 
-  const getNumberedMarkerImage = (num) => {
-    const key = String(num);
+  const getNumberedMarkerImage = (num, isSelected) => {
+    const key = `${String(num)}-${isSelected ? 'selected' : 'normal'}`;
     const cached = numberedMarkerImageCacheRef.current.get(key);
     if (cached) return cached;
 
-    const size = 34;
+    const size = isSelected ? 40 : 34;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -36,31 +38,31 @@ export default function Map({
 
     // shadow
     ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 6;
+    ctx.shadowBlur = isSelected ? 8 : 6;
     ctx.shadowOffsetX = 0;
     ctx.shadowOffsetY = 2;
 
     // circle
-    const r = 13;
+    const r = isSelected ? 16 : 13;
     const cx = size / 2;
     const cy = size / 2;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = '#2563eb';
+    ctx.fillStyle = isSelected ? '#ea580c' : '#2563eb'; // 선택: orange-600, 기본: blue-600
     ctx.fill();
 
-    // border
+    // border (선택 시 더 두껍게)
     ctx.shadowColor = 'transparent';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = isSelected ? 3 : 2;
     ctx.strokeStyle = '#ffffff';
     ctx.stroke();
 
     // number
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+    ctx.font = isSelected ? 'bold 14px system-ui, -apple-system, Segoe UI, Roboto, sans-serif' : 'bold 12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(key, cx, cy + 0.5);
+    ctx.fillText(String(num), cx, cy + 0.5);
 
     const dataUrl = canvas.toDataURL('image/png');
     const markerImage = new window.kakao.maps.MarkerImage(
@@ -209,6 +211,12 @@ export default function Map({
   useEffect(() => {
     if (!map || !kakaoLoaded) return;
 
+    // 기존 아파트명 라벨 제거
+    apartmentLabelOverlaysRef.current.forEach((overlay) => {
+      overlay.setMap(null);
+    });
+    apartmentLabelOverlaysRef.current = [];
+
     // 기존 마커 제거
     markersRef.current.forEach((marker) => {
       marker.setMap(null);
@@ -217,31 +225,50 @@ export default function Map({
 
     // 새 마커 추가
     markers.forEach((markerData, index) => {
+      const aptId = markerData.apartmentId ?? markerData.apartmentData?.aptId ?? markerData.apartmentData?.apartmentId;
+      const isSelected = selectedMarkerId != null && String(aptId) === String(selectedMarkerId);
       const position = new window.kakao.maps.LatLng(markerData.lat, markerData.lng);
-      const markerImage = getNumberedMarkerImage(index + 1);
+      const markerImage = getNumberedMarkerImage(index + 1, isSelected);
 
       const marker = new window.kakao.maps.Marker({
         position: position,
         ...(markerImage ? { image: markerImage } : {}),
         map: map,
-        zIndex: 10,
+        zIndex: isSelected ? 20 : 10,
       });
 
-      // 인포윈도우 (선택사항)
-      if (markerData.title || markerData.info) {
-        const infowindow = new window.kakao.maps.InfoWindow({
-          content: `<div style="padding:5px;font-size:12px;white-space:nowrap;">${markerData.title || ''}${markerData.info ? `<br/>${markerData.info}` : ''}</div>`,
+      // 아파트명 상시 표시 (마커 위에 라벨)
+      const labelText = markerData.title || '(아파트)';
+      if (labelText) {
+        const labelOverlay = new window.kakao.maps.CustomOverlay({
+          position,
+          content: `
+            <div style="
+              transform: translate(-50%, -155%);
+              padding: 3px 8px;
+              background: rgba(255,255,255,0.96);
+              border: 1px solid rgba(0,0,0,0.18);
+              border-radius: 999px;
+              box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+              font-size: 12px;
+              color: #111827;
+              white-space: nowrap;
+              max-width: 260px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              pointer-events: none;
+            ">${escapeHtml(labelText)}</div>
+          `.trim(),
+          xAnchor: 0,
+          yAnchor: 0,
+          zIndex: 11,
         });
+        labelOverlay.setMap(map);
+        apartmentLabelOverlaysRef.current.push(labelOverlay);
+      }
 
-        // 마커 클릭 이벤트
-        window.kakao.maps.event.addListener(marker, 'click', () => {
-          if (onMarkerClick) {
-            onMarkerClick(markerData, index);
-          }
-          infowindow.open(map, marker);
-        });
-      } else if (onMarkerClick) {
-        // 인포윈도우가 없어도 클릭 이벤트는 등록
+      // 마커 클릭: 선택만 (인포윈도우 없음, 아파트명은 라벨로 상시 표시)
+      if (onMarkerClick) {
         window.kakao.maps.event.addListener(marker, 'click', () => {
           onMarkerClick(markerData, index);
         });
@@ -258,7 +285,7 @@ export default function Map({
       });
       map.setBounds(bounds);
     }
-  }, [map, markers, kakaoLoaded, onMarkerClick]);
+  }, [map, markers, kakaoLoaded, onMarkerClick, selectedMarkerId]);
 
   // 학교 마커 표시
   useEffect(() => {
