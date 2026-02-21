@@ -38,6 +38,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // OAuth2 콜백 (Google 등)
                         .requestMatchers("/login/oauth2/code/**").permitAll()
+                        // SSE 연결은 permitAll
+                        .requestMatchers(HttpMethod.GET, "/api/users/notifications/Allow-reception").permitAll()
+                        // 알림(SSE 포함) : 인증 필수 (이게 /api/users/** 보다 위에 있어야 함)
+                        .requestMatchers("/api/users/notifications/**").authenticated()
                         // 로그인 사용자 전용 (favorite)
                         .requestMatchers("/api/users/me/**").authenticated()
                         // 회원가입·로그인 등
@@ -63,13 +67,19 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/listings/create/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
 
-                        //S3 테스트 진행 후 셀로로 교체
-                        .requestMatchers(HttpMethod.POST, "/api/s3/**").permitAll()
+                        //S3 테스트 진행 후 셀러 교체
+                        .requestMatchers(HttpMethod.POST, "/api/s3/**").hasRole("SELLER")
+                        .requestMatchers("/api/s3/**").permitAll()
+
 
                         .requestMatchers(
                                 "/api/subscriptions/billing/success",
                                 "/api/subscriptions/billing/fail"
-                        ).hasRole("USER")
+                        ).permitAll()
+
+                        // 구독 관련 나머지는 인증 필수
+                        .requestMatchers("/api/subscriptions/phone-auth/**").permitAll()
+                        .requestMatchers("/api/subscriptions/**").authenticated()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

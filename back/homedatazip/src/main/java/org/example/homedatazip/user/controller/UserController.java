@@ -103,4 +103,14 @@ public class UserController {
         userService.changePassword(userDetails.getUserId(), request);
         return ResponseEntity.ok().build();
     }
+
+    // 유저 정보 조회
+    @GetMapping("/me")
+    public ResponseEntity<UserMeResponse> me(
+            @AuthenticationPrincipal CustomUserDetails userDetails
+    ) {
+        return ResponseEntity.ok(
+                userService.getMe(userDetails.getUserId())
+        );
+    }
 }

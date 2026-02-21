@@ -17,6 +17,8 @@ public enum PaymentErrorCode implements ErrorCode {
     BATCH_DATE_REQUIRED(HttpStatus.BAD_REQUEST, "PAY_400_5", "배치 실행 날짜가 필요합니다."),
     INVALID_CUSTOMER_KEY(HttpStatus.BAD_REQUEST, "PAY_400_6", "customerKey 형식이 올바르지 않습니다."),
 
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "PAY_401_1", "로그인이 필요합니다."),
+
     // 404
     SUBSCRIPTION_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_404_1", "구독 정보를 찾을 수 없습니다."),
     PAYMENT_LOG_NOT_FOUND(HttpStatus.NOT_FOUND, "PAY_404_2", "결제 로그를 찾을 수 없습니다."),

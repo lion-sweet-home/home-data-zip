@@ -63,29 +63,31 @@ public class SubscriptionPhoneAuthService {
         String key = codeKey(phone, requestId);
         String saved = redis.opsForValue().get(key);
 
+        log.info("[PHONE-AUTH][VERIFY] userId={}, phone={}, requestId={}, inputCode={}, redisKey={}, saved={}",
+                userId, phone, requestId, inputCode, key, saved);
+
         if (saved == null) {
-            // 만료 or 없음
+            log.warn("[PHONE-AUTH][VERIFY] FAIL - code expired or key not found");
             return new PhoneAuthVerifyResponse(false, null);
         }
 
-        if (!saved.equals(inputCode)) {
-            // 불일치
+        String trimmed = inputCode == null ? "" : inputCode.trim();
+        if (!saved.equals(trimmed)) {
+            log.warn("[PHONE-AUTH][VERIFY] FAIL - code mismatch. saved={}, input={}", saved, trimmed);
             return new PhoneAuthVerifyResponse(false, null);
         }
 
-        // 1회용 처리
         redis.delete(key);
 
-        // DB 업데이트 (인증 성공 확정)
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.SUBSCRIBER_NOT_FOUND));
 
-        user.verifyPhone(phone); // phone_number + phone_verified_at=now()
+        user.verifyPhone(phone);
 
-        // (선택) 검증 완료 토큰 발급 - 프론트에서 다음 단계 이동 확인용
         String verificationToken = UUID.randomUUID().toString();
         redis.opsForValue().set(verifiedKey(phone, verificationToken), "OK", VERIFIED_TOKEN_TTL);
 
+        log.info("[PHONE-AUTH][VERIFY] SUCCESS - token={}", verificationToken);
         return new PhoneAuthVerifyResponse(true, verificationToken);
     }
 

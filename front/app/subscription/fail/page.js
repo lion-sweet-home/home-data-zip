@@ -1,14 +1,22 @@
-'use client';
+"use client";
 
-import { Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { Suspense, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 
 function FailContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const code = searchParams.get('code');
-  const message = searchParams.get('message');
+  const code = searchParams.get("code");
+  const message = searchParams.get("message");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      router.replace("/subscription");
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -28,9 +36,9 @@ function FailContent() {
             />
           </svg>
         </div>
-        <h2 className="text-xl font-bold text-gray-900 mb-2">결제에 실패했습니다</h2>
+        <h2 className="text-xl font-bold text-gray-900 mb-2">카드 등록 실패</h2>
         <p className="text-gray-500 mb-6">
-          {message || '결제 처리 중 문제가 발생했습니다. 다시 시도해주세요.'}
+          {message || "카드 등록 중 문제가 발생했습니다. 다시 시도해주세요."}
         </p>
 
         {code && (
@@ -43,13 +51,13 @@ function FailContent() {
 
         <div className="flex gap-3 justify-center">
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.push("/")}
             className="px-5 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium"
           >
             홈으로
           </button>
           <button
-            onClick={() => router.push('/subscription')}
+            onClick={() => router.push("/subscription")}
             className="px-5 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors font-medium"
           >
             다시 시도
