@@ -101,6 +101,18 @@ public class SubscriptionService {
     }
 
     @Transactional
+    public void revokeBillingKey(Long userId) {
+        Subscription sub = getSubscription(userId);
+
+        if (!sub.hasBillingKey()) {
+            return; // 멱등
+        }
+
+
+        sub.clearBillingKey();
+    }
+
+    @Transactional
     public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
         User user = getUser(userId);
 

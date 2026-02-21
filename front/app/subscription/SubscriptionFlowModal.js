@@ -17,15 +17,32 @@ const STEPS = {
   DONE: "DONE",
 };
 
-export default function SubscriptionFlowModal({ onClose, refreshState, initialState }) {
+function decideStep({ isActive, hasBillingKey, isPhoneVerified }) {
+  if (isActive) return STEPS.DONE;
+  if (!isPhoneVerified) return STEPS.PHONE;
+  if (!hasBillingKey) return STEPS.BILLING;
+  return STEPS.SUBSCRIBE;
+}
+
+export default function SubscriptionFlowModal({
+  onClose,
+  refreshState,
+  initialState,
+}) {
   const [step, setStep] = useState(STEPS.PHONE);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
   // state snapshot
-  const [subscription, setSubscription] = useState(initialState.subscription ?? null);
-  const [phoneVerifiedAt, setPhoneVerifiedAt] = useState(initialState.phoneVerifiedAt ?? null);
-  const [customerKey, setCustomerKey] = useState(initialState.customerKey ?? null);
+  const [subscription, setSubscription] = useState(
+    initialState?.subscription ?? null
+  );
+  const [phoneVerifiedAt, setPhoneVerifiedAt] = useState(
+    initialState?.phoneVerifiedAt ?? null
+  );
+  const [customerKey, setCustomerKey] = useState(
+    initialState?.customerKey ?? null
+  );
 
   // phone auth inputs
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -33,10 +50,10 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
   const [code, setCode] = useState("");
   const [ttlSeconds, setTtlSeconds] = useState(null);
 
-  const isActive = useMemo(
-    () => subscription?.status === "ACTIVE" || subscription?.isActive === true,
-    [subscription]
-  );
+  const isActive = useMemo(() => {
+    return subscription?.status === "ACTIVE" || subscription?.isActive === true;
+  }, [subscription]);
+
   const hasBillingKey = subscription?.hasBillingKey === true;
   const isPhoneVerified = !!phoneVerifiedAt;
 
@@ -46,29 +63,23 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
     setStep(next);
   }, [isActive, hasBillingKey, isPhoneVerified]);
 
-  function decideStep({ isActive, hasBillingKey, isPhoneVerified }) {
-    if (isActive) return STEPS.DONE;
-    if (!isPhoneVerified) return STEPS.PHONE;
-    if (!hasBillingKey) return STEPS.BILLING;
-    return STEPS.SUBSCRIBE;
-  }
-
   async function syncLatest() {
     const latest = await refreshState();
-    setSubscription(latest.subscription ?? null);
-    setPhoneVerifiedAt(latest.phoneVerifiedAt ?? null);
-    setCustomerKey(latest.customerKey ?? null);
+    setSubscription(latest?.subscription ?? null);
+    setPhoneVerifiedAt(latest?.phoneVerifiedAt ?? null);
+    setCustomerKey(latest?.customerKey ?? null);
     return latest;
   }
 
   // 1) 휴대폰 인증 - 발송
   async function handleSend() {
     if (!phoneNumber) return setErr("휴대폰 번호 입력해.");
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
       const res = await sendPhoneAuth(phoneNumber);
-      setRequestId(res.requestId);
-      setTtlSeconds(res.expiresInSeconds ?? null);
+      setRequestId(res?.requestId ?? "");
+      setTtlSeconds(res?.expiresInSeconds ?? null);
     } catch (e) {
       setErr(e?.message ?? "발송 실패");
     } finally {
@@ -78,8 +89,10 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
 
   // 1) 휴대폰 인증 - 검증
   async function handleVerify() {
-    if (!phoneNumber || !requestId || !code) return setErr("요청ID/인증번호 다 입력해.");
-    setBusy(true); setErr(null);
+    if (!phoneNumber || !requestId || !code)
+      return setErr("요청ID/인증번호 다 입력해.");
+    setBusy(true);
+    setErr(null);
     try {
       const res = await verifyPhoneAuth({ phoneNumber, requestId, code });
       if (!res?.verified) throw new Error("인증 실패");
@@ -93,33 +106,52 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
 
   // 2) 카드 등록(토스 BillingAuth)
   async function handleBilling() {
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
+
     try {
+      // 최신 상태 동기화
       const latest = await syncLatest();
-      const ck = latest.customerKey || customerKey;
+      const ck = latest?.customerKey || customerKey;
       if (!ck) throw new Error("customerKey 없음. /users/me 응답 확인.");
 
-      const billingInfoRes = await issueBillingKey({
+      // billing issue 호출 (customerKey/successUrl/failUrl 받아옴)
+      const info = await issueBillingKey({
         orderName: "HomeDataZip 구독",
         amount: PLAN_PRICE,
       });
-      const info = billingInfoRes?.data ?? billingInfoRes;
 
       if (!info?.successUrl || !info?.failUrl) {
         throw new Error("successUrl/failUrl 누락");
       }
 
-      // ✅ SDK 호출 (아까 해결한 방식!)
+      // ✅ Toss SDK 방어
+      if (typeof window === "undefined") {
+        throw new Error("브라우저 환경이 아닙니다.");
+      }
+
       const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      if (!clientKey) {
+        throw new Error("NEXT_PUBLIC_TOSS_CLIENT_KEY 없음");
+      }
+
+      if (typeof window.TossPayments !== "function") {
+        throw new Error("TossPayments SDK가 로드되지 않았습니다.");
+      }
+
       const tossPayments = window.TossPayments(clientKey);
 
-      await tossPayments.requestBillingAuth("CARD", {
+      // ✅ 너가 성공시킨 형태로 통일
+      await tossPayments.requestBillingAuth({
+        method: "CARD",
         customerKey: info.customerKey || ck,
+        orderName: info.orderName || "HomeDataZip 구독",
+        amount: info.amount && info.amount > 0 ? info.amount : PLAN_PRICE,
         successUrl: info.successUrl,
         failUrl: info.failUrl,
       });
 
-      // 여기 이후는 redirect라서 보통 아래 코드는 실행 안 됨
+      // 보통 여기서 리다이렉트라 아래로 안 내려옴
     } catch (e) {
       setErr(e?.message ?? "카드 등록 실패");
     } finally {
@@ -129,7 +161,8 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
 
   // 3) 구독 시작
   async function handleSubscribe() {
-    setBusy(true); setErr(null);
+    setBusy(true);
+    setErr(null);
     try {
       await startSubscription();
       await syncLatest();
@@ -152,7 +185,6 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
         </div>
 
         <div className="px-6 py-5 space-y-4">
-          {/* Step 표시 */}
           <div className="text-sm text-gray-500">
             단계:{" "}
             <span className="font-semibold text-gray-900">
@@ -249,9 +281,7 @@ export default function SubscriptionFlowModal({ onClose, refreshState, initialSt
                 구독이 완료되었습니다 🎉
               </div>
               <button
-                onClick={() => {
-                  onClose();
-                }}
+                onClick={onClose}
                 className="w-full rounded-xl bg-gray-900 py-2.5 text-white"
               >
                 닫기
