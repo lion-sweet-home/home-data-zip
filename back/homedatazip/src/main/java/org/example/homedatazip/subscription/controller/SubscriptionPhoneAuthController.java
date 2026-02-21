@@ -3,6 +3,8 @@ package org.example.homedatazip.subscription.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
+import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.SubscriptionErrorCode;
 import org.example.homedatazip.subscription.dto.*;
 import org.example.homedatazip.subscription.service.SubscriptionPhoneAuthService;
 import org.springframework.http.ResponseEntity;
@@ -24,10 +26,20 @@ public class SubscriptionPhoneAuthController {
     @PostMapping("/verify")
     public ResponseEntity<PhoneAuthVerifyResponse> verify(
             @AuthenticationPrincipal CustomUserDetails principal,
-            @RequestBody PhoneAuthVerifyRequest req
+            @Valid @RequestBody PhoneAuthVerifyRequest req
     ) {
+        if (principal == null) {
+            // 너희 에러코드로 바꿔도 됨
+            throw new BusinessException(SubscriptionErrorCode.UNAUTHORIZED);
+        }
+
         return ResponseEntity.ok(
-                phoneAuthService.verifyCode(principal.getUserId(), req.phoneNumber(), req.requestId(), req.code())
+                phoneAuthService.verifyCode(
+                        principal.getUserId(),
+                        req.phoneNumber(),
+                        req.requestId(),
+                        req.code()
+                )
         );
     }
 }

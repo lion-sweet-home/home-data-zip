@@ -16,7 +16,9 @@ public enum NotificationErrorCode implements ErrorCode {
     USER_NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTIFICATION_404_2", "알림을 찾을 수 없습니다."),
 
     // 알림 수신 설정 관련
-    NOTIFICATION_DISABLED(HttpStatus.BAD_REQUEST, "NOTIFICATION_400_1", "알림 수신 설정이 비활성화되어 있습니다.");
+    NOTIFICATION_DISABLED(HttpStatus.BAD_REQUEST, "NOTIFICATION_400_1", "알림 수신 설정이 비활성화되어 있습니다."),
+
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "PAY_401_1", "인증이 필요합니다.");
 
     private final HttpStatus status;
     private final String code;

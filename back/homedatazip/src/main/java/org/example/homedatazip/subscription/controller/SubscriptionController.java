@@ -22,11 +22,9 @@ public class SubscriptionController {
             @AuthenticationPrincipal CustomUserDetails principal,
             @RequestBody(required = false) BillingKeyIssueRequest request
     ) {
-        return ResponseEntity.ok(
-                subscriptionService.issueBillingKey(principal.getUserId(), request)
-        );
+        Long userId = requireUserId(principal);
+        return ResponseEntity.ok(subscriptionService.issueBillingKey(userId, request));
     }
-
 
     @GetMapping("/billing/success")
     public ResponseEntity<Void> billingSuccess(
@@ -34,64 +32,65 @@ public class SubscriptionController {
             @RequestParam String authKey
     ) {
         Long userId = parseUserIdFromCustomerKey(customerKey);
-
         subscriptionService.registerBillingKey(userId, customerKey, authKey);
 
         return ResponseEntity.status(302)
-//                .header("Location", "http://localhost:5173/billing/success")
                 .header("Location", "http://localhost:3000/subscription/success")
                 .build();
     }
-
 
     @GetMapping("/billing/fail")
     public ResponseEntity<Void> billingFail(
             @RequestParam(required = false) String customerKey
     ) {
         return ResponseEntity.status(302)
-//                .header("Location", "http://localhost:5173/billing/fail")
                 .header("Location", "http://localhost:3000/subscription/fail")
                 .build();
     }
-
 
     @PostMapping("/start")
     public ResponseEntity<Void> startSubscription(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        subscriptionService.startSubscription(principal.getUserId());
+        Long userId = requireUserId(principal);
+        subscriptionService.startSubscription(userId);
         return ResponseEntity.noContent().build();
     }
-
 
     @PostMapping("/auto-pay/cancel")
     public ResponseEntity<Void> cancelAutoPay(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        subscriptionService.cancelAutoPay(principal.getUserId());
+        Long userId = requireUserId(principal);
+        subscriptionService.cancelAutoPay(userId);
         return ResponseEntity.noContent().build();
     }
-
 
     @PostMapping("/auto-pay/reactivate")
     public ResponseEntity<Void> reactivateAutoPay(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        subscriptionService.reactivateAutoPay(principal.getUserId());
+        Long userId = requireUserId(principal);
+        subscriptionService.reactivateAutoPay(userId);
         return ResponseEntity.noContent().build();
     }
-
 
     @GetMapping("/me")
     public ResponseEntity<SubscriptionMeResponse> getMySubscription(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
-        return ResponseEntity.ok(
-                subscriptionService.getMySubscription(principal.getUserId())
-        );
+        Long userId = requireUserId(principal);
+        return ResponseEntity.ok(subscriptionService.getMySubscription(userId));
     }
 
     // ===== private =====
+
+    private Long requireUserId(CustomUserDetails principal) {
+        if (principal == null || principal.getUserId() == null) {
+            throw new BusinessException(PaymentErrorCode.UNAUTHORIZED);
+        }
+        return principal.getUserId();
+    }
 
     private Long parseUserIdFromCustomerKey(String customerKey) {
         if (customerKey == null || customerKey.isBlank() || !customerKey.startsWith("CUSTOMER_")) {

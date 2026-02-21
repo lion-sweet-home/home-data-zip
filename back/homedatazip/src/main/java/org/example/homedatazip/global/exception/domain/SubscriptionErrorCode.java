@@ -30,6 +30,8 @@ public enum SubscriptionErrorCode implements ErrorCode {
     BILLING_KEY_NOT_REGISTERED(HttpStatus.BAD_REQUEST, "SUB_400_9", "카드 등록이 필요합니다. billingKey가 없습니다."),
     SMS_SEND_FAILED(HttpStatus.BAD_REQUEST, "SUB_400_10", "문자 발송에 실패했습니다."),
 
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "PAY_401_1", "인증이 필요합니다."),
+
     PHONE_NOT_VERIFIED(HttpStatus.FORBIDDEN, "SUB_403_1", "전화번호 인증이 필요합니다.");
 
     private final HttpStatus status;
