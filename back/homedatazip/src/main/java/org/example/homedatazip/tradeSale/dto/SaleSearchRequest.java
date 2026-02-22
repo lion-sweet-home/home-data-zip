@@ -1,11 +1,7 @@
 package org.example.homedatazip.tradeSale.dto;
 
-import jakarta.validation.constraints.NotBlank;
-
 public record   SaleSearchRequest(
-        @NotBlank(message = "시/도는 필수 선택 사항입니다.")
         String sido,
-        @NotBlank(message = "구/군은 필수 선택 사항입니다.")
         String gugun,
         String dong,
         String keyword,
@@ -16,5 +12,13 @@ public record   SaleSearchRequest(
         Double minArea,
         Double maxArea,
         Integer minBuildYear,
-        Integer maxBuildYear
+        Integer maxBuildYear,
+
+        // 지도 bounds 기반 마커 갱신용 (선택)
+        Integer level,
+        Integer limit,
+        Double east,
+        Double west,
+        Double north,
+        Double south
 ) {}

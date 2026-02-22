@@ -28,7 +28,7 @@ import { get } from './api';
  *   maxDeposit: 500000000
  * });
  */
-export async function getRentMarkers(request) {
+export async function getRentMarkers(request, options = {}) {
   const params = new URLSearchParams();
   if (request.sido) params.append('sido', request.sido);
   if (request.gugun) params.append('gugun', request.gugun);
@@ -39,7 +39,13 @@ export async function getRentMarkers(request) {
   if (request.maxMonthlyRent != null) params.append('maxMonthlyRent', request.maxMonthlyRent);
   if (request.minExclusive != null) params.append('minExclusive', request.minExclusive);
   if (request.maxExclusive != null) params.append('maxExclusive', request.maxExclusive);
-  return get(`/rent?${params.toString()}`);
+  if (request.level != null) params.append('level', request.level);
+  if (request.limit != null) params.append('limit', request.limit);
+  if (request.south != null) params.append('south', request.south);
+  if (request.west != null) params.append('west', request.west);
+  if (request.north != null) params.append('north', request.north);
+  if (request.east != null) params.append('east', request.east);
+  return get(`/rent?${params.toString()}`, options);
 }
 
 /**
