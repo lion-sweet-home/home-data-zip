@@ -2,6 +2,7 @@ package org.example.homedatazip.tradeSale.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.dto.MarkResponse;
+import org.example.homedatazip.apartment.dto.MarkerClusterResponse;
 import org.example.homedatazip.apartment.entity.Apartment;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.monthAvg.entity.MonthAvg;
@@ -41,8 +42,14 @@ public class TradeSaleQueryService {
         return tradeSaleQueryRepository.searchMarkerByRegion(request);
     }
 
+    // 클러스터(집계) 조회
+    public List<MarkerClusterResponse> getMarkerClusters(SaleSearchRequest request) {
+        return tradeSaleQueryRepository.searchMarkerClustersByRegion(request);
+    }
+
     // 아파트 요약
     public AptSaleSummaryResponse getAptSaleSummary(Long aptId, Integer periodMonths) {
+        Objects.requireNonNull(aptId, "aptId");
 
         int monthsToView = (periodMonths != null) ? periodMonths : 6;
 
@@ -83,6 +90,7 @@ public class TradeSaleQueryService {
 
     // 아파트 상세 보기
     public AptDetailResponse getAptDetail(Long aptId, Integer periodMonths) {
+        Objects.requireNonNull(aptId, "aptId");
 
         Apartment apt = apartmentRepository.findById(aptId)
                 .orElseThrow(() -> new IllegalArgumentException("아파트 정보를 찾을 수 없습니다."));

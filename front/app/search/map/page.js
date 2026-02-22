@@ -15,6 +15,18 @@ function MapSearchPageContent() {
   const searchParams = useSearchParams();
   const hasRestoredFromSessionRef = useRef(false);
   const pendingSelectedApartmentRestoreRef = useRef(null);
+  const pendingRegionMoveRef = useRef(null);
+  const mapObjRef = useRef(null);
+  const regionMoveInProgressRef = useRef(false);
+
+  // idle 기반 마커 갱신: debounce + abort + 최신성 보장
+  const lastIdlePayloadRef = useRef(null);
+  const idleTimerRef = useRef(null);
+  const markerAbortRef = useRef(null);
+  const markerReqSeqRef = useRef(0);
+  const centerReqSeqRef = useRef(0);
+
+  const currentSearchParamsRef = useRef(null);
   
   // 선택된 아파트 정보
   const [selectedApartment, setSelectedApartment] = useState(null);
@@ -23,6 +35,7 @@ function MapSearchPageContent() {
   // 지도 마커 데이터
   const [apartments, setApartments] = useState([]);
   const [mapCenter, setMapCenter] = useState({ lat: 37.5665, lng: 126.9780 });
+  const [mapLevel, setMapLevel] = useState(3);
   const [loading, setLoading] = useState(false);
 
   // 학교 마커 관련
@@ -94,6 +107,8 @@ function MapSearchPageContent() {
 
     const priceMin = searchParams.get('priceMin');
     const priceMax = searchParams.get('priceMax');
+    const minArea = searchParams.get('minArea');
+    const maxArea = searchParams.get('maxArea');
     const depositMin = searchParams.get('depositMin');
     const depositMax = searchParams.get('depositMax');
     const monthlyRentMin = searchParams.get('monthlyRentMin');
@@ -134,6 +149,8 @@ function MapSearchPageContent() {
       ...(dong ? { dong } : {}),
       ...(priceMin ? { priceMin } : {}),
       ...(priceMax ? { priceMax } : {}),
+      ...(minArea ? { minArea } : {}),
+      ...(maxArea ? { maxArea } : {}),
       ...(depositMin ? { depositMin } : {}),
       ...(depositMax ? { depositMax } : {}),
       ...(monthlyRentMin ? { monthlyRentMin } : {}),
@@ -163,6 +180,215 @@ function MapSearchPageContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
+
+  useEffect(() => {
+    currentSearchParamsRef.current = currentSearchParams;
+  }, [currentSearchParams]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        markerAbortRef.current?.abort?.();
+      } catch (e) {
+        // ignore
+      }
+    };
+  }, []);
+
+  const moveMapToRegionByOneMarker = useCallback(async (paramsWithTradeType) => {
+    const map = mapObjRef.current;
+    if (!map) {
+      pendingRegionMoveRef.current = paramsWithTradeType;
+      return;
+    }
+
+    // 연속 검색 시 최신 검색만 반영
+    const seq = ++centerReqSeqRef.current;
+    regionMoveInProgressRef.current = true;
+
+    const tradeType = paramsWithTradeType?.tradeType || '매매';
+    const requestCommon = {
+      sido: paramsWithTradeType?.sido,
+      gugun: paramsWithTradeType?.gugun,
+      dong: paramsWithTradeType?.dong,
+      limit: 1,
+    };
+
+    try {
+      let response = [];
+      if (tradeType === '매매') {
+        const parseArea = (val) => {
+          if (val == null || val === '') return undefined;
+          const num = parseFloat(val);
+          return Number.isFinite(num) ? num : undefined;
+        };
+        const markerRequest = {
+          ...requestCommon,
+          minAmount: paramsWithTradeType?.priceMin ? Number(paramsWithTradeType.priceMin) * 10000 : undefined,
+          maxAmount: paramsWithTradeType?.priceMax ? Number(paramsWithTradeType.priceMax) * 10000 : undefined,
+          minArea: parseArea(paramsWithTradeType?.minArea),
+          maxArea: parseArea(paramsWithTradeType?.maxArea),
+          periodMonths: paramsWithTradeType?.period || 6,
+        };
+        response = await getSaleMarkers(markerRequest);
+      } else {
+        const parseExclusive = (val) => {
+          if (!val || val === '') return undefined;
+          const num = parseFloat(val);
+          return isNaN(num) ? undefined : num;
+        };
+
+        const markerRequest = {
+          ...requestCommon,
+          minDeposit: paramsWithTradeType?.depositMin ? Number(paramsWithTradeType.depositMin) * 10000 : undefined,
+          maxDeposit: paramsWithTradeType?.depositMax ? Number(paramsWithTradeType.depositMax) * 10000 : undefined,
+          minMonthlyRent: paramsWithTradeType?.monthlyRentMin ? Number(paramsWithTradeType.monthlyRentMin) * 10000 : undefined,
+          maxMonthlyRent: paramsWithTradeType?.monthlyRentMax ? Number(paramsWithTradeType.monthlyRentMax) * 10000 : undefined,
+          minExclusive: parseExclusive(paramsWithTradeType?.minExclusive),
+          maxExclusive: parseExclusive(paramsWithTradeType?.maxExclusive),
+        };
+        response = await getRentMarkers(markerRequest);
+      }
+
+      if (seq !== centerReqSeqRef.current) return;
+
+      const first = Array.isArray(response) ? response[0] : null;
+      const lat = first?.latitude;
+      const lng = first?.longitude;
+      if (lat == null || lng == null) return;
+
+      setMapCenter({ lat, lng });
+      // 지역 이동 시 너무 확대된 상태면 적당히 보여주기
+      setMapLevel((prev) => (prev < 5 ? 5 : prev));
+    } catch (e) {
+      // ignore (해당 조건 데이터가 없으면 이동하지 않음)
+    } finally {
+      // 이동이 실패했더라도 idle fetch를 막아두면 영원히 갱신이 멈출 수 있으므로 반드시 해제
+      regionMoveInProgressRef.current = false;
+    }
+  }, []);
+
+  const fetchMarkersByIdlePayload = useCallback(async (payload) => {
+    const paramsWithTradeType = currentSearchParamsRef.current;
+    if (!paramsWithTradeType) return;
+    if (paramsWithTradeType.searchConditionType !== 'region') return;
+    if (regionMoveInProgressRef.current) return;
+
+    const tradeType = paramsWithTradeType.tradeType || '매매';
+    const bounds = payload?.bounds;
+    const level = payload?.level;
+    if (!bounds) return;
+
+    // 이전 요청 취소 + 최신 응답만 반영
+    markerAbortRef.current?.abort?.();
+    const controller = new AbortController();
+    markerAbortRef.current = controller;
+    const seq = ++markerReqSeqRef.current;
+
+    const requestCommon = {
+      // 요구사항: 패닝/줌 시에는 지역(sido/gugun/dong) 필터를 제거하고 bounds 기준으로만 갱신
+      level,
+      south: bounds.south,
+      west: bounds.west,
+      north: bounds.north,
+      east: bounds.east,
+    };
+
+    try {
+      let response = [];
+      if (tradeType === '매매') {
+        const parseArea = (val) => {
+          if (val == null || val === '') return undefined;
+          const num = parseFloat(val);
+          return Number.isFinite(num) ? num : undefined;
+        };
+        const markerRequest = {
+          ...requestCommon,
+          minAmount: paramsWithTradeType?.priceMin ? Number(paramsWithTradeType.priceMin) * 10000 : undefined,
+          maxAmount: paramsWithTradeType?.priceMax ? Number(paramsWithTradeType.priceMax) * 10000 : undefined,
+          minArea: parseArea(paramsWithTradeType?.minArea),
+          maxArea: parseArea(paramsWithTradeType?.maxArea),
+          periodMonths: paramsWithTradeType?.period || 6,
+        };
+        response = await getSaleMarkers(markerRequest, { signal: controller.signal });
+      } else {
+        const parseExclusive = (val) => {
+          if (!val || val === '') return undefined;
+          const num = parseFloat(val);
+          return isNaN(num) ? undefined : num;
+        };
+
+        const markerRequest = {
+          ...requestCommon,
+          minDeposit: paramsWithTradeType?.depositMin ? Number(paramsWithTradeType.depositMin) * 10000 : undefined,
+          maxDeposit: paramsWithTradeType?.depositMax ? Number(paramsWithTradeType.depositMax) * 10000 : undefined,
+          minMonthlyRent: paramsWithTradeType?.monthlyRentMin ? Number(paramsWithTradeType.monthlyRentMin) * 10000 : undefined,
+          maxMonthlyRent: paramsWithTradeType?.monthlyRentMax ? Number(paramsWithTradeType.monthlyRentMax) * 10000 : undefined,
+          minExclusive: parseExclusive(paramsWithTradeType?.minExclusive),
+          maxExclusive: parseExclusive(paramsWithTradeType?.maxExclusive),
+        };
+        response = await getRentMarkers(markerRequest, { signal: controller.signal });
+      }
+
+      if (seq !== markerReqSeqRef.current) return;
+
+      const markers = (response || []).map((m) => ({
+        lat: m.latitude,
+        lng: m.longitude,
+        title: m.aptNm,
+        info: '',
+        apartmentId: m.aptId,
+        apartmentData: m,
+      }));
+
+      setApartments(markers);
+    } catch (error) {
+      // Abort는 정상 흐름
+      if (error?.name === 'AbortError') return;
+      if (String(error?.message || '').toLowerCase().includes('aborted')) return;
+      console.error('마커 갱신 실패:', error);
+    }
+  }, []);
+
+  // 매매(region) 필터 변경 시: 현재 bounds 기준으로 마커/리스트를 즉시 갱신한다.
+  const handleAutoApply = useCallback((nextParams) => {
+    if (!nextParams) return;
+    const tradeType = nextParams.tradeType || '매매';
+    const paramsWithTradeType = { ...nextParams, tradeType };
+
+    setCurrentSearchParams(paramsWithTradeType);
+    currentSearchParamsRef.current = paramsWithTradeType;
+
+    try {
+      sessionStorage.setItem('search_map_lastParams', JSON.stringify(nextParams));
+      sessionStorage.setItem('search_tradeType', tradeType);
+    } catch (e) {
+      // ignore
+    }
+
+    // map bounds가 준비된 상태라면 즉시 재조회
+    const last = lastIdlePayloadRef.current;
+    if (last?.bounds) {
+      fetchMarkersByIdlePayload(last);
+    }
+  }, [fetchMarkersByIdlePayload]);
+
+  const handleMapReady = useCallback((kakaoMap) => {
+    mapObjRef.current = kakaoMap;
+    if (pendingRegionMoveRef.current) {
+      moveMapToRegionByOneMarker(pendingRegionMoveRef.current);
+      pendingRegionMoveRef.current = null;
+    }
+  }, [moveMapToRegionByOneMarker]);
+
+  const handleMapIdle = useCallback((payload) => {
+    lastIdlePayloadRef.current = payload;
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => {
+      fetchMarkersByIdlePayload(lastIdlePayloadRef.current);
+    }, 1000);
+  }, [fetchMarkersByIdlePayload]);
 
   // 검색 실행
   const handleSearch = async (searchParams) => {
@@ -196,54 +422,12 @@ function MapSearchPageContent() {
       let markers = [];
 
       if (searchParams.searchConditionType === 'region') {
-        // 지역 검색 - 마커 API 호출
-        if (tradeType === '매매') {
-          const markerRequest = {
-            sido: searchParams.sido,
-            gugun: searchParams.gugun,
-            dong: searchParams.dong,
-            minAmount: searchParams.priceMin ? Number(searchParams.priceMin) * 10000 : undefined,
-            maxAmount: searchParams.priceMax ? Number(searchParams.priceMax) * 10000 : undefined,
-            periodMonths: searchParams.period || 6,
-          };
-          const response = await getSaleMarkers(markerRequest);
-          markers = (response || []).map(m => ({
-            lat: m.latitude,
-            lng: m.longitude,
-            title: m.aptNm,
-            info: '',
-            apartmentId: m.aptId,
-            apartmentData: m,
-          }));
-        } else {
-          // 면적 범위 파싱 (소수 허용)
-          const parseExclusive = (val) => {
-            if (!val || val === '') return undefined;
-            const num = parseFloat(val);
-            return isNaN(num) ? undefined : num;
-          };
-          
-          const markerRequest = {
-            sido: searchParams.sido,
-            gugun: searchParams.gugun,
-            dong: searchParams.dong,
-            minDeposit: searchParams.depositMin ? Number(searchParams.depositMin) * 10000 : undefined,
-            maxDeposit: searchParams.depositMax ? Number(searchParams.depositMax) * 10000 : undefined,
-            minMonthlyRent: searchParams.monthlyRentMin ? Number(searchParams.monthlyRentMin) * 10000 : undefined,
-            maxMonthlyRent: searchParams.monthlyRentMax ? Number(searchParams.monthlyRentMax) * 10000 : undefined,
-            minExclusive: parseExclusive(searchParams.minExclusive),
-            maxExclusive: parseExclusive(searchParams.maxExclusive),
-          };
-          const response = await getRentMarkers(markerRequest);
-          markers = (response || []).map(m => ({
-            lat: m.latitude,
-            lng: m.longitude,
-            title: m.aptNm,
-            info: '',
-            apartmentId: m.aptId,
-            apartmentData: m,
-          }));
-        }
+        // region 검색은 "bounds 기반 갱신"이 기본.
+        // 1) 마커/리스트를 비우고 2) 조건에 맞는 아파트 1개로 지도 중심을 옮긴 뒤 3) idle에서 bounds+필터로 마커를 가져온다.
+        setApartments([]);
+        await moveMapToRegionByOneMarker(paramsWithTradeType);
+        // 실제 마커 조회는 handleMapIdle → fetchMarkersByIdlePayload에서 수행
+        markers = [];
       } else if (searchParams.searchConditionType === 'subway') {
         // 지하철역 검색: 선택한 역 + 반경 내 아파트 마커 표시
         const distanceKm = Number(searchParams.subwayRadius || 1.0);
@@ -276,18 +460,14 @@ function MapSearchPageContent() {
         }));
       }
 
-      setApartments(markers);
-
-      // 지도 중심 조정 (모든 마커를 포함하도록)
-      if (markers.length > 0) {
-        // 첫 번째 마커를 중심으로 설정
-        setMapCenter({
-          lat: markers[0].lat,
-          lng: markers[0].lng,
-        });
-      } else {
-        // 마커가 없으면 기본 위치로
-        setMapCenter({ lat: 37.5665, lng: 126.9780 });
+      // region은 idle에서 setApartments 하므로, subway/school만 여기서 반영
+      if (searchParams.searchConditionType !== 'region') {
+        setApartments(markers);
+        if (markers.length > 0) {
+          setMapCenter({ lat: markers[0].lat, lng: markers[0].lng });
+        } else {
+          setMapCenter({ lat: 37.5665, lng: 126.9780 });
+        }
       }
     } catch (error) {
       console.error('검색 실패:', error);
@@ -436,7 +616,7 @@ function MapSearchPageContent() {
     <div className="flex flex-col h-screen">
       {/* 상단 필터 */}
       <div className="flex-shrink-0 bg-gray-50 border-b">
-        <Filter onSearch={handleSearch} initialParams={initialFilterParams} />
+        <Filter onSearch={handleSearch} onAutoApply={handleAutoApply} initialParams={initialFilterParams} />
       </div>
 
       {/* 하단: 지도와 사이드 패널 */}
@@ -476,11 +656,16 @@ function MapSearchPageContent() {
           )}
           <Map
             center={mapCenter}
+            level={mapLevel}
             markers={apartments}
             onMarkerClick={handleMarkerClick}
             onMapClick={handleMapClick}
             schoolMarkers={schoolMarkers}
             showSchoolMarkers={showSchoolMarkers}
+            onMapReady={handleMapReady}
+            onIdle={handleMapIdle}
+            useCluster={true}
+            autoFitBounds={false}
           />
         </div>
       </div>

@@ -98,7 +98,7 @@ function normalizeRentGraphRows(rows) {
   // 월별 중복 응답이 와도 안전하게 집계
   const grouped = new Map();
   rows.forEach((row) => {
-    const yyyymm = row?.yyyymm ?? row?.month ?? '';
+    const yyyymm = normalizeYyyymmKey(row?.yyyymm ?? row?.month ?? '');
     if (!yyyymm) return;
 
     if (!grouped.has(yyyymm)) {
@@ -116,16 +116,27 @@ function normalizeRentGraphRows(rows) {
     }
 
     const target = grouped.get(yyyymm);
-    const jeonseAvg = toNumber(row?.jeonseDepositAvg ?? row?.jeonseAvg ?? row?.deposit ?? 0);
-    const wolseDepositAvg = toNumber(row?.wolseDepositAvg ?? row?.wolseAvg ?? 0);
-    const wolseRentAvg = toNumber(row?.wolseRentAvg ?? row?.monthlyRent ?? row?.mothlyRent ?? 0);
+    // 그래프 스케일 통일: 만원 단위로 변환
+    const jeonseAvg = toManwon(row?.jeonseDepositAvg ?? row?.jeonseAvg ?? row?.deposit ?? 0);
+    const wolseDepositAvg = toManwon(row?.wolseDepositAvg ?? row?.wolseAvg ?? 0);
+    const wolseRentAvg = toManwon(row?.wolseRentAvg ?? row?.monthlyRent ?? row?.mothlyRent ?? 0);
     const jeonseCount = Math.max(0, toNumber(row?.jeonseCount));
     const wolseCount = Math.max(0, toNumber(row?.wolseCount));
 
     // 월세 0은 전세로 분류: 월세 평균 연산에서 제외
     // count가 없으면 값 유무로 1건으로 간주(폴백 dots 대응)
-    const effectiveJeonseCount = jeonseCount > 0 ? jeonseCount : (jeonseAvg > 0 && wolseRentAvg <= 0 ? 1 : 0);
-    const effectiveWolseCount = wolseRentAvg > 0 ? (wolseCount > 0 ? wolseCount : 1) : 0;
+    const hasJeonseValue = jeonseAvg > 0;
+    const hasWolseValue = wolseDepositAvg > 0 || wolseRentAvg > 0;
+
+    // (중요) 한 달에 전세+월세가 함께 존재할 수 있으므로,
+    // count가 없더라도 전세 값이 있으면 전세로 인정해야 전세 평균선이 0으로 떨어지지 않는다.
+    const effectiveJeonseCount =
+      jeonseCount > 0 ? jeonseCount : (hasJeonseValue ? 1 : 0);
+
+    // (중요) wolseRentAvg가 0으로 내려오는 달이 있어도 wolseDepositAvg/wolseCount로 월세를 인정해야
+    // 월세 보증금 그래프가 "0으로 고정"되는 문제를 막을 수 있다.
+    const effectiveWolseCount =
+      wolseCount > 0 ? wolseCount : (hasWolseValue ? 1 : 0);
 
     target.jeonseCount += effectiveJeonseCount;
     target.wolseCount += effectiveWolseCount;
@@ -163,7 +174,9 @@ function normalizeRentGraphRows(rows) {
     const hasJeonseTrade = row.jeonseCount > 0 && toNumber(row.jeonseDepositAvg) > 0;
     if (hasJeonseTrade) carryJeonse = toNumber(row.jeonseDepositAvg);
 
-    const hasWolseTrade = row.wolseCount > 0;
+    const hasWolseTrade =
+      row.wolseCount > 0 &&
+      (toNumber(row.wolseDepositAvg) > 0 || toNumber(row.wolseRentAvg) > 0);
     if (hasWolseTrade && toNumber(row.wolseDepositAvg) > 0) carryWolseDeposit = toNumber(row.wolseDepositAvg);
     if (hasWolseTrade && toNumber(row.wolseRentAvg) > 0) carryWolseRent = toNumber(row.wolseRentAvg);
 
@@ -180,9 +193,10 @@ function normalizeRentDots(rows) {
   if (!Array.isArray(rows)) return [];
   return rows
     .map((row) => ({
-      yyyymm: row?.yyyymm ?? row?.month ?? '',
-      deposit: toNumber(row?.deposit),
-      monthlyRent: toNumber(row?.monthlyRent ?? row?.mothlyRent),
+      yyyymm: normalizeYyyymmKey(row?.yyyymm ?? row?.month ?? ''),
+      // 그래프 스케일 통일: 만원 단위로 변환
+      deposit: toManwon(row?.deposit),
+      monthlyRent: toManwon(row?.monthlyRent ?? row?.mothlyRent),
       floor: row?.floor ?? null, // floor 필드 추가
     }))
     .filter((row) => row.yyyymm);
@@ -285,9 +299,104 @@ function parseSchoolLevels(raw) {
     .filter(Boolean);
 }
 
+/**
+ * 다양한 yyyymm 표현을 YYYYMM(6자리)로 정규화한다.
+ * - "202501" -> "202501"
+ * - "2025.1" / "2025-1" / "20251" -> "202501"
+ * - "2025.10" / "2025-10" -> "202510"
+ */
+function normalizeYyyymmKey(raw) {
+  if (raw == null) return '';
+  const digits = String(raw).replaceAll(/[^0-9]/g, '');
+  if (!digits) return '';
+  let key = '';
+  if (digits.length === 6) key = digits;
+  else if (digits.length === 5) key = `${digits.slice(0, 4)}0${digits.slice(4)}`; // YYYY M
+  else if (digits.length >= 6) key = digits.slice(0, 6); // YYYYMMDD... -> YYYYMM
+  else return digits;
+
+  // month validation: 01~12만 허용
+  const mm = Number(key.slice(4, 6));
+  if (!Number.isFinite(mm) || mm < 1 || mm > 12) return '';
+  return key;
+}
+
+function yyyymmToYearMonth(key) {
+  const k = normalizeYyyymmKey(key);
+  if (!k) return null;
+  const y = Number(k.slice(0, 4));
+  const m = Number(k.slice(4, 6)); // 1~12
+  if (!Number.isFinite(y) || !Number.isFinite(m)) return null;
+  return { year: y, month: m };
+}
+
+function yearMonthToYyyymm(year, month) {
+  if (!Number.isFinite(year) || !Number.isFinite(month)) return '';
+  const y = Math.trunc(year);
+  const m = Math.trunc(month);
+  if (m < 1 || m > 12) return '';
+  return `${String(y).padStart(4, '0')}${String(m).padStart(2, '0')}`;
+}
+
+function addMonthsToYyyymm(key, deltaMonths) {
+  const ym = yyyymmToYearMonth(key);
+  if (!ym) return '';
+  const delta = Math.trunc(toNumber(deltaMonths));
+  const idx = (ym.year * 12 + (ym.month - 1)) + delta;
+  const y = Math.floor(idx / 12);
+  const m = (idx % 12) + 1;
+  return yearMonthToYyyymm(y, m);
+}
+
+function currentYyyymm() {
+  const d = new Date();
+  if (Number.isNaN(d.getTime())) return '';
+  return yearMonthToYyyymm(d.getFullYear(), d.getMonth() + 1);
+}
+
+function maxYyyymm(keys) {
+  if (!Array.isArray(keys) || keys.length === 0) return '';
+  const normalized = keys.map(normalizeYyyymmKey).filter(Boolean);
+  if (normalized.length === 0) return '';
+  return normalized.reduce((max, k) => (String(k) > String(max) ? k : max), normalized[0]);
+}
+
+function buildMonthsRange(endKey, monthsCount) {
+  const end = normalizeYyyymmKey(endKey) || currentYyyymm();
+  const count = Math.max(1, Math.trunc(toNumber(monthsCount) || 6));
+  const start = addMonthsToYyyymm(end, -(count - 1));
+  if (!start) return [end].filter(Boolean);
+  const out = [];
+  for (let i = 0; i < count; i++) {
+    const k = addMonthsToYyyymm(start, i);
+    if (k) out.push(k);
+  }
+  return out;
+}
+
 function toNumber(value) {
+  if (value == null) return 0;
+  // "1,234" 같은 문자열이 오면 Number()가 NaN이므로 보정
+  if (typeof value === 'string') {
+    const cleaned = value.replaceAll(',', '').replaceAll('_', '').trim();
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * API가 원 단위/만원 단위를 섞어서 내려주는 케이스를 흡수하기 위한 통일 함수.
+ * - n이 충분히 크면(>= 1,000,000) 원 단위로 보고 만원으로 변환한다.
+ * - 그 외는 이미 만원 단위라고 가정한다.
+ *
+ * 그래프 스케일링은 반드시 같은 단위로 맞춰야 (평균선이 dots보다 한없이 아래/위로 튀는 문제) 방지 가능.
+ */
+function toManwon(value) {
+  const n = toNumber(value);
+  if (n <= 0) return 0;
+  return n >= 1_000_000 ? Math.round(n / 10000) : Math.round(n);
 }
 
 function isJeonseByMonthlyRent(monthlyRent) {
@@ -304,9 +413,10 @@ function formatDate(value) {
 }
 
 function formatMonth(yyyymm) {
-  if (!yyyymm || String(yyyymm).length < 6) return '-';
-  const v = String(yyyymm);
-  return `${v.slice(0, 4)}.${v.slice(4, 6)}`;
+  const key = normalizeYyyymmKey(yyyymm);
+  if (!key || String(key).length < 6) return '-';
+  const v = String(key);
+  return `${v.slice(0, 4)}.${v.slice(4, 6)}`; // YYYY.MM (01~12)
 }
 
 function formatPrice(value) {
@@ -348,37 +458,125 @@ function buildYScaler(maxValue) {
   return (value) => CHART_HEIGHT - CHART_PADDING_Y - (toNumber(value) / safeMax) * plotHeight;
 }
 
-function buildMonthX(index, count) {
-  if (count <= 1) return CHART_WIDTH / 2;
-  const plotWidth = CHART_WIDTH - CHART_PADDING_X * 2;
-  return CHART_PADDING_X + (index * plotWidth) / (count - 1);
+function buildMonthX(index, count, chartWidth = CHART_WIDTH) {
+  const safeCount = Math.max(1, toNumber(count));
+  const plotWidth = chartWidth - CHART_PADDING_X * 2;
+  if (safeCount <= 1) return CHART_PADDING_X + plotWidth / 2;
+  return CHART_PADDING_X + (index * plotWidth) / (safeCount - 1);
 }
 
-function SaleGraph({ data }) {
+function SaleGraph({ data, periodMonths }) {
   const [tooltip, setTooltip] = useState(null);
   const tooltipRef = useRef(null);
 
-  if (!data?.length) {
+  // hooks는 early return보다 먼저 선언되어야 한다 (rules-of-hooks)
+  const handleDotMouseEnter = useCallback((dot) => {
+    setTooltip({ data: dot, x: dot.x, y: dot.y });
+  }, []);
+
+  const handleDotMouseLeave = useCallback(() => {
+    setTooltip(null);
+  }, []);
+
+  const normalizedRows = useMemo(() => {
+    const rows = Array.isArray(data) ? data : [];
+    return rows
+      .map((r) => ({
+        ...r,
+        month: normalizeYyyymmKey(r?.month ?? r?.yyyymm ?? ''),
+        avgAmount: toNumber(r?.avgAmount),
+        tradeCount: toNumber(r?.tradeCount),
+        dots: Array.isArray(r?.dots) ? r.dots : [],
+      }))
+      .filter((r) => r?.month);
+  }, [data]);
+
+  const months = useMemo(() => {
+    const endKey = maxYyyymm(normalizedRows.map((r) => r.month)) || currentYyyymm();
+    return buildMonthsRange(endKey, periodMonths);
+  }, [normalizedRows, periodMonths]);
+
+  const rowsByMonth = useMemo(() => new Map(normalizedRows.map((r) => [r.month, r])), [normalizedRows]);
+
+  const chartRows = useMemo(() => {
+    // period 범위 내 모든 월을 생성하고, 데이터 없는 달은 빈 row로 둔다.
+    const raw = months.map((m) => {
+      const r = rowsByMonth.get(m);
+      const dots = Array.isArray(r?.dots) ? r.dots : [];
+      const normalizedDots = dots.map((d) => ({
+        dealDate: d?.dealDate ?? d?.date ?? '',
+        dealAmount: toNumber(d?.dealAmount ?? d?.price ?? d?.amount ?? 0),
+        floor: d?.floor ?? null,
+      }));
+      const avgFromDots =
+        normalizedDots.length > 0
+          ? Math.round(normalizedDots.reduce((sum, d) => sum + toNumber(d?.dealAmount), 0) / normalizedDots.length)
+          : 0;
+
+      const avgAmount = toNumber(r?.avgAmount);
+      const tradeCount = toNumber(r?.tradeCount);
+
+      return {
+        month: m,
+        avgAmount: avgAmount > 0 ? avgAmount : avgFromDots,
+        tradeCount: tradeCount > 0 ? tradeCount : normalizedDots.length,
+        dots: normalizedDots,
+      };
+    });
+
+    // 매매 평균선은 거래 없는 달이 급락하지 않도록 carry-forward (기존 UI 유지)
+    const firstTraded = raw.find((row) => toNumber(row?.tradeCount) > 0 && toNumber(row?.avgAmount) > 0);
+    let carriedAvg = firstTraded ? toNumber(firstTraded.avgAmount) : 0;
+
+    return raw.map((row) => {
+      const hasTrade = toNumber(row?.tradeCount) > 0;
+      const avgAmount = toNumber(row?.avgAmount);
+      if (hasTrade && avgAmount > 0) {
+        carriedAvg = avgAmount;
+        return row;
+      }
+      return { ...row, avgAmount: carriedAvg };
+    });
+  }, [months, rowsByMonth]);
+
+  // 디버깅(필수): period 적용 여부 확인
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV === 'production') return;
+    const start = months[0];
+    const end = months[months.length - 1];
+    // eslint-disable-next-line no-console
+    console.log('[SaleGraph period]', { periodMonths, monthsLen: months.length, start, end });
+  }, [periodMonths, months]);
+
+  if (months.length === 0) {
     return <div className="w-full text-center text-gray-500 py-10">차트 데이터가 없습니다.</div>;
   }
 
-  const maxAvg = Math.max(...data.map((d) => toNumber(d?.avgAmount)), 0);
+  const maxAvg = Math.max(...chartRows.map((d) => toNumber(d?.avgAmount)), 0);
   const maxDot = Math.max(
-    ...data.flatMap((monthRow) => (monthRow?.dots || []).map((dot) => toNumber(dot?.dealAmount))),
+    ...chartRows.flatMap((monthRow) => (monthRow?.dots || []).map((dot) => toNumber(dot?.dealAmount))),
     0
   );
   const maxValue = Math.max(maxAvg, maxDot, 1);
   const scaleY = buildYScaler(maxValue);
 
-  const avgPoints = data.map((row, index) => ({
-    x: buildMonthX(index, data.length),
+  // 기간이 길어질수록 x축이 빽빽해지므로, 월 개수에 비례해 차트 폭을 늘리고 스크롤로 감싼다.
+  const pxPerMonth = 72;
+  const plotWidth = Math.max(CHART_WIDTH - CHART_PADDING_X * 2, (months.length - 1) * pxPerMonth);
+  const chartWidth = Math.round(plotWidth + CHART_PADDING_X * 2);
+  const xRight = chartWidth - CHART_PADDING_X;
+  const tickStep = Math.max(1, Math.ceil(months.length / 10));
+
+  const avgPoints = chartRows.map((row, index) => ({
+    x: buildMonthX(index, months.length, chartWidth),
     y: scaleY(row?.avgAmount),
     value: toNumber(row?.avgAmount),
     month: row?.month,
   }));
 
-  const tradeDots = data.flatMap((row, monthIndex) => {
-    const centerX = buildMonthX(monthIndex, data.length);
+  const tradeDots = chartRows.flatMap((row, monthIndex) => {
+    const centerX = buildMonthX(monthIndex, months.length, chartWidth);
     return (row?.dots || []).map((dot, dotIndex) => ({
       x: centerX + ((dotIndex % 5) - 2) * 2,
       y: scaleY(dot?.dealAmount),
@@ -388,15 +586,6 @@ function SaleGraph({ data }) {
       floor: dot?.floor,
     }));
   });
-
-  // useCallback으로 최적화
-  const handleDotMouseEnter = useCallback((dot) => {
-    setTooltip({ data: dot, x: dot.x, y: dot.y });
-  }, []);
-
-  const handleDotMouseLeave = useCallback(() => {
-    setTooltip(null);
-  }, []);
 
   const yGuideValues = [1, 0.75, 0.5, 0.25, 0].map((ratio) => Math.round(maxValue * ratio));
 
@@ -412,160 +601,171 @@ function SaleGraph({ data }) {
           개별 거래(dots)
         </span>
       </div>
-      <svg 
-        viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
-        className="w-full h-72 bg-white rounded-lg border border-gray-100"
-      >
-        {yGuideValues.map((value, index) => {
-          const y = scaleY(value);
-          return (
-            <g key={`sale-guide-${index}-${value}`}>
-              <line x1={CHART_PADDING_X} y1={y} x2={CHART_WIDTH - CHART_PADDING_X} y2={y} stroke="#E5E7EB" strokeWidth="1" />
-              <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">
-                {formatPrice(value)}
-              </text>
-            </g>
-          );
-        })}
-
-        <path d={createLinePath(avgPoints)} fill="none" stroke="#2563EB" strokeWidth="2.2" />
-
-        {avgPoints.map((point, idx) => (
-          <circle
-            key={`${point.month}-${idx}`}
-            cx={point.x}
-            cy={point.y}
-            r="4.2"
-            fill="#2563EB"
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: `${chartWidth}px` }}>
+          <svg 
+            viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} 
+            className="w-full h-72 bg-white rounded-lg border border-gray-100"
           >
-            <title>{`${formatMonth(point.month)} 평균 ${formatPrice(point.value)}`}</title>
-          </circle>
-        ))}
+            {yGuideValues.map((value, index) => {
+              const y = scaleY(value);
+              return (
+                <g key={`sale-guide-${index}-${value}`}>
+                  <line x1={CHART_PADDING_X} y1={y} x2={xRight} y2={y} stroke="#E5E7EB" strokeWidth="1" />
+                  <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">
+                    {formatPrice(value)}
+                  </text>
+                </g>
+              );
+            })}
 
-        {tradeDots.map((dot, idx) => (
-          <g key={`${dot.month}-${dot.dealDate || idx}-${idx}`}>
-            {/* 히트박스: 투명한 큰 circle (hover 영역 확대) */}
-            <circle
-              cx={dot.x}
-              cy={dot.y}
-              r="10"
-              fill="transparent"
-              onMouseEnter={() => handleDotMouseEnter(dot)}
-              onMouseLeave={handleDotMouseLeave}
-              style={{ cursor: 'pointer' }}
-            />
-            {/* 실제 점: 조금 더 큰 circle */}
-            <circle
-              cx={dot.x}
-              cy={dot.y}
-              r="3"
-              fill="#6B7280"
-              opacity="0.85"
-              style={{ pointerEvents: 'none' }}
-            />
-          </g>
-        ))}
+            <path d={createLinePath(avgPoints)} fill="none" stroke="#2563EB" strokeWidth="2.2" />
 
-        {/* 커스텀 툴팁: 점 위에 고정 (말풍선 스타일) */}
-        {tooltip && tooltip.data && (() => {
-          const tooltipWidth = 180;
-          const tooltipHeight = tooltipRef.current?.offsetHeight || 60;
-          const tailHeight = 10;
-          const gap = 6;
-          const padding = 10;
-          
-          const dotX = tooltip.x;
-          const dotY = tooltip.y;
-          
-          // X 위치: 점의 x 좌표를 중심으로 배치 (화면 경계 고려)
-          const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
-          
-          // Y 위치: 위/아래 플립 로직
-          const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
-          const topIfBelow = dotY + (tailHeight + gap);
-          
-          // 위쪽 공간이 부족하면 아래에 배치
-          const placement = topIfAbove < padding ? 'bottom' : 'top';
-          
-          let tooltipY;
-          if (placement === 'top') {
-            tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
-          } else {
-            tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
-          }
-          
-          // 꼬리 위치 계산: 점의 x 좌표에 맞춤
-          const dotXInTooltip = dotX - tooltipX;
-          const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
-          
-          return (
-            <g style={{ pointerEvents: 'none' }}>
-              <foreignObject
-                x={tooltipX}
-                y={tooltipY}
-                width={tooltipWidth}
-                height={tooltipHeight + tailHeight}
+            {avgPoints.map((point, idx) => (
+              <circle
+                key={`${point.month}-${idx}`}
+                cx={point.x}
+                cy={point.y}
+                r="4.2"
+                fill="#2563EB"
               >
-                <div className="relative" ref={tooltipRef}>
-                  {/* 말풍선 본체 */}
-                  <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
-                    <div className="text-[10px] text-gray-300 mb-1">
-                      {tooltip.data.dealDate ? formatDate(tooltip.data.dealDate) : (tooltip.data.month ? formatMonth(tooltip.data.month) : '-')}
-                    </div>
-                    {tooltip.data.floor != null && (
-                      <div className="text-[10px] text-gray-300 mb-1">
-                        {tooltip.data.floor}층
-                      </div>
-                    )}
-                    <div className="font-medium">
-                      매매가: {formatPrice(tooltip.data.value)}
-                    </div>
-                  </div>
-                  {/* 말풍선 꼬리: placement에 따라 방향 변경 */}
-                  {placement === 'top' ? (
-                    <div 
-                      className="absolute top-full"
-                      style={{
-                        left: `${tailLeft}px`,
-                        transform: 'translateX(-50%)',
-                        width: 0,
-                        height: 0,
-                        borderLeft: '6px solid transparent',
-                        borderRight: '6px solid transparent',
-                        borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
-                      }}
-                    />
-                  ) : (
-                    <div 
-                      className="absolute bottom-full"
-                      style={{
-                        left: `${tailLeft}px`,
-                        transform: 'translateX(-50%)',
-                        width: 0,
-                        height: 0,
-                        borderLeft: '6px solid transparent',
-                        borderRight: '6px solid transparent',
-                        borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
-                      }}
-                    />
-                  )}
-                </div>
-              </foreignObject>
-            </g>
-          );
-        })()}
-      </svg>
+                <title>{`${formatMonth(point.month)} 평균 ${formatPrice(point.value)}`}</title>
+              </circle>
+            ))}
 
-      <div className="flex justify-between gap-2 text-[11px] text-gray-500">
-        {data.map((item, idx) => (
-          <span key={`${item?.month || idx}-${idx}`}>{formatMonth(item?.month)}</span>
-        ))}
+            {tradeDots.map((dot, idx) => (
+              <g key={`${dot.month}-${dot.dealDate || idx}-${idx}`}>
+                {/* 히트박스: 투명한 큰 circle (hover 영역 확대) */}
+                <circle
+                  cx={dot.x}
+                  cy={dot.y}
+                  r="10"
+                  fill="transparent"
+                  onMouseEnter={() => handleDotMouseEnter(dot)}
+                  onMouseLeave={handleDotMouseLeave}
+                  style={{ cursor: 'pointer' }}
+                />
+                {/* 실제 점: 조금 더 큰 circle */}
+                <circle
+                  cx={dot.x}
+                  cy={dot.y}
+                  r="3"
+                  fill="#6B7280"
+                  opacity="0.85"
+                  style={{ pointerEvents: 'none' }}
+                />
+              </g>
+            ))}
+
+            {/* x축 라벨 */}
+            {months.map((m, idx) => {
+              const show = idx % tickStep === 0 || idx === months.length - 1;
+              if (!show) return null;
+              const x = buildMonthX(idx, months.length, chartWidth);
+              return (
+                <text
+                  key={`sale-x-${m}-${idx}`}
+                  x={x}
+                  y={CHART_HEIGHT - 6}
+                  fontSize="10"
+                  fill="#9CA3AF"
+                  textAnchor="middle"
+                >
+                  {formatMonth(m)}
+                </text>
+              );
+            })}
+
+            {/* 커스텀 툴팁: 점 위에 고정 (말풍선 스타일) */}
+            {tooltip && tooltip.data && (() => {
+              const tooltipWidth = 180;
+              const tooltipHeight = 60;
+              const tailHeight = 10;
+              const gap = 6;
+              const padding = 10;
+              
+              const dotX = tooltip.x;
+              const dotY = tooltip.y;
+              
+              const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), chartWidth - tooltipWidth - padding);
+              
+              const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
+              const topIfBelow = dotY + (tailHeight + gap);
+              
+              const placement = topIfAbove < padding ? 'bottom' : 'top';
+              
+              let tooltipY;
+              if (placement === 'top') {
+                tooltipY = Math.max(Math.min(topIfAbove, CHART_HEIGHT - tooltipHeight - tailHeight - padding), padding);
+              } else {
+                tooltipY = Math.max(Math.min(topIfBelow, CHART_HEIGHT - tooltipHeight - padding), padding);
+              }
+              
+              const dotXInTooltip = dotX - tooltipX;
+              const tailLeft = Math.max(8, Math.min(dotXInTooltip, tooltipWidth - 8));
+              
+              return (
+                <g style={{ pointerEvents: 'none' }}>
+                  <foreignObject
+                    x={tooltipX}
+                    y={tooltipY}
+                    width={tooltipWidth}
+                    height={tooltipHeight + tailHeight}
+                  >
+                    <div className="relative" ref={tooltipRef}>
+                      <div className="bg-gray-900 text-white text-xs rounded-lg p-2 shadow-xl">
+                        <div className="text-[10px] text-gray-300 mb-1">
+                          {tooltip.data.dealDate ? formatDate(tooltip.data.dealDate) : (tooltip.data.month ? formatMonth(tooltip.data.month) : '-')}
+                        </div>
+                        {tooltip.data.floor != null && (
+                          <div className="text-[10px] text-gray-300 mb-1">
+                            {tooltip.data.floor}층
+                          </div>
+                        )}
+                        <div className="font-medium">
+                          매매가: {formatPrice(tooltip.data.value)}
+                        </div>
+                      </div>
+                      {placement === 'top' ? (
+                        <div 
+                          className="absolute top-full"
+                          style={{
+                            left: `${tailLeft}px`,
+                            transform: 'translateX(-50%)',
+                            width: 0,
+                            height: 0,
+                            borderLeft: '6px solid transparent',
+                            borderRight: '6px solid transparent',
+                            borderTop: `${tailHeight}px solid rgb(17, 24, 39)`,
+                          }}
+                        />
+                      ) : (
+                        <div 
+                          className="absolute bottom-full"
+                          style={{
+                            left: `${tailLeft}px`,
+                            transform: 'translateX(-50%)',
+                            width: 0,
+                            height: 0,
+                            borderLeft: '6px solid transparent',
+                            borderRight: '6px solid transparent',
+                            borderBottom: `${tailHeight}px solid rgb(17, 24, 39)`,
+                          }}
+                        />
+                      )}
+                    </div>
+                  </foreignObject>
+                </g>
+              );
+            })()}
+          </svg>
+        </div>
       </div>
     </div>
   );
 }
 
-function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
+function RentGraph({ avgData, dotData, mode = 'jeonse', periodMonths }) {
   const [tooltip, setTooltip] = useState(null);
   const [wolseDepositTooltip, setWolseDepositTooltip] = useState(null);
   const [wolseRentTooltip, setWolseRentTooltip] = useState(null);
@@ -573,24 +773,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
   const wolseDepositTooltipRef = useRef(null);
   const wolseRentTooltipRef = useRef(null);
 
-  const monthSet = new Set([
-    ...(avgData || []).map((r) => r?.yyyymm).filter(Boolean),
-    ...(dotData || []).map((r) => r?.yyyymm).filter(Boolean),
-  ]);
-  const months = [...monthSet].sort((a, b) => String(a).localeCompare(String(b)));
-
-  if (months.length === 0) {
-    return <div className="w-full text-center text-gray-500 py-10">차트 데이터가 없습니다.</div>;
-  }
-
-  const avgMap = new Map((avgData || []).map((row) => [row.yyyymm, row]));
-  const dotsByMonth = new Map();
-  (dotData || []).forEach((dot) => {
-    if (!dotsByMonth.has(dot.yyyymm)) dotsByMonth.set(dot.yyyymm, []);
-    dotsByMonth.get(dot.yyyymm).push(dot);
-  });
-
-  // useCallback으로 최적화된 핸들러
+  // hooks는 early return보다 먼저 선언되어야 한다 (rules-of-hooks)
   const handleJeonseDotEnter = useCallback((dot) => {
     setTooltip({ data: dot, x: dot.x, y: dot.y });
   }, []);
@@ -615,9 +798,170 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
     setWolseRentTooltip(null);
   }, []);
 
-  const jeonseLine = months.map((month) => ({ month, value: toNumber(avgMap.get(month)?.jeonseDepositAvg) }));
-  const wolseDepositLine = months.map((month) => ({ month, value: toNumber(avgMap.get(month)?.wolseDepositAvg) }));
-  const wolseRentLine = months.map((month) => ({ month, value: toNumber(avgMap.get(month)?.wolseRentAvg) }));
+  // (중요) x축 키를 하나로 통일: YYYYMM(6자리)
+  const normalizedAvgRows = useMemo(() => {
+    const normKey = (v) => normalizeYyyymmKey(v);
+    return (avgData || [])
+      .map((r) => ({ ...r, yyyymm: normKey(r?.yyyymm) }))
+      .filter((r) => r?.yyyymm);
+  }, [avgData]);
+
+  const normalizedDotRows = useMemo(() => {
+    const normKey = (v) => normalizeYyyymmKey(v);
+    return (dotData || [])
+      .map((r) => ({ ...r, yyyymm: normKey(r?.yyyymm) }))
+      .filter((r) => r?.yyyymm);
+  }, [dotData]);
+
+  const months = useMemo(() => {
+    const keys = [
+      ...normalizedAvgRows.map((r) => r?.yyyymm).filter(Boolean),
+      ...normalizedDotRows.map((r) => r?.yyyymm).filter(Boolean),
+    ];
+    const endKey = maxYyyymm(keys) || currentYyyymm();
+    return buildMonthsRange(endKey, periodMonths);
+  }, [normalizedAvgRows, normalizedDotRows, periodMonths]);
+
+  // period가 길어질수록 x축이 빽빽해지므로, 월 개수에 비례해 차트 폭을 늘리고 스크롤로 감싼다.
+  const { chartWidth, xRight, tickStep } = useMemo(() => {
+    const pxPerMonth = 72; // 보기 좋은 밀도(월 간격)
+    const plotWidth = Math.max(CHART_WIDTH - CHART_PADDING_X * 2, (months.length - 1) * pxPerMonth);
+    const chartWidth = Math.round(plotWidth + CHART_PADDING_X * 2);
+    const xRight = chartWidth - CHART_PADDING_X;
+    const tickStep = Math.max(1, Math.ceil(months.length / 10)); // 약 10개 정도만 라벨 표시
+    return { chartWidth, xRight, tickStep };
+  }, [months.length]);
+
+  const avgMap = useMemo(() => {
+    return new Map(normalizedAvgRows.map((row) => [row.yyyymm, row]));
+  }, [normalizedAvgRows]);
+
+  const dotsByMonth = useMemo(() => {
+    const m = new Map();
+    normalizedDotRows.forEach((dot) => {
+      if (!m.has(dot.yyyymm)) m.set(dot.yyyymm, []);
+      m.get(dot.yyyymm).push(dot);
+    });
+    return m;
+  }, [normalizedDotRows]);
+
+  const dotAvgByMonth = useMemo(() => {
+    // dots 기반 월평균(프론트에서 직접 계산): avg API가 0/누락/키 불일치여도 평균선이 0에 붙지 않도록 보강한다.
+    const m = new Map();
+    months.forEach((month) => {
+      const dots = dotsByMonth.get(month) || [];
+      const jeonseDots = dots.filter((d) => isJeonseByMonthlyRent(d?.monthlyRent) && toNumber(d?.deposit) > 0);
+      const wolseDots = dots.filter(
+        (d) => !isJeonseByMonthlyRent(d?.monthlyRent) && (toNumber(d?.deposit) > 0 || toNumber(d?.monthlyRent) > 0)
+      );
+
+      const jeonseDepositAvg =
+        jeonseDots.length > 0 ? Math.round(jeonseDots.reduce((s, d) => s + toNumber(d?.deposit), 0) / jeonseDots.length) : 0;
+
+      const wolseDepositAvg =
+        wolseDots.length > 0 ? Math.round(wolseDots.reduce((s, d) => s + toNumber(d?.deposit), 0) / wolseDots.length) : 0;
+
+      const wolseRentAvg =
+        wolseDots.length > 0 ? Math.round(wolseDots.reduce((s, d) => s + toNumber(d?.monthlyRent), 0) / wolseDots.length) : 0;
+
+      m.set(month, { jeonseDepositAvg, wolseDepositAvg, wolseRentAvg });
+    });
+    return m;
+  }, [months, dotsByMonth]);
+
+  const { jeonseLine, wolseDepositLine, wolseRentLine } = useMemo(() => {
+    // (중요) dots가 있는 달은 dots 기반 mean(sum/count)을 "항상" 우선한다.
+    // 백엔드 월평균(avgData)은 필터/면적/집계 기준이 다를 수 있어 line을 왜곡할 수 있으므로,
+    // dots와 라인이 항상 일치해야 하는 그래프에서는 dots를 source of truth로 둔다.
+    const pickAvgPreferDots = (dotAvg, backendAvg) => {
+      const d = toNumber(dotAvg);
+      if (d > 0) return d;
+      return toNumber(backendAvg);
+    };
+
+    const jeonseLine = months.map((month) => ({
+      month,
+      value: pickAvgPreferDots(dotAvgByMonth.get(month)?.jeonseDepositAvg, avgMap.get(month)?.jeonseDepositAvg),
+    }));
+    const wolseDepositLine = months.map((month) => ({
+      month,
+      value: pickAvgPreferDots(dotAvgByMonth.get(month)?.wolseDepositAvg, avgMap.get(month)?.wolseDepositAvg),
+    }));
+    const wolseRentLine = months.map((month) => ({
+      month,
+      value: pickAvgPreferDots(dotAvgByMonth.get(month)?.wolseRentAvg, avgMap.get(month)?.wolseRentAvg),
+    }));
+
+    return { jeonseLine, wolseDepositLine, wolseRentLine };
+  }, [months, avgMap, dotAvgByMonth]);
+
+  // 디버깅: 차트에 최종 주입되는 데이터/타입/key 매칭 확인
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (process.env.NODE_ENV === 'production') return;
+
+    try {
+      console.groupCollapsed(`[RentGraph debug] mode=${mode} months=${months.length}`);
+      console.log('[RentGraph period]', { periodMonths, monthsLen: months.length, start: months[0], end: months[months.length - 1] });
+      console.log('months:', months.slice(0, 12), months.length > 12 ? `...(+${months.length - 12})` : '');
+      console.log('avgData(sample):', normalizedAvgRows.slice(0, 3));
+      console.log('dotData(sample):', normalizedDotRows.slice(0, 3));
+      if (months[0]) {
+        const m0 = months[0];
+        console.log('month[0] key:', m0, 'avgMap.has?', avgMap.has(m0), 'avgRow:', avgMap.get(m0));
+      }
+      console.log('jeonseLine(sample):', jeonseLine.slice(0, 6));
+      console.log('wolseDepositLine(sample):', wolseDepositLine.slice(0, 6));
+      console.log('wolseRentLine(sample):', wolseRentLine.slice(0, 6));
+
+      // 강제 검증: 2025-12 (YYYYMM=202512) 평균 검증 로그
+      const targetMonth = '202512';
+      if (months.includes(targetMonth)) {
+        const dots = dotsByMonth.get(targetMonth) || [];
+        const jeonseDeposits = dots
+          .filter((d) => isJeonseByMonthlyRent(d?.monthlyRent))
+          .map((d) => toNumber(d?.deposit))
+          .filter((v) => v > 0);
+        const wolseDeposits = dots
+          .filter((d) => !isJeonseByMonthlyRent(d?.monthlyRent))
+          .map((d) => toNumber(d?.deposit))
+          .filter((v) => v > 0);
+        const wolseRents = dots
+          .filter((d) => !isJeonseByMonthlyRent(d?.monthlyRent))
+          .map((d) => toNumber(d?.monthlyRent))
+          .filter((v) => v > 0);
+
+        const mean = (arr) => {
+          const sum = arr.reduce((s, v) => s + toNumber(v), 0);
+          const count = arr.length;
+          const avg = count > 0 ? Math.round(sum / count) : 0;
+          return { sum, count, avg };
+        };
+
+        const j = mean(jeonseDeposits);
+        const wd = mean(wolseDeposits);
+        const wr = mean(wolseRents);
+
+        console.groupCollapsed(`[RentGraph validate] ${targetMonth}`);
+        console.log('jeonse deposits:', jeonseDeposits, j);
+        console.log('wolse deposits:', wolseDeposits, wd);
+        console.log('wolse rents:', wolseRents, wr);
+        console.log('line values:', {
+          jeonse: jeonseLine.find((p) => p.month === targetMonth)?.value,
+          wolseDeposit: wolseDepositLine.find((p) => p.month === targetMonth)?.value,
+          wolseRent: wolseRentLine.find((p) => p.month === targetMonth)?.value,
+        });
+        console.groupEnd();
+      }
+      console.groupEnd();
+    } catch {
+      // ignore
+    }
+  }, [mode, periodMonths, months, normalizedAvgRows, normalizedDotRows, avgMap, jeonseLine, wolseDepositLine, wolseRentLine]);
+
+  if (months.length === 0) {
+    return <div className="w-full text-center text-gray-500 py-10">차트 데이터가 없습니다.</div>;
+  }
 
   const jeonseMax = Math.max(
     ...jeonseLine.map((p) => p.value),
@@ -642,12 +986,12 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
   const wolseDepositGuide = [1, 0.75, 0.5, 0.25, 0].map((r) => Math.round(wolseDepositMax * r));
   const wolseRentGuide = [1, 0.75, 0.5, 0.25, 0].map((r) => Math.round(wolseRentMax * r));
 
-  const jeonseLinePoints = jeonseLine.map((p, idx) => ({ x: buildMonthX(idx, months.length), y: jeonseScaleY(p.value), value: p.value, month: p.month }));
-  const wolseDepositLinePoints = wolseDepositLine.map((p, idx) => ({ x: buildMonthX(idx, months.length), y: wolseDepositScaleY(p.value), value: p.value, month: p.month }));
-  const wolseRentLinePoints = wolseRentLine.map((p, idx) => ({ x: buildMonthX(idx, months.length), y: wolseRentScaleY(p.value), value: p.value, month: p.month }));
+  const jeonseLinePoints = jeonseLine.map((p, idx) => ({ x: buildMonthX(idx, months.length, chartWidth), y: jeonseScaleY(p.value), value: p.value, month: p.month }));
+  const wolseDepositLinePoints = wolseDepositLine.map((p, idx) => ({ x: buildMonthX(idx, months.length, chartWidth), y: wolseDepositScaleY(p.value), value: p.value, month: p.month }));
+  const wolseRentLinePoints = wolseRentLine.map((p, idx) => ({ x: buildMonthX(idx, months.length, chartWidth), y: wolseRentScaleY(p.value), value: p.value, month: p.month }));
 
   const jeonseDots = months.flatMap((month, monthIdx) => {
-    const centerX = buildMonthX(monthIdx, months.length);
+    const centerX = buildMonthX(monthIdx, months.length, chartWidth);
     return (dotsByMonth.get(month) || [])
       .filter((d) => isJeonseByMonthlyRent(d?.monthlyRent))
       .map((dot, dotIdx) => ({
@@ -663,7 +1007,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
   });
 
   const wolseDots = months.flatMap((month, monthIdx) => {
-    const centerX = buildMonthX(monthIdx, months.length);
+    const centerX = buildMonthX(monthIdx, months.length, chartWidth);
     return (dotsByMonth.get(month) || [])
       .filter((d) => !isJeonseByMonthlyRent(d?.monthlyRent))
       .map((dot, dotIdx) => ({
@@ -688,50 +1032,72 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
             <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-blue-600" />전세 월 평균가</span>
             <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />전세 거래 점(dots)</span>
           </div>
-          <svg 
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
-            className="w-full h-72 bg-white rounded-lg border border-gray-100"
-          >
-            {jeonseGuide.map((value, index) => {
-              const y = jeonseScaleY(value);
-              return (
-                <g key={`rent-jeonse-guide-${index}-${value}`}>
-                  <line x1={CHART_PADDING_X} y1={y} x2={CHART_WIDTH - CHART_PADDING_X} y2={y} stroke="#E5E7EB" strokeWidth="1" />
-                  <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">{formatPrice(value)}</text>
-                </g>
-              );
-            })}
-            <path d={createLinePath(jeonseLinePoints)} fill="none" stroke="#2563EB" strokeWidth="2.2" />
-            {jeonseLinePoints.map((point, idx) => (
-              <circle key={`rent-jeonse-line-${idx}`} cx={point.x} cy={point.y} r="3.4" fill="#2563EB"><title>{`${formatMonth(point.month)} 전세 평균 ${formatPrice(point.value)}`}</title></circle>
-            ))}
-            {jeonseDots.map((dot, idx) => (
-              <g key={`rent-jeonse-dot-${idx}`}>
-                {/* 히트박스: 투명한 큰 circle */}
-                <circle
-                  cx={dot.x}
-                  cy={dot.y}
-                  r="10"
-                  fill="transparent"
-                  onMouseEnter={() => handleJeonseDotEnter(dot)}
-                  onMouseLeave={handleJeonseDotLeave}
-                  style={{ cursor: 'pointer' }}
-                />
-                {/* 실제 점: 조금 더 큰 circle */}
-                <circle
-                  cx={dot.x}
-                  cy={dot.y}
-                  r="3"
-                  fill="#6B7280"
-                  opacity="0.9"
-                  style={{ pointerEvents: 'none' }}
-                />
-              </g>
-            ))}
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: `${chartWidth}px` }}>
+              <svg 
+                viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} 
+                className="w-full h-72 bg-white rounded-lg border border-gray-100"
+              >
+                {jeonseGuide.map((value, index) => {
+                  const y = jeonseScaleY(value);
+                  return (
+                    <g key={`rent-jeonse-guide-${index}-${value}`}>
+                      <line x1={CHART_PADDING_X} y1={y} x2={xRight} y2={y} stroke="#E5E7EB" strokeWidth="1" />
+                      <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">{formatPrice(value)}</text>
+                    </g>
+                  );
+                })}
+                <path d={createLinePath(jeonseLinePoints)} fill="none" stroke="#2563EB" strokeWidth="2.2" />
+                {jeonseLinePoints.map((point, idx) => (
+                  <circle key={`rent-jeonse-line-${idx}`} cx={point.x} cy={point.y} r="3.4" fill="#2563EB"><title>{`${formatMonth(point.month)} 전세 평균 ${formatPrice(point.value)}`}</title></circle>
+                ))}
+                {jeonseDots.map((dot, idx) => (
+                  <g key={`rent-jeonse-dot-${idx}`}>
+                    {/* 히트박스: 투명한 큰 circle */}
+                    <circle
+                      cx={dot.x}
+                      cy={dot.y}
+                      r="10"
+                      fill="transparent"
+                      onMouseEnter={() => handleJeonseDotEnter(dot)}
+                      onMouseLeave={handleJeonseDotLeave}
+                      style={{ cursor: 'pointer' }}
+                    />
+                    {/* 실제 점: 조금 더 큰 circle */}
+                    <circle
+                      cx={dot.x}
+                      cy={dot.y}
+                      r="3"
+                      fill="#6B7280"
+                      opacity="0.9"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  </g>
+                ))}
+
+                {/* x축 라벨: dot/라인과 동일한 buildMonthX 스케일 사용 */}
+                {months.map((m, idx) => {
+                  const show = idx % tickStep === 0 || idx === months.length - 1;
+                  if (!show) return null;
+                  const x = buildMonthX(idx, months.length, chartWidth);
+                  return (
+                    <text
+                      key={`rent-jeonse-x-${m}-${idx}`}
+                      x={x}
+                      y={CHART_HEIGHT - 6}
+                      fontSize="10"
+                      fill="#9CA3AF"
+                      textAnchor="middle"
+                    >
+                      {formatMonth(m)}
+                    </text>
+                  );
+                })}
             {/* 전세 툴팁: 점 위에 고정 */}
             {tooltip && tooltip.data && tooltip.data.monthlyRent === null && (() => {
               const tooltipWidth = 180;
-              const tooltipHeight = jeonseTooltipRef.current?.offsetHeight || 60;
+              // eslint(rule): render 중 ref.current 접근 금지 → 고정 높이 사용
+              const tooltipHeight = 60;
               const tailHeight = 10;
               const gap = 6;
               const padding = 10;
@@ -739,7 +1105,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               const dotX = tooltip.x;
               const dotY = tooltip.y;
               
-              const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+              const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), chartWidth - tooltipWidth - padding);
               
               const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
               const topIfBelow = dotY + (tailHeight + gap);
@@ -810,7 +1176,9 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
                 </g>
               );
             })()}
-          </svg>
+              </svg>
+            </div>
+          </div>
         </div>
       )}
 
@@ -821,15 +1189,17 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />월별 보증금 평균</span>
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />보증금 거래 점(dots)</span>
             </div>
-            <svg 
-              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
-              className="w-full h-72 bg-white rounded-lg border border-gray-100"
-            >
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: `${chartWidth}px` }}>
+                <svg 
+                  viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} 
+                  className="w-full h-72 bg-white rounded-lg border border-gray-100"
+                >
               {wolseDepositGuide.map((value, index) => {
                 const y = wolseDepositScaleY(value);
                 return (
                   <g key={`rent-wolse-deposit-guide-${index}-${value}`}>
-                    <line x1={CHART_PADDING_X} y1={y} x2={CHART_WIDTH - CHART_PADDING_X} y2={y} stroke="#E5E7EB" strokeWidth="1" />
+                    <line x1={CHART_PADDING_X} y1={y} x2={xRight} y2={y} stroke="#E5E7EB" strokeWidth="1" />
                     <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">{formatPrice(value)}</text>
                   </g>
                 );
@@ -864,7 +1234,8 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               {/* 월세 보증금 툴팁: 점 위에 고정 */}
               {wolseDepositTooltip && wolseDepositTooltip.data && wolseDepositTooltip.data.monthlyRent != null && (() => {
                 const tooltipWidth = 180;
-                const tooltipHeight = wolseDepositTooltipRef.current?.offsetHeight || 70;
+                // eslint(rule): render 중 ref.current 접근 금지 → 고정 높이 사용
+                const tooltipHeight = 70;
                 const tailHeight = 10;
                 const gap = 6;
                 const padding = 10;
@@ -872,7 +1243,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
                 const dotX = wolseDepositTooltip.x;
                 const dotY = wolseDepositTooltip.y;
                 
-                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), chartWidth - tooltipWidth - padding);
                 
                 const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
                 const topIfBelow = dotY + (tailHeight + gap);
@@ -946,7 +1317,28 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
                   </g>
                 );
               })()}
-            </svg>
+
+              {/* x축 라벨 */}
+              {months.map((m, idx) => {
+                const show = idx % tickStep === 0 || idx === months.length - 1;
+                if (!show) return null;
+                const x = buildMonthX(idx, months.length, chartWidth);
+                return (
+                  <text
+                    key={`rent-wolse-deposit-x-${m}-${idx}`}
+                    x={x}
+                    y={CHART_HEIGHT - 6}
+                    fontSize="10"
+                    fill="#9CA3AF"
+                    textAnchor="middle"
+                  >
+                    {formatMonth(m)}
+                  </text>
+                );
+              })}
+                </svg>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -954,15 +1346,17 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-orange-500" />월별 월세 평균</span>
               <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500" />월세 거래 점(dots)</span>
             </div>
-            <svg 
-              viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`} 
-              className="w-full h-72 bg-white rounded-lg border border-gray-100"
-            >
+            <div className="overflow-x-auto">
+              <div style={{ minWidth: `${chartWidth}px` }}>
+                <svg 
+                  viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`} 
+                  className="w-full h-72 bg-white rounded-lg border border-gray-100"
+                >
               {wolseRentGuide.map((value, index) => {
                 const y = wolseRentScaleY(value);
                 return (
                   <g key={`rent-wolse-rent-guide-${index}-${value}`}>
-                    <line x1={CHART_PADDING_X} y1={y} x2={CHART_WIDTH - CHART_PADDING_X} y2={y} stroke="#E5E7EB" strokeWidth="1" />
+                    <line x1={CHART_PADDING_X} y1={y} x2={xRight} y2={y} stroke="#E5E7EB" strokeWidth="1" />
                     <text x={6} y={y + 4} fontSize="10" fill="#9CA3AF">{formatPrice(value)}</text>
                   </g>
                 );
@@ -997,7 +1391,8 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
               {/* 월세 월세 툴팁: 점 위에 고정 */}
               {wolseRentTooltip && wolseRentTooltip.data && wolseRentTooltip.data.monthlyRent != null && (() => {
                 const tooltipWidth = 180;
-                const tooltipHeight = wolseRentTooltipRef.current?.offsetHeight || 70;
+                // eslint(rule): render 중 ref.current 접근 금지 → 고정 높이 사용
+                const tooltipHeight = 70;
                 const tailHeight = 10;
                 const gap = 6;
                 const padding = 10;
@@ -1005,7 +1400,7 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
                 const dotX = wolseRentTooltip.x;
                 const dotY = wolseRentTooltip.y;
                 
-                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), CHART_WIDTH - tooltipWidth - padding);
+                const tooltipX = Math.min(Math.max(dotX - tooltipWidth / 2, padding), chartWidth - tooltipWidth - padding);
                 
                 const topIfAbove = dotY - (tooltipHeight + tailHeight + gap);
                 const topIfBelow = dotY + (tailHeight + gap);
@@ -1079,16 +1474,31 @@ function RentGraph({ avgData, dotData, mode = 'jeonse' }) {
                   </g>
                 );
               })()}
-            </svg>
+
+              {/* x축 라벨 */}
+              {months.map((m, idx) => {
+                const show = idx % tickStep === 0 || idx === months.length - 1;
+                if (!show) return null;
+                const x = buildMonthX(idx, months.length, chartWidth);
+                return (
+                  <text
+                    key={`rent-wolse-rent-x-${m}-${idx}`}
+                    x={x}
+                    y={CHART_HEIGHT - 6}
+                    fontSize="10"
+                    fill="#9CA3AF"
+                    textAnchor="middle"
+                  >
+                    {formatMonth(m)}
+                  </text>
+                );
+              })}
+                </svg>
+              </div>
+            </div>
           </div>
         </>
       )}
-
-      <div className="flex justify-between gap-2 text-[11px] text-gray-500">
-        {months.map((month, idx) => (
-          <span key={`rent-month-${month}-${idx}`}>{formatMonth(month)}</span>
-        ))}
-      </div>
     </div>
   );
 }
@@ -1386,14 +1796,38 @@ function ApartmentPageContent() {
           setRentDotGraphData(normalizedDots);
 
           if (avgRes.status === 'fulfilled') {
-            setRentGraphData(normalizeRentGraphRows(avgRes.value || []));
+            const normalizedAvg = normalizeRentGraphRows(avgRes.value || []);
+            const hasAnyAvgValue = normalizedAvg.some(
+              (r) =>
+                toNumber(r?.jeonseDepositAvg) > 0 ||
+                toNumber(r?.wolseDepositAvg) > 0 ||
+                toNumber(r?.wolseRentAvg) > 0
+            );
+
+            // avg API가 "성공"해도 값이 전부 0으로 내려오는 케이스가 있어,
+            // dots가 충분히 있는데 avg가 무의미하면 dots로 평균선을 재구성한다.
+            if (!hasAnyAvgValue && normalizedDots.length > 0) {
+              const fallbackRows = normalizedDots.map((d) => ({
+                yyyymm: d?.yyyymm,
+                // d.deposit / d.monthlyRent 는 이미 normalizeRentDots에서 만원 단위로 정규화되어 있음
+                jeonseDepositAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? (d?.deposit ?? 0) : 0,
+                wolseDepositAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : (d?.deposit ?? 0),
+                wolseRentAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : (d?.monthlyRent ?? 0),
+                jeonseCount: isJeonseByMonthlyRent(d?.monthlyRent) && toNumber(d?.deposit) > 0 ? 1 : 0,
+                wolseCount: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : 1,
+              }));
+              setRentGraphData(normalizeRentGraphRows(fallbackRows));
+            } else {
+              setRentGraphData(normalizedAvg);
+            }
           } else {
             // month-avg 기반 API가 실패하면 dots 데이터로 평균선을 구성
             const fallbackRows = normalizedDots.map((d) => ({
               yyyymm: d?.yyyymm,
-              jeonseDepositAvg: d?.deposit ?? 0,
-              wolseDepositAvg: 0,
-              wolseRentAvg: d?.monthlyRent ?? 0,
+              // d.deposit / d.monthlyRent 는 이미 normalizeRentDots에서 만원 단위로 정규화되어 있음
+              jeonseDepositAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? (d?.deposit ?? 0) : 0,
+              wolseDepositAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : (d?.deposit ?? 0),
+              wolseRentAvg: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : (d?.monthlyRent ?? 0),
               jeonseCount: isJeonseByMonthlyRent(d?.monthlyRent) && toNumber(d?.deposit) > 0 ? 1 : 0,
               wolseCount: isJeonseByMonthlyRent(d?.monthlyRent) ? 0 : 1,
             }));
@@ -1620,9 +2054,9 @@ function ApartmentPageContent() {
         graphLoading={graphLoading}
       >
         {tradeType === '매매' ? (
-          <SaleGraph data={saleGraphData} />
+          <SaleGraph data={saleGraphData} periodMonths={graphPeriod} />
         ) : (
-          <RentGraph avgData={rentGraphData} dotData={rentDotGraphData} mode={rentGraphView} />
+          <RentGraph avgData={rentGraphData} dotData={rentDotGraphData} mode={rentGraphView} periodMonths={graphPeriod} />
         )}
       </GraphModal>
     </div>

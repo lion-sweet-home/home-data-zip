@@ -3,6 +3,7 @@ package org.example.homedatazip.tradeRent.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.dto.MarkResponse;
+import org.example.homedatazip.apartment.dto.MarkerClusterResponse;
 import org.example.homedatazip.apartment.repository.ApartmentRepository;
 import org.example.homedatazip.tradeRent.dto.DotResponse;
 import org.example.homedatazip.tradeRent.dto.RentGetMarkerRequest;
@@ -31,6 +32,14 @@ public class TradeRentGetService {
     public List<MarkResponse> getListRentsByAptId(RentGetMarkerRequest dto){
 
         return apartmentRepository.findAllWithRentByRegionAndRentRange(dto);
+    }
+
+    /**
+     * 줌 레벨(level) + bounds + (기존 필터) 기반으로 격자 클러스터를 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public List<MarkerClusterResponse> getRentMarkerClusters(RentGetMarkerRequest dto) {
+        return apartmentRepository.findRentMarkerClusters(dto);
     }
 
 
