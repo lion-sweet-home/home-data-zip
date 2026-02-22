@@ -10,6 +10,10 @@ import {
 
 const PLAN_PRICE = 9900;
 
+function normalizeApiData(res) {
+  return res?.data ?? res ?? null;
+}
+
 const STEPS = {
   PHONE: "PHONE",
   BILLING: "BILLING",
@@ -25,6 +29,7 @@ function decideStep({ isActive, hasBillingKey, isPhoneVerified }) {
 }
 
 export default function SubscriptionFlowModal({
+  open,
   onClose,
   refreshState,
   initialState,
@@ -54,8 +59,18 @@ export default function SubscriptionFlowModal({
     return subscription?.status === "ACTIVE" || subscription?.isActive === true;
   }, [subscription]);
 
-  const hasBillingKey = subscription?.hasBillingKey === true;
+  const hasBillingKey =
+    subscription?.hasBillingKey === true ||
+    Boolean(subscription?.billingKey || subscription?.billing_key);
   const isPhoneVerified = !!phoneVerifiedAt;
+
+  useEffect(() => {
+    if (!open) return;
+    setSubscription(initialState?.subscription ?? null);
+    setPhoneVerifiedAt(initialState?.phoneVerifiedAt ?? null);
+    setCustomerKey(initialState?.customerKey ?? null);
+    setErr(null);
+  }, [open, initialState]);
 
   // 단계 자동 결정
   useEffect(() => {
@@ -116,12 +131,13 @@ export default function SubscriptionFlowModal({
       if (!ck) throw new Error("customerKey 없음. /users/me 응답 확인.");
 
       // billing issue 호출 (customerKey/successUrl/failUrl 받아옴)
-      const info = await issueBillingKey({
+      const issueRes = await issueBillingKey({
         orderName: "HomeDataZip 구독",
         amount: PLAN_PRICE,
       });
+      const info = normalizeApiData(issueRes);
 
-      if (!info?.successUrl || !info?.failUrl) {
+      if (!info || !info.successUrl || !info.failUrl) {
         throw new Error("successUrl/failUrl 누락");
       }
 
@@ -142,13 +158,10 @@ export default function SubscriptionFlowModal({
       const tossPayments = window.TossPayments(clientKey);
 
       // ✅ 너가 성공시킨 형태로 통일
-      await tossPayments.requestBillingAuth({
-        method: "CARD",
-        customerKey: info.customerKey || ck,
-        orderName: info.orderName || "HomeDataZip 구독",
-        amount: info.amount && info.amount > 0 ? info.amount : PLAN_PRICE,
-        successUrl: info.successUrl,
-        failUrl: info.failUrl,
+      await tossPayments.requestBillingAuth("CARD", {
+        customerKey: info?.customerKey || ck,
+        successUrl: info?.successUrl,
+        failUrl: info?.failUrl,
       });
 
       // 보통 여기서 리다이렉트라 아래로 안 내려옴
@@ -157,6 +170,16 @@ export default function SubscriptionFlowModal({
     } finally {
       setBusy(false);
     }
+  }
+
+  function extractErrorCode(error) {
+    return (
+      error?.data?.code ||
+      error?.data?.errorCode ||
+      error?.code ||
+      error?.errorCode ||
+      null
+    );
   }
 
   // 3) 구독 시작
@@ -168,11 +191,24 @@ export default function SubscriptionFlowModal({
       await syncLatest();
       setStep(STEPS.DONE);
     } catch (e) {
+      const code = extractErrorCode(e);
+      if (code === "PHONE_NOT_VERIFIED") {
+        setStep(STEPS.PHONE);
+        setErr("휴대폰 인증이 필요합니다.");
+        return;
+      }
+      if (code === "BILLING_KEY_NOT_REGISTERED") {
+        setStep(STEPS.BILLING);
+        setErr("카드 등록이 필요합니다.");
+        return;
+      }
       setErr(e?.message ?? "구독 시작 실패");
     } finally {
       setBusy(false);
     }
   }
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">

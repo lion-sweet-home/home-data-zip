@@ -63,6 +63,10 @@ public class SubscriptionController {
     ) {
         Long userId = requireUserId(principal);
         subscriptionService.startSubscription(userId);
+
+        System.out.println("### HIT START: principal=" + principal);
+        System.out.println("### HIT START userId=" + userId);
+
         return ResponseEntity.noContent().build();
     }
 

@@ -127,17 +127,16 @@ public class Subscription {
     }
 
     public static Subscription createInitial(User user) {
-        // 초기 생성이라도 today로 박아두고, EXPIRED + isActive=false로 접근 막기
         LocalDate today = LocalDate.now();
 
         return Subscription.builder()
                 .subscriber(user)
-                .name("기본 요금제")
+                .name("미구독")
                 .price(0L)
-                .status(SubscriptionStatus.EXPIRED)
-                .isActive(false)
-                .startDate(today)
-                .endDate(today)
+                .status(SubscriptionStatus.NONE) // 미구독 상태
+                .isActive(false)                 // 권한 없음
+                .startDate(today)                // not null 제약 때문에 임시값
+                .endDate(today)                  // not null 제약 때문에 임시값
                 .build();
     }
 

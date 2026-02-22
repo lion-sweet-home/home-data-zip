@@ -37,7 +37,9 @@ export default function SubscriptionDetailModal({
   if (!open) return null;
 
   const status = data?.status;
-  const hasBillingKey = data?.hasBillingKey === true;
+  const hasBillingKey =
+    data?.hasBillingKey === true ||
+    Boolean(data?.billingKey || data?.billing_key);
 
   const canCancel = !loading && !error && status === "ACTIVE";
   const canReactivate =
