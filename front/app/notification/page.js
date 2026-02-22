@@ -108,6 +108,30 @@ export default function NotificationPage() {
     }
   };
 
+  const handleMarkSelectedRead = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setActionLoading(true);
+    try {
+      await Promise.all(ids.map((id) => markAsRead(id)));
+      setItems((prev) => {
+        if (activeTab === 'unread') {
+          return prev.filter((it) => !selectedIds.has(it?.id));
+        }
+        const now = new Date().toISOString();
+        return prev.map((it) =>
+          selectedIds.has(it?.id) ? { ...it, readAt: now } : it
+        );
+      });
+      setSelectedIds(new Set());
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('notification:updated'));
+    } catch (e) {
+      alert(e?.message ?? '선택 읽음 처리에 실패했습니다.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleMarkAllRead = async () => {
     setActionLoading(true);
     try {
@@ -184,8 +208,10 @@ export default function NotificationPage() {
           </div>
           <NotificationToolbar
             selectedCount={selectedIds.size}
-            onMarkAllRead={handleMarkAllRead}
+            selectedUnreadCount={items.filter((it) => selectedIds.has(it?.id) && !it?.readAt).length}
+            onMarkSelectedRead={handleMarkSelectedRead}
             onDeleteSelected={handleDeleteSelected}
+            onMarkAllRead={handleMarkAllRead}
             onDeleteAllRead={handleDeleteAllRead}
             loading={actionLoading}
           />
