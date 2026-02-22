@@ -9,6 +9,7 @@ import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.user.entity.User;
 import org.example.homedatazip.user.repository.UserRepository;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,9 +29,12 @@ public class NotificationSseController {
     private final UserRepository userRepository;
 
     @GetMapping(value = "/notifications", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
-    public ResponseEntity<SseEmitter> subscribeNotifications(
+    public ResponseEntity<?> subscribeNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails
     ) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         Long userId = userDetails.getUserId();
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { login } from '../../api/auth';
+import { login, getGoogleLoginUrl } from '../../api/auth';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -137,8 +137,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => {
-                const base = (process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api').replace(/\/api\/?$/, '');
-                window.location.href = `${base}/oauth2/authorization/google`;
+                window.location.href = getGoogleLoginUrl();
               }}
               className="mt-4 w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
             >

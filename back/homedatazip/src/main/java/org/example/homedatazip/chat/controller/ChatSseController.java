@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.global.config.CustomUserDetails;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -22,7 +23,10 @@ public class ChatSseController {
     private final SseEmitterService sseEmitterService;
 
     @GetMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE + ";charset=UTF-8")
-    public ResponseEntity<SseEmitter> subscribeChat(@AuthenticationPrincipal CustomUserDetails userDetails) {
+    public ResponseEntity<?> subscribeChat(@AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         Long userId = userDetails.getUserId();
         SseEmitter emitter = sseEmitterService.createChatEmitter(userId);
 

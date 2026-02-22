@@ -1,7 +1,5 @@
 package org.example.homedatazip.global.config;
 
-import org.example.homedatazip.auth.handler.OAuth2FailureHandler;
-import org.example.homedatazip.auth.handler.OAuth2SuccessHandler;
 import org.example.homedatazip.global.jwt.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -24,44 +22,34 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http,
                                            JwtAuthenticationFilter jwtAuthenticationFilter,
-                                           OAuth2SuccessHandler oAuth2SuccessHandler,
-                                           OAuth2FailureHandler oAuth2FailureHandler,
                                            CorsProperties corsProperties) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(corsProperties)))
                 .formLogin(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(oAuth2SuccessHandler)
-                        .failureHandler(oAuth2FailureHandler))
                 .authorizeHttpRequests(auth -> auth
-                        // OAuth2 콜백 (Google 등)
-                        .requestMatchers("/login/oauth2/code/**").permitAll()
-                        // 로그인 사용자 전용 (favorite)
-                        .requestMatchers("/api/users/me/**").authenticated()
-                        // 회원가입·로그인 등
-                        .requestMatchers("/api/users/**").permitAll()
-                        // 로그인
-                        .requestMatchers("/api/auth/**").permitAll()
+                        // 닉네임/이메일 중복 확인, 회원가입,
+                        // 이메일 인증 코드 발송/확인, 리프레시
+                        // 로그인, 로그아웃, OAuth
+                        .requestMatchers("/api/users/check-nickname", "/api/users/check-email", "/api/users/register",
+                                "/api/users/email-verification", "/api/users/verify-email-code", "/api/auth/refresh",
+                                "/api/auth/login", "/api/auth/logout", "/api/auth/oauth").permitAll()
 
-                        // 버스정류장
-                        .requestMatchers("/api/bus-stations/**").permitAll()
+                        // 아파트/지하철/버스/병원/학교 검색
+                        .requestMatchers("/api/apartments/**", "/api/subway/stations/**", "/api/bus-stations/**",
+                                "/api/hospitals/**", "/api/schools/**").permitAll()
 
-                        .requestMatchers("/api/apartments/**").permitAll()
+                        // 관심매물
+                        .requestMatchers("/api/users/me/favorite/**").authenticated()
 
-                        .requestMatchers("/api/hospitals/**").permitAll()
-
-                        // 지하철역 부분 검색
-                        .requestMatchers("/api/subway/stations/**").permitAll()
-
-                        // 학교 지역 검색·반경 내 아파트
-                        .requestMatchers("/api/schools/**").permitAll()
-
-                        // 매매
+                        // 매물등록
                         .requestMatchers(HttpMethod.GET, "/api/listings/me/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/listings/create/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
+
+                        // 지역, 매매/전월세
+                        .requestMatchers("/api/regions/**", "/api/apartment/trade-sale/**", "/api/rent/**").permitAll()
 
                         //S3 테스트 진행 후 셀로로 교체
                         .requestMatchers(HttpMethod.POST, "/api/s3/**").permitAll()
@@ -75,12 +63,6 @@ public class SecurityConfig {
 
                         .requestMatchers("/api/test/**").permitAll()
 
-
-
-                        .requestMatchers("/api/regions/**", "/api/apartment/trade-sale/**").permitAll()
-
-                        //전월세 조회
-                        .requestMatchers("/api/rent/**").permitAll()
 
                         // 테스트용 클라이언트 페이지
                         // todo: 나중에 삭제 예정

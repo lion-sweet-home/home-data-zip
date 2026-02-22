@@ -1,57 +1,52 @@
 'use client';
 
 import { useEffect, useState, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { reissue } from '../../../api/auth';
+import { oauthWithCode, getOAuthRedirectUri } from '../../../api/auth';
 
 function OAuthCallbackContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
   const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    const error = searchParams.get('error');
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const error = searchParams.get('error') ?? params.get('error');
     if (error) {
-      setErrorMessage(decodeURIComponent(error));
-      setStatus('error');
+      const message = decodeURIComponent(error) || '소셜 로그인에 실패했습니다.';
+      window.location.replace(`/auth/login?error=${encodeURIComponent(message)}`);
       return;
     }
 
-    const token = searchParams.get('token');
-    if (token) {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', token);
-        window.dispatchEvent(new Event('auth:changed'));
-      }
-      setStatus('success');
-      router.push('/');
-      router.refresh();
+    const code = searchParams.get('code') ?? params.get('code');
+    if (code) {
+      const redirectUri = getOAuthRedirectUri();
+      let mounted = true;
+      oauthWithCode(code, redirectUri)
+        .then(() => {
+          if (!mounted) return;
+          window.history.replaceState({}, '', window.location.pathname);
+          window.location.replace('/');
+        })
+        .catch((err) => {
+          if (!mounted) return;
+          const message = err?.message || '소셜 로그인에 실패했습니다. 다시 시도해 주세요.';
+          window.location.replace(`/auth/login?error=${encodeURIComponent(message)}`);
+        });
+      return () => { mounted = false; };
+    }
+
+    if (localStorage.getItem('accessToken')) {
+      window.location.replace('/');
       return;
     }
 
-    let mounted = true;
-    reissue()
-      .then((response) => {
-        if (!mounted) return;
-        if (response?.AccessToken ?? response?.accessToken) {
-          setStatus('success');
-          router.push('/');
-          router.refresh();
-        } else {
-          setStatus('error');
-          setErrorMessage('로그인에 실패했습니다. 다시 시도해 주세요.');
-        }
-      })
-      .catch((err) => {
-        if (!mounted) return;
-        setStatus('error');
-        setErrorMessage(err?.message || '로그인에 실패했습니다. 다시 시도해 주세요.');
-      });
-
-    return () => { mounted = false; };
-  }, [searchParams, router]);
+    // OAuth 콜백인데 code도 없고 토큰도 없으면 reissue 호출 없이 로그인 페이지로
+    window.location.replace('/auth/login');
+  }, [searchParams]);
 
   if (status === 'loading') {
     return (
