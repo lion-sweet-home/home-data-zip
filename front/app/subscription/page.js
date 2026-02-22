@@ -2,9 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import SubscriptionDetailModal from "../components/SubscriptionDetailModal";
 import {
+  cancelAutoPay,
   getMySubscription,
   issueBillingKey,
+  reactivateAutoPay,
+  revokeBillingKey,
   sendPhoneAuth,
   startSubscription,
   verifyPhoneAuth,
@@ -50,6 +54,14 @@ function normalizeApiData(res) {
   return res?.data ?? res ?? null;
 }
 
+function formatSubscriptionStatus(status, isActive) {
+  if (isActive || status === "ACTIVE") return "구독중";
+  if (status === "CANCELED") return "구독취소";
+  if (status === "EXPIRED") return "구독만료";
+  if (status === "NONE") return "-";
+  return status || "-";
+}
+
 export default function SubscribePage() {
   const router = useRouter();
   const [subscription, setSubscription] = useState(null);
@@ -62,6 +74,16 @@ export default function SubscribePage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+
+  const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
+  const [revokeLoading, setRevokeLoading] = useState(false);
+  const [registerLoading, setRegisterLoading] = useState(false);
 
   const [phoneAuthOpen, setPhoneAuthOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -131,6 +153,27 @@ export default function SubscribePage() {
       customerKey: nextCustomerKey,
       userApiAvailable: nextUserApiAvailable,
     };
+  }
+
+  async function refreshDetail() {
+    const res = await getMySubscription();
+    const data = normalizeApiData(res);
+    setDetailData(data);
+    return data;
+  }
+
+  async function handleOpenDetail() {
+    setDetailOpen(true);
+    setDetailLoading(true);
+    setDetailError(null);
+
+    try {
+      await refreshDetail();
+    } catch (err) {
+      setDetailError(err?.message || "구독 정보를 불러오지 못했습니다.");
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   async function handleSubscribeFlow() {
@@ -243,6 +286,99 @@ export default function SubscribePage() {
     });
   }
 
+  async function handleCancel() {
+    if (cancelLoading) return;
+    const ok = confirm(
+      "구독을 취소할까요?\n취소해도 남은 기간까지 권한은 유지됩니다."
+    );
+    if (!ok) return;
+
+    setCancelLoading(true);
+    try {
+      await cancelAutoPay();
+      await refreshDetail();
+      await refreshState();
+      alert("구독이 취소되었습니다.");
+    } catch (err) {
+      alert(err?.message || "구독 취소에 실패했습니다.");
+    } finally {
+      setCancelLoading(false);
+    }
+  }
+
+  async function handleReactivate() {
+    if (reactivateLoading) return;
+    const ok = confirm("재구독(자동결제 재활성화) 할까요?");
+    if (!ok) return;
+
+    setReactivateLoading(true);
+    try {
+      await reactivateAutoPay();
+      await refreshDetail();
+      await refreshState();
+      alert("재구독 처리되었습니다.");
+    } catch (err) {
+      alert(err?.message || "재구독에 실패했습니다.");
+    } finally {
+      setReactivateLoading(false);
+    }
+  }
+
+  async function handleRevoke() {
+    if (revokeLoading) return;
+    const ok = confirm(
+      "등록된 카드를 삭제할까요?\n삭제하면 다시 카드등록이 필요합니다."
+    );
+    if (!ok) return;
+
+    setRevokeLoading(true);
+    try {
+      await revokeBillingKey();
+      await refreshDetail();
+      await refreshState();
+      alert("카드가 삭제되었습니다.");
+    } catch (err) {
+      alert(err?.message || "카드 삭제에 실패했습니다.");
+    } finally {
+      setRevokeLoading(false);
+    }
+  }
+
+  async function handleRegisterCard() {
+    if (registerLoading) return;
+
+    setRegisterLoading(true);
+    try {
+      const latest = await refreshState();
+      const ck = latest.customerKey || customerKey;
+      if (!ck) {
+        throw new Error(
+          "customerKey를 가져오지 못했습니다. /users/me 응답을 확인해주세요."
+        );
+      }
+
+      const billingInfoRes = await issueBillingKey({
+        orderName: "HomeDataZip 구독",
+        amount: PLAN_PRICE,
+      });
+
+      const billingInfo = normalizeApiData(billingInfoRes);
+      if (!billingInfo) {
+        throw new Error("빌링키 발급 응답이 undefined 입니다.");
+      }
+
+      if (!billingInfo.customerKey) {
+        billingInfo.customerKey = ck;
+      }
+
+      await startBillingAuth(billingInfo);
+    } catch (err) {
+      alert(err?.message || "카드 등록 시작 실패");
+    } finally {
+      setRegisterLoading(false);
+    }
+  }
+
   async function handleSendPhoneAuth() {
     if (!phoneNumber) {
       setError({ status: null, message: "휴대폰 번호를 입력해주세요." });
@@ -319,12 +455,20 @@ export default function SubscribePage() {
                 휴대폰 인증 → 카드등록 → 구독 시작 순서로 진행됩니다.
               </p>
             </div>
-            <button
-              onClick={() => router.push("/my_page")}
-              className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
-            >
-              마이페이지
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleOpenDetail}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                자세히
+              </button>
+              <button
+                onClick={() => router.push("/my_page")}
+                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50"
+              >
+                마이페이지
+              </button>
+            </div>
           </div>
 
           {error && (
@@ -354,15 +498,11 @@ export default function SubscribePage() {
               <p className="mt-2 text-lg font-semibold text-gray-900">
                 {hasBillingKey ? "등록 완료" : "미등록"}
               </p>
-              {/* ✅ 디버깅용 표시 (원하면 지워) */}
-              <p className="mt-2 text-xs text-gray-400">
-                customerKey: {customerKey ? "OK" : "없음"}
-              </p>
             </div>
             <div className="rounded-xl border border-gray-200 p-4">
               <p className="text-sm text-gray-500">구독 상태</p>
               <p className="mt-2 text-lg font-semibold text-gray-900">
-                {isActive ? "구독중" : subscription?.status || "대기"}
+                {formatSubscriptionStatus(subscription?.status, isActive)}
               </p>
               {subscription?.startDate && (
                 <p className="mt-2 text-xs text-gray-400">
@@ -466,6 +606,22 @@ export default function SubscribePage() {
             </div>
           </div>
         )}
+
+        <SubscriptionDetailModal
+          open={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          data={detailData}
+          loading={detailLoading}
+          error={detailError}
+          onCancel={handleCancel}
+          cancelLoading={cancelLoading}
+          onReactivate={handleReactivate}
+          reactivateLoading={reactivateLoading}
+          onRevoke={handleRevoke}
+          revokeLoading={revokeLoading}
+          onRegisterCard={handleRegisterCard}
+          registerLoading={registerLoading}
+        />
       </div>
     </div>
   );
