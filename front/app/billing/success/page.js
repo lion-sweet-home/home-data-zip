@@ -1,9 +1,9 @@
 "use client";
 
+import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { useEffect } from "react";
 
-export default function BillingSuccessPage() {
+function BillingSuccessContent() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
@@ -21,7 +21,19 @@ export default function BillingSuccessPage() {
         window.location.href = "/subscribe";
       })
       .catch(console.error);
-  }, []);
+  }, [searchParams]);
 
   return <div>카드 등록 처리 중...</div>;
+}
+
+export default function BillingSuccessPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: 40 }}>카드 등록 처리 중...</div>
+      }
+    >
+      <BillingSuccessContent />
+    </Suspense>
+  );
 }

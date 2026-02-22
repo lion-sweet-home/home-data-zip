@@ -54,21 +54,21 @@ export default function ChatPage() {
 
       {/* 오른쪽: 채팅방 (70%) */}
       <div className="flex-1 w-[70%] h-full overflow-hidden">
-        {selectedRoomId ? (
+      {selectedRoomId ? (
           <ChatRoomDetail 
             roomId={selectedRoomId} 
             onClose={handleClose}
             onRoomListUpdate={loadRooms}
           />
-        ) : (
+      ) : (
           <div className="h-full flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <p className="text-lg">채팅방을 선택하세요</p>
+          <div className="text-center text-gray-500">
+            <p className="text-lg">채팅방을 선택하세요</p>
               <p className="text-sm mt-2">채팅방을 클릭하면 대화를 시작할 수 있습니다.</p>
             </div>
           </div>
         )}
-      </div>
+        </div>
     </div>
   );
 }

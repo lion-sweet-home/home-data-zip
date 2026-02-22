@@ -276,8 +276,8 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
       : '정말 채팅방을 나가시겠습니까?';
     
     if (!confirm(confirmMessage)) {
-      return;
-    }
+        return;
+      }
 
     try {
       setExiting(true);
@@ -287,13 +287,13 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
         try {
           const leaveMessage = {
             type: 'LEAVE',
-            roomId: roomId,
+        roomId: roomId,
             content: '', // 백엔드에서 자동으로 생성
           };
-          stompClientRef.current.publish({
-            destination: '/pub/chat/message',
+      stompClientRef.current.publish({
+        destination: '/pub/chat/message',
             body: JSON.stringify(leaveMessage),
-          });
+      });
           console.log('채팅방 퇴장 메시지 전송 완료');
           
           // 메시지 전송 후 약간의 지연을 주어 메시지가 전송되도록 함
@@ -403,23 +403,23 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
           >
             {exiting ? '나가는 중...' : '나가기'}
           </button>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-500 hover:text-gray-700"
-              aria-label="닫기"
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-500 hover:text-gray-700"
+            aria-label="닫기"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
         </div>
       </div>
 
