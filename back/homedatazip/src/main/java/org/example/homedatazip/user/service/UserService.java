@@ -5,6 +5,7 @@ import org.example.homedatazip.email.entity.EmailAuth;
 import org.example.homedatazip.email.repository.EmailAuthRedisRepository;
 import org.example.homedatazip.email.service.EmailAuthService;
 import org.example.homedatazip.global.exception.BusinessException;
+import org.example.homedatazip.global.exception.domain.EmailErrorCode;
 import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.example.homedatazip.role.Role;
@@ -212,5 +213,49 @@ public class UserService {
                 user.getCustomerKey(),
                 roles
         );
+    }
+
+    /**
+     * 비밀번호 찾기
+     * <br/>
+     * 1. 가입된 이메일인지 확인
+     * 2. 이메일로 인증코드 전송
+     */
+    @Transactional
+    public void findPassword(String email) {
+        // 가입된 이메일인지 확인
+        if (!userRepository.existsByEmail(email)) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+
+        // 이메일로 인증코드 전송
+        emailAuthService.sendAuthCode(email);
+    }
+
+    /**
+     * 비밀번호 재설정
+     * <br/>
+     * 1. 인증코드 만료 여부 확인
+     * 2. 새로운 비밀번호 일치 여부 확인
+     */
+    @Transactional
+    public void resetPassword(PasswordResetRequest request) {
+        // 인증코드 만료 여부 확인
+        EmailAuth auth = emailAuthRepository.findById(request.email())
+                .orElseThrow(() -> new BusinessException(EmailErrorCode.AUTH_EXPIRED_OR_NOT_FOUND));
+
+        if (!auth.isVerified()) {
+            throw new BusinessException(EmailErrorCode.EMAIL_NOT_VERIFIED);
+        }
+
+        // 새로운 비밀번호 일치 여부 확인
+        if (!request.newPassword().equals(request.confirmPassword())) {
+            throw new BusinessException(UserErrorCode.INVALID_PASSWORD);
+        }
+
+        User user = findUserByEmail(request.email());
+        user.updatePassword(passwordEncoder.encode(request.newPassword()));
+
+        emailAuthRepository.delete(auth);
     }
 }
