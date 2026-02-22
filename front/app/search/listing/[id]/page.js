@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getListingDetail } from '../../../api/listing';
 import { addFavorite, removeFavorite, getMyFavorites } from '../../../api/favorite';
+import { createOrJoinRoom } from '../../../api/chat';
 
 function formatPrice(won) {
   const n = Number(won);
@@ -59,6 +60,7 @@ export default function ListingDetailPage() {
   const [showFullscreen, setShowFullscreen] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
 
   const fetchDetail = useCallback(async () => {
     setLoading(true);
@@ -111,6 +113,31 @@ export default function ListingDetailPage() {
       console.error('관심 매물 처리 실패:', err);
     } finally {
       setFavoriteLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (!token) {
+      alert('로그인이 필요합니다.');
+      router.push('/auth/login');
+      return;
+    }
+    if (chatLoading || !listingId) return;
+    setChatLoading(true);
+    try {
+      const res = await createOrJoinRoom(listingId);
+      const roomId = res?.roomId ?? res?.data?.roomId ?? res;
+      if (roomId != null) {
+        router.push(`/chat/${roomId}`);
+      } else {
+        alert('채팅방을 열 수 없습니다. 다시 시도해주세요.');
+      }
+    } catch (err) {
+      console.error('채팅방 생성/입장 실패:', err);
+      alert(err?.message || '채팅방을 열 수 없습니다. 다시 시도해주세요.');
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -337,16 +364,39 @@ export default function ListingDetailPage() {
                   <p className="text-sm text-gray-500 mt-1">{detail.buildYear}년 건축</p>
                 )}
               </div>
-              <button
-                onClick={handleToggleFavorite}
-                disabled={favoriteLoading}
-                className={`shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition-all ${
-                  isFavorited
-                    ? 'bg-red-50 text-red-500 hover:bg-red-100'
-                    : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-500'
-                } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title={isFavorited ? '관심 매물 해제' : '관심 매물 등록'}
-              >
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={handleSendMessage}
+                  disabled={chatLoading}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                >
+                  {chatLoading ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      처리 중...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8Z" />
+                      </svg>
+                      메시지 보내기
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={handleToggleFavorite}
+                  disabled={favoriteLoading}
+                  className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${
+                    isFavorited
+                      ? 'bg-red-50 text-red-500 hover:bg-red-100'
+                      : 'bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-500'
+                  } ${favoriteLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title={isFavorited ? '관심 매물 해제' : '관심 매물 등록'}
+                >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill={isFavorited ? 'currentColor' : 'none'}>
                   <path
                     d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"
@@ -356,7 +406,8 @@ export default function ListingDetailPage() {
                     strokeLinejoin="round"
                   />
                 </svg>
-              </button>
+                </button>
+              </div>
             </div>
 
             {/* 가격 정보 */}
