@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.apartment.dto.MarkResponse;
+import org.example.homedatazip.apartment.dto.MarkerClusterResponse;
 import org.example.homedatazip.tradeSale.dto.AptChartResponse;
 import org.example.homedatazip.tradeSale.dto.AptDetailResponse;
 import org.example.homedatazip.tradeSale.dto.AptSaleSummaryResponse;
@@ -28,6 +29,15 @@ public class TradeSaleController {
                 req.sido(), req.gugun(), req.dong(), req.keyword(),
                 req.minAmount(), req.maxAmount(), req.periodMonths());
         return ResponseEntity.ok(tradeSaleQueryService.getMarkers(req));
+    }
+
+    /**
+     * bounds + level + (기존 필터) 기반 클러스터 조회
+     * - 응답: [{ latitude, longitude, count }]
+     */
+    @GetMapping("/markers/clusters")
+    public ResponseEntity<List<MarkerClusterResponse>> getMarkerClusters(@Valid SaleSearchRequest req) {
+        return ResponseEntity.ok(tradeSaleQueryService.getMarkerClusters(req));
     }
 
     // 아파트 요약

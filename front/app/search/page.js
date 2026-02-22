@@ -43,6 +43,9 @@ export default function SearchPage() {
   // 가격 범위
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  // 매매용 면적 범위 (m²)
+  const [minArea, setMinArea] = useState('');
+  const [maxArea, setMaxArea] = useState('');
   // 전/월세용 보증금 범위
   const [depositMin, setDepositMin] = useState('');
   const [depositMax, setDepositMax] = useState('');
@@ -325,6 +328,8 @@ export default function SearchPage() {
       if (tradeType === '매매') {
         if (priceMin) params.append('priceMin', priceMin);
         if (priceMax) params.append('priceMax', priceMax);
+        if (minArea) params.append('minArea', minArea);
+        if (maxArea) params.append('maxArea', maxArea);
       } else {
         if (depositMin) params.append('depositMin', depositMin);
         if (depositMax) params.append('depositMax', depositMax);
@@ -418,6 +423,8 @@ export default function SearchPage() {
     if (tradeType === '매매') {
       if (priceMin) params.append('priceMin', priceMin);
       if (priceMax) params.append('priceMax', priceMax);
+      if (minArea) params.append('minArea', minArea);
+      if (maxArea) params.append('maxArea', maxArea);
     } else {
       if (depositMin) params.append('depositMin', depositMin);
       if (depositMax) params.append('depositMax', depositMax);
@@ -780,77 +787,33 @@ export default function SearchPage() {
           {/* 지역 검색 선택 시 표시되는 필터 */}
           {searchConditionType === 'region' && selectedSido && selectedGugun && (
             <div className="space-y-6 border-t pt-6">
-              {/* 가격 범위 */}
-              <div className="space-y-4">
-                {tradeType === '매매' ? (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      매매가 범위
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="number"
-                        value={priceMin}
-                        onChange={(e) => setPriceMin(e.target.value)}
-                        placeholder="최소 매매가 (만원)"
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
-                      />
-                      <span className="text-gray-700 font-medium">~</span>
-                      <input
-                        type="number"
-                        value={priceMax}
-                        onChange={(e) => setPriceMax(e.target.value)}
-                        placeholder="최대 매매가 (만원)"
-                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
-                      />
-                    </div>
-                  </div>
-                ) : (
+              {tradeType === '매매' ? (
+                // 요구사항 변경: 구/군까지만 선택하면 평수/가격 필터 표시
+                (selectedSido && selectedGugun) ? (
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        보증금 범위
+                        매매가 범위
                       </label>
                       <div className="flex items-center gap-4">
                         <input
                           type="number"
-                          value={depositMin}
-                          onChange={(e) => setDepositMin(e.target.value)}
-                          placeholder="최소 보증금 (만원)"
+                          value={priceMin}
+                          onChange={(e) => setPriceMin(e.target.value)}
+                          placeholder="최소 매매가 (만원)"
                           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
                         />
                         <span className="text-gray-700 font-medium">~</span>
                         <input
                           type="number"
-                          value={depositMax}
-                          onChange={(e) => setDepositMax(e.target.value)}
-                          placeholder="최대 보증금 (만원)"
+                          value={priceMax}
+                          onChange={(e) => setPriceMax(e.target.value)}
+                          placeholder="최대 매매가 (만원)"
                           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
                         />
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        월세 범위
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="number"
-                          value={monthlyRentMin}
-                          onChange={(e) => setMonthlyRentMin(e.target.value)}
-                          placeholder="최소 월세 (만원)"
-                          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
-                        />
-                        <span className="text-gray-700 font-medium">~</span>
-                        <input
-                          type="number"
-                          value={monthlyRentMax}
-                          onChange={(e) => setMonthlyRentMax(e.target.value)}
-                          placeholder="최대 월세 (만원)"
-                          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
-                        />
-                      </div>
-                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         면적 범위 (m²)
@@ -859,11 +822,8 @@ export default function SearchPage() {
                         <input
                           type="number"
                           step="0.1"
-                          value={minExclusive}
-                          onChange={(e) => {
-                            // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
-                            setMinExclusive(e.target.value);
-                          }}
+                          value={minArea}
+                          onChange={(e) => setMinArea(e.target.value)}
                           placeholder="최소 m²"
                           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
                         />
@@ -871,11 +831,8 @@ export default function SearchPage() {
                         <input
                           type="number"
                           step="0.1"
-                          value={maxExclusive}
-                          onChange={(e) => {
-                            // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
-                            setMaxExclusive(e.target.value);
-                          }}
+                          value={maxArea}
+                          onChange={(e) => setMaxArea(e.target.value)}
                           placeholder="최대 m²"
                           className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
                         />
@@ -883,8 +840,88 @@ export default function SearchPage() {
                       </div>
                     </div>
                   </>
-                )}
-              </div>
+                ) : null
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      보증금 범위
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        value={depositMin}
+                        onChange={(e) => setDepositMin(e.target.value)}
+                        placeholder="최소 보증금 (만원)"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                      <span className="text-gray-700 font-medium">~</span>
+                      <input
+                        type="number"
+                        value={depositMax}
+                        onChange={(e) => setDepositMax(e.target.value)}
+                        placeholder="최대 보증금 (만원)"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      월세 범위
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        value={monthlyRentMin}
+                        onChange={(e) => setMonthlyRentMin(e.target.value)}
+                        placeholder="최소 월세 (만원)"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                      <span className="text-gray-700 font-medium">~</span>
+                      <input
+                        type="number"
+                        value={monthlyRentMax}
+                        onChange={(e) => setMonthlyRentMax(e.target.value)}
+                        placeholder="최대 월세 (만원)"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      면적 범위 (m²)
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={minExclusive}
+                        onChange={(e) => {
+                          // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                          setMinExclusive(e.target.value);
+                        }}
+                        placeholder="최소 m²"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                      <span className="text-gray-700 font-medium">~</span>
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={maxExclusive}
+                        onChange={(e) => {
+                          // 입력 중에는 단순히 값만 업데이트 (스왑 없음)
+                          setMaxExclusive(e.target.value);
+                        }}
+                        placeholder="최대 m²"
+                        className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 placeholder:text-gray-600"
+                      />
+                      <span className="text-xs text-gray-500">m²</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 학교 필터 */}
               <div>

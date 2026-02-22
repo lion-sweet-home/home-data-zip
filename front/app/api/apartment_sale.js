@@ -28,7 +28,7 @@ import { get } from './api';
  *   maxAmount: 1000000000
  * });
  */
-export async function getSaleMarkers(request) {
+export async function getSaleMarkers(request, options = {}) {
   const params = new URLSearchParams();
   if (request.sido) params.append('sido', request.sido);
   if (request.gugun) params.append('gugun', request.gugun);
@@ -37,7 +37,17 @@ export async function getSaleMarkers(request) {
   if (request.minAmount != null) params.append('minAmount', request.minAmount);
   if (request.maxAmount != null) params.append('maxAmount', request.maxAmount);
   if (request.periodMonths) params.append('periodMonths', request.periodMonths);
-  return get(`/apartment/trade-sale/markers?${params.toString()}`);
+  if (request.minArea != null) params.append('minArea', request.minArea);
+  if (request.maxArea != null) params.append('maxArea', request.maxArea);
+  if (request.minBuildYear != null) params.append('minBuildYear', request.minBuildYear);
+  if (request.maxBuildYear != null) params.append('maxBuildYear', request.maxBuildYear);
+  if (request.level != null) params.append('level', request.level);
+  if (request.limit != null) params.append('limit', request.limit);
+  if (request.south != null) params.append('south', request.south);
+  if (request.west != null) params.append('west', request.west);
+  if (request.north != null) params.append('north', request.north);
+  if (request.east != null) params.append('east', request.east);
+  return get(`/apartment/trade-sale/markers?${params.toString()}`, options);
 }
 
 /**
