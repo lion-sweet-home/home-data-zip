@@ -128,6 +128,23 @@ public class SseEmitterService {
         }
     }
 
+    // 채팅방 갱신 신호 전송
+    public void sendRoomDetailUpdate(Long userId) {
+        SseEmitter emitter = chatEmitters.get(userId);
+        if (emitter != null) {
+            try {
+                // 채팅방 갱신 신호 전송
+                emitter.send(SseEmitter.event()
+                        .name("roomDetailUpdate")
+                        .data("refresh"));
+                log.info("채팅방 갱신 신호 전송 성공: userId={}", userId);
+            } catch (IOException e) {
+                log.error("채팅방 갱신 신호 전송 실패: userId={}", userId);
+                chatEmitters.remove(userId);
+            }
+        }
+    }
+
     // Heartbeat: 모든 연결에 comment만 전송 (연결되어 있는지 확인)
     public void sendHeartbeatToAll() {
         sendHeartbeat(chatEmitters, "chat");

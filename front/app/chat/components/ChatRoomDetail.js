@@ -1,32 +1,46 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getChatRoomDetail } from '../../api/chat';
+import { getChatRoomDetail, exitChatRoom } from '../../api/chat';
 import { formatChatTime } from '../../utils/chatUtils';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import MessageInput from './MessageInput';
+import { useRouter } from 'next/navigation';
+import { onRoomDetailUpdate, offRoomDetailUpdate } from '../../utils/sseManager';
 
 export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   const [roomDetail, setRoomDetail] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [messageInput, setMessageInput] = useState('');
-  const [sending, setSending] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [wsConnected, setWsConnected] = useState(false);
   const [shouldRestoreScroll, setShouldRestoreScroll] = useState(false);
   const [savedScrollHeight, setSavedScrollHeight] = useState(0);
   const [savedScrollTop, setSavedScrollTop] = useState(0);
+  const [exiting, setExiting] = useState(false);
   
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const stompClientRef = useRef(null);
   const roomDetailRef = useRef(null);
+  const router = useRouter();
 
   // 스크롤을 맨 아래로
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToBottom = (useSmooth = false) => {
+    const container = messagesContainerRef.current;
+    if (container) {
+      // requestAnimationFrame을 사용하여 DOM 업데이트 후 스크롤
+      requestAnimationFrame(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      });
+    } else if (messagesEndRef.current) {
+      // fallback: scrollIntoView 사용
+      messagesEndRef.current.scrollIntoView({ behavior: useSmooth ? 'smooth' : 'auto' });
+    }
   };
 
   // 채팅방 상세 정보 및 메시지 로드
@@ -87,6 +101,22 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
     }
   }, [roomId, loadRoomDetail]);
 
+  // SSE roomDetailUpdate 이벤트 구독
+  useEffect(() => {
+    const handleRoomDetailUpdate = () => {
+      // roomId가 있을 때만 메시지 재요청
+      if (roomId) {
+        loadRoomDetail(0);
+      }
+    };
+
+    onRoomDetailUpdate(handleRoomDetailUpdate);
+
+    return () => {
+      offRoomDetailUpdate(handleRoomDetailUpdate);
+    };
+  }, [roomId, loadRoomDetail]);
+
   // 메시지 로드 후 스크롤 처리
   useEffect(() => {
     const container = messagesContainerRef.current;
@@ -94,7 +124,10 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
     
     if (currentPage === 0 && messages.length > 0) {
       // 첫 로드 시 맨 아래로 스크롤
-      setTimeout(scrollToBottom, 100);
+      // 여러 번 시도하여 메시지가 완전히 렌더링된 후 스크롤
+      setTimeout(() => scrollToBottom(false), 100);
+      setTimeout(() => scrollToBottom(false), 300);
+      setTimeout(() => scrollToBottom(false), 500);
     } else if (shouldRestoreScroll && messages.length > 0) {
       // 이전 메시지 로드 후 스크롤 위치 복원
       setTimeout(() => {
@@ -131,6 +164,22 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
       onConnect: () => {
         console.log('WebSocket 연결 성공');
         setWsConnected(true);
+
+        // 채팅방 입장 메시지 전송
+        try {
+          const enterMessage = {
+            type: 'ENTER',
+            roomId: roomId,
+            content: '', // 백엔드에서 자동으로 생성
+          };
+          client.publish({
+            destination: '/pub/chat/message',
+            body: JSON.stringify(enterMessage),
+          });
+          console.log('채팅방 입장 메시지 전송 완료');
+        } catch (error) {
+          console.error('입장 메시지 전송 실패:', error);
+        }
 
         // 채팅방 구독
         client.subscribe(`/sub/chat/room/${roomId}`, (message) => {
@@ -182,7 +231,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
               return [...prev, newMessage];
             });
             
-            setTimeout(scrollToBottom, 100);
+            setTimeout(() => scrollToBottom(false), 100);
           } catch (error) {
             console.error('메시지 파싱 오류:', error);
           }
@@ -212,50 +261,67 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
     };
   }, [roomId]);
 
-  // 메시지 전송
-  const handleSendMessage = async () => {
-    if (!messageInput.trim() || sending) return;
+  // 메시지 전송 후 스크롤 처리
+  const handleMessageSent = () => {
+    setTimeout(scrollToBottom, 100);
+  };
 
-    const content = messageInput.trim();
-    setSending(true);
+  // 채팅방 나가기
+  const handleExitRoom = async () => {
+    // 한 명이 이미 나간 상태인지 확인
+    const isSomeoneExited = roomDetail?.buyerExited || roomDetail?.sellerExited;
+    
+    const confirmMessage = isSomeoneExited
+      ? '나가면 채팅방이 삭제됩니다. 그래도 나가시겠습니까?'
+      : '정말 채팅방을 나가시겠습니까?';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+      }
 
     try {
-      if (!stompClientRef.current) {
-        console.error('WebSocket 클라이언트가 초기화되지 않았습니다.');
-        alert('채팅 연결이 끊어졌습니다. 페이지를 새로고침해주세요.');
-        setSending(false);
-        return;
-      }
-
-      if (!stompClientRef.current.connected) {
-        console.error('WebSocket이 연결되지 않았습니다.');
-        alert('채팅 연결이 끊어졌습니다. 잠시 후 다시 시도해주세요.');
-        setSending(false);
-        return;
-      }
-
-      const messageBody = {
-        type: 'TALK',
-        roomId: roomId,
-        content: content,
-      };
-
-      console.log('메시지 전송 시도:', messageBody);
+      setExiting(true);
       
+      // 채팅방 퇴장 메시지 전송
+      if (stompClientRef.current && stompClientRef.current.connected) {
+        try {
+          const leaveMessage = {
+            type: 'LEAVE',
+        roomId: roomId,
+            content: '', // 백엔드에서 자동으로 생성
+          };
       stompClientRef.current.publish({
         destination: '/pub/chat/message',
-        body: JSON.stringify(messageBody),
+            body: JSON.stringify(leaveMessage),
       });
-
-      console.log('메시지 전송 완료 (WebSocket publish 호출됨)');
+          console.log('채팅방 퇴장 메시지 전송 완료');
+          
+          // 메시지 전송 후 약간의 지연을 주어 메시지가 전송되도록 함
+          await new Promise(resolve => setTimeout(resolve, 200));
+        } catch (error) {
+          console.error('퇴장 메시지 전송 실패:', error);
+        }
+      }
       
-      // 전송 성공 시 입력창 비우기
-      setMessageInput('');
+      // 채팅방 나가기 API 호출
+      await exitChatRoom(roomId);
+      
+      // WebSocket 연결 해제
+      if (stompClientRef.current) {
+        stompClientRef.current.deactivate();
+      }
+      
+      // 채팅방 목록 갱신
+      if (onRoomListUpdate) {
+        onRoomListUpdate();
+      }
+      
+      // 채팅 목록 페이지로 이동
+      router.push('/chat');
     } catch (error) {
-      console.error('메시지 전송 실패:', error);
-      alert('메시지 전송에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setSending(false);
+      console.error('채팅방 나가기 실패:', error);
+      alert('채팅방 나가기에 실패했습니다. 다시 시도해주세요.');
+      setExiting(false);
     }
   };
 
@@ -314,7 +380,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white h-full overflow-hidden">
+    <div className="w-full h-full flex flex-col bg-white overflow-hidden">
       {/* 헤더 */}
       <div className="flex-shrink-0 px-4 py-3 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -328,6 +394,15 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
             <span className="text-xs text-gray-500">{wsConnected ? '연결됨' : '연결 중...'}</span>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExitRoom}
+            disabled={exiting}
+            className="px-3 py-1.5 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="나가기"
+          >
+            {exiting ? '나가는 중...' : '나가기'}
+          </button>
         {onClose && (
           <button
             onClick={onClose}
@@ -345,6 +420,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
             </svg>
           </button>
         )}
+        </div>
       </div>
 
       {/* 메시지 영역 */}
@@ -376,8 +452,18 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
           </div>
         )}
 
-        {messages.map((message, index) => {
+        {messages
+          .filter((message) => {
+            // 시스템 메시지(ENTER/LEAVE)인데 content가 비어있으면 필터링하여 제거
+            const isSystemMessage = message.type === 'ENTER' || message.type === 'LEAVE';
+            if (isSystemMessage && (!message.content || message.content.trim() === '')) {
+              return false;
+            }
+            return true;
+          })
+          .map((message, index) => {
           const isMine = isMyMessage(message);
+          const isSystemMessage = message.type === 'ENTER' || message.type === 'LEAVE';
           
           // 고유한 key 생성: messageId가 있으면 사용, 없으면 index와 createdAt 조합
           const uniqueKey = message.messageId 
@@ -392,9 +478,25 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
               isRead: message.isRead,
               isMine,
               opponentNickname: roomDetail?.opponentNickname,
+              type: message.type,
             });
           }
           
+          // 시스템 메시지 (ENTER/LEAVE)는 가운데 공지 스타일로 표시
+          if (isSystemMessage) {
+            return (
+              <div
+                key={uniqueKey}
+                className="flex justify-center items-center py-2"
+              >
+                <div className="px-4 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                  {message.content}
+                </div>
+              </div>
+            );
+          }
+          
+          // 일반 메시지
           return (
             <div
               key={uniqueKey}
@@ -430,31 +532,11 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
       </div>
 
       {/* 입력 영역 */}
-      <div className="flex-shrink-0 px-4 py-3 border-t border-gray-200 bg-white">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            placeholder="메시지를 입력하세요..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500"
-            disabled={sending}
-          />
-          <button
-            onClick={handleSendMessage}
-            disabled={!messageInput.trim() || sending}
-            className="px-6 py-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-          >
-            전송
-          </button>
-        </div>
-      </div>
+      <MessageInput 
+        roomId={roomId}
+        stompClientRef={stompClientRef}
+        onMessageSent={handleMessageSent}
+      />
     </div>
   );
 }

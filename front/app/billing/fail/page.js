@@ -1,8 +1,9 @@
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function BillingFailPage() {
+function BillingFailContent() {
   const searchParams = useSearchParams();
 
   const code = searchParams.get("code");
@@ -14,9 +15,23 @@ export default function BillingFailPage() {
       <p>code: {code}</p>
       <p>message: {message}</p>
 
-      <button onClick={() => window.location.href = "/subscribe"}>
+      <button onClick={() => (window.location.href = "/subscribe")}>
         다시 시도
       </button>
     </div>
+  );
+}
+
+export default function BillingFailPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ padding: 40 }}>
+          <p>로딩 중...</p>
+        </div>
+      }
+    >
+      <BillingFailContent />
+    </Suspense>
   );
 }
