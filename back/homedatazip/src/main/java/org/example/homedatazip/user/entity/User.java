@@ -115,7 +115,9 @@ public class User extends BaseTimeEntity {
 
     // 구독을 위한 메서드 추가
     public void addRole(Role role) {
-        if (role == null) return;
+        if (role == null || role.getId() == null) {
+            throw new IllegalStateException("Role 또는 Role.id가 null입니다.");
+        }
 
         boolean exists = this.roles.stream()
                 .anyMatch(ur -> ur.getRole().getRoleType() == role.getRoleType());
