@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSidoList, getGugunList, getDongList } from '../../api/region';
-import { searchApartmentsByName } from '../../api/apartment';
+import { searchApartmentsByName, getAptAreaTypes } from '../../api/apartment';
 import { createListing, uploadListingImageTemp } from '../../api/listing';
 
 const TRADE_SALE = 'SALE';
@@ -25,6 +25,8 @@ export default function ListingFormModal({ isOpen, onClose, onSuccess }) {
   const [aptSearchResults, setAptSearchResults] = useState([]);
   const [aptSearching, setAptSearching] = useState(false);
   const [selectedApt, setSelectedApt] = useState(null);
+  const [areaOptions, setAreaOptions] = useState([]);
+  const [areaOptionsLoading, setAreaOptionsLoading] = useState(false);
 
   const [tradeType, setTradeType] = useState(TRADE_SALE);
   const [exclusiveArea, setExclusiveArea] = useState('');
@@ -135,6 +137,8 @@ export default function ListingFormModal({ isOpen, onClose, onSuccess }) {
     setAptKeyword('');
     setAptSearchResults([]);
     setSelectedApt(null);
+    setAreaOptions([]);
+    setAreaOptionsLoading(false);
     setExclusiveArea('');
     setFloor('');
     setSalePriceMan('');
@@ -398,10 +402,21 @@ export default function ListingFormModal({ isOpen, onClose, onSuccess }) {
                   <li key={apt.aptId}>
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         setSelectedApt(apt);
                         setAptSearchResults([]);
                         setAptKeyword(apt.aptName ?? '');
+                        setExclusiveArea('');
+                        setAreaOptions([]);
+                        setAreaOptionsLoading(true);
+                        try {
+                          const data = await getAptAreaTypes(apt.aptId);
+                          setAreaOptions(Array.isArray(data?.options) ? data.options : []);
+                        } catch {
+                          setAreaOptions([]);
+                        } finally {
+                          setAreaOptionsLoading(false);
+                        }
                       }}
                       className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
                         selectedApt?.aptId === apt.aptId ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
@@ -422,15 +437,27 @@ export default function ListingFormModal({ isOpen, onClose, onSuccess }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">전용면적(㎡)</label>
-              <input
-                type="number"
-                min="1"
-                step="0.1"
+              <select
                 value={exclusiveArea}
                 onChange={(e) => setExclusiveArea(e.target.value)}
-                placeholder="100"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500"
-              />
+                disabled={!selectedApt || areaOptionsLoading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-500"
+              >
+                <option value="">
+                  {!selectedApt
+                    ? '아파트를 먼저 선택해주세요'
+                    : areaOptionsLoading
+                      ? '로딩 중...'
+                      : areaOptions.length === 0
+                        ? '해당 아파트의 전용면적 정보가 없습니다'
+                        : '전용면적 선택'}
+                </option>
+                {areaOptions.map((opt) => (
+                  <option key={opt.areaKey} value={opt.exclusive}>
+                    {opt.exclusive}㎡
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">층수</label>
