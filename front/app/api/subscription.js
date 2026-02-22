@@ -1,119 +1,113 @@
 /**
  * 구독 관련 API
- * 구독 시작, 자동결제 관리, 구독 정보 조회, 휴대폰 인증, 빌링키 발급 기능을 제공합니다.
+ * - 빌링키 발급/삭제(해지)
+ * - 구독 시작
+ * - 자동결제 취소/재활성화
+ * - 내 구독 정보 조회
+ * - 휴대폰 인증
  */
 
-import { get, post } from './api';
+import { get, post } from "./api";
 
 const SUBSCRIPTION_ENDPOINTS = {
-  billingIssue: '/subscriptions/billing/issue',
-  // 아래 2개는 Toss 리다이렉트로 백엔드가 직접 받는 콜백 성격이라
-  // 프론트에서 직접 호출할 일은 거의 없음(테스트/수동호출용으로만 남김)
-  billingSuccess: '/subscriptions/billing/success',
-  billingFail: '/subscriptions/billing/fail',
+  // billing
+  billingIssue: "/subscriptions/billing/issue",
+  billingRevoke: "/subscriptions/billing/revoke",
 
-  start: '/subscriptions/start',
-  me: '/subscriptions/me',
+  // Toss redirect callback (프론트에서 직접 호출 거의 X)
+  billingSuccess: "/subscriptions/billing/success",
+  billingFail: "/subscriptions/billing/fail",
 
-  phoneAuthSend: '/subscriptions/phone-auth/send',
-  phoneAuthVerify: '/subscriptions/phone-auth/verify',
+  // subscription
+  start: "/subscriptions/start",
+  me: "/subscriptions/me",
 
-  autoPayCancel: '/subscriptions/auto-pay/cancel',
-  autoPayReactivate: '/subscriptions/auto-pay/reactivate',
+  // phone auth
+  phoneAuthSend: "/subscriptions/phone-auth/send",
+  phoneAuthVerify: "/subscriptions/phone-auth/verify",
+
+  // auto-pay
+  autoPayCancel: "/subscriptions/auto-pay/cancel",
+  autoPayReactivate: "/subscriptions/auto-pay/reactivate",
 };
 
-// 응답이 {data: ...} 로 오거나, 그냥 객체로 오거나 섞일 때 대비
+// 응답이 { data: ... } 이거나, 그냥 객체거나 섞여서 오는 경우 대비
 function unwrap(res) {
   return res?.data ?? res;
 }
 
-/**
- * 빌링키 발급 요청
- * @param {object} [request]
- * @returns {Promise<object>} BillingKeyIssueResponse
- */
+/** 빌링키 발급(카드등록 시작용 정보 받기) */
 export async function issueBillingKey(request) {
   const res = await post(SUBSCRIPTION_ENDPOINTS.billingIssue, request);
   return unwrap(res);
 }
 
 /**
- * (대부분 프론트에서 직접 호출 X) 빌링키 등록 성공 콜백 수동 호출용
+ * (거의 사용 X) 빌링키 등록 성공 콜백 수동 호출용
+ * ⚠️ 보통은 Toss가 백엔드로 redirect 치고, 백엔드가 프론트로 다시 redirect 함
  */
 export async function billingSuccess(customerKey, authKey) {
   const params = new URLSearchParams();
-  params.append('customerKey', customerKey);
-  params.append('authKey', authKey);
+  params.append("customerKey", customerKey);
+  params.append("authKey", authKey);
 
-  const res = await get(`${SUBSCRIPTION_ENDPOINTS.billingSuccess}?${params.toString()}`);
-  return unwrap(res);
-}
-
-/**
- * (대부분 프론트에서 직접 호출 X) 빌링키 등록 실패 콜백 수동 호출용
- */
-export async function billingFail(customerKey) {
-  const params = new URLSearchParams();
-  if (customerKey) params.append('customerKey', customerKey);
-
-  const queryString = params.toString();
   const res = await get(
-    `${SUBSCRIPTION_ENDPOINTS.billingFail}${queryString ? `?${queryString}` : ''}`
+    `${SUBSCRIPTION_ENDPOINTS.billingSuccess}?${params.toString()}`
   );
   return unwrap(res);
 }
 
-/**
- * 구독 시작
- * @returns {Promise<void|object>}
- */
+/** (거의 사용 X) 빌링키 등록 실패 콜백 수동 호출용 */
+export async function billingFail(customerKey) {
+  const params = new URLSearchParams();
+  if (customerKey) params.append("customerKey", customerKey);
+
+  const queryString = params.toString();
+  const res = await get(
+    `${SUBSCRIPTION_ENDPOINTS.billingFail}${
+      queryString ? `?${queryString}` : ""
+    }`
+  );
+  return unwrap(res);
+}
+
+/** ✅ 카드 삭제(빌링키 해지) */
+export async function revokeBillingKey() {
+  const res = await post(SUBSCRIPTION_ENDPOINTS.billingRevoke);
+  return unwrap(res);
+}
+
+/** 구독 시작(첫 결제 포함) */
 export async function startSubscription() {
   const res = await post(SUBSCRIPTION_ENDPOINTS.start);
   return unwrap(res);
 }
 
-/**
- * 자동결제 취소
- * @returns {Promise<void|object>}
- */
+/** 자동결제 취소 */
 export async function cancelAutoPay() {
   const res = await post(SUBSCRIPTION_ENDPOINTS.autoPayCancel);
   return unwrap(res);
 }
 
-/**
- * 자동결제 재활성화
- * @returns {Promise<void|object>}
- */
+/** 자동결제 재활성화(재구독) */
 export async function reactivateAutoPay() {
   const res = await post(SUBSCRIPTION_ENDPOINTS.autoPayReactivate);
   return unwrap(res);
 }
 
-/**
- * 내 구독 정보 조회
- * @returns {Promise<object>} SubscriptionMeResponse
- */
+/** 내 구독 정보 조회 */
 export async function getMySubscription() {
   const res = await get(SUBSCRIPTION_ENDPOINTS.me);
   return unwrap(res);
 }
 
-/**
- * 휴대폰 인증 요청
- * @param {string} phoneNumber
- * @returns {Promise<{requestId: string, expiresInSeconds: number}>}
- */
+/** 휴대폰 인증번호 발송 */
 export async function sendPhoneAuth(phoneNumber) {
   const res = await post(SUBSCRIPTION_ENDPOINTS.phoneAuthSend, { phoneNumber });
   return unwrap(res);
 }
 
-/**
- * 휴대폰 인증 검증
- * @param {{phoneNumber: string, requestId: string, code: string}} payload
- * @returns {Promise<{verified: boolean, verificationToken: string|null}>}
- */
+/** 휴대폰 인증번호 검증 */
 export async function verifyPhoneAuth(payload) {
   const res = await post(SUBSCRIPTION_ENDPOINTS.phoneAuthVerify, payload);
   return unwrap(res);
@@ -123,6 +117,7 @@ export default {
   issueBillingKey,
   billingSuccess,
   billingFail,
+  revokeBillingKey,
   startSubscription,
   cancelAutoPay,
   reactivateAutoPay,

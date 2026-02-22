@@ -113,4 +113,22 @@ public class UserController {
                 userService.getMe(userDetails.getUserId())
         );
     }
+
+    /**
+     * 비밀번호 찾기
+     */
+    @PostMapping("/find-password")
+    public ResponseEntity<Void> findPassword(@RequestBody @Valid EmailRequest request) {
+        userService.findPassword(request.email());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 비밀번호 재설정
+     */
+    @PatchMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@RequestBody @Valid PasswordResetRequest request) {
+        userService.resetPassword(request);
+        return ResponseEntity.ok().build();
+    }
 }

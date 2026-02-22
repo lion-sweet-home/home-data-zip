@@ -48,12 +48,25 @@ public class SubscriptionController {
                 .build();
     }
 
+    @PostMapping("/billing/revoke")
+    public ResponseEntity<Void> revokeBillingKey(
+            @AuthenticationPrincipal CustomUserDetails principal
+    ) {
+        Long userId = requireUserId(principal);
+        subscriptionService.revokeBillingKey(userId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/start")
     public ResponseEntity<Void> startSubscription(
             @AuthenticationPrincipal CustomUserDetails principal
     ) {
         Long userId = requireUserId(principal);
         subscriptionService.startSubscription(userId);
+
+        System.out.println("### HIT START: principal=" + principal);
+        System.out.println("### HIT START userId=" + userId);
+
         return ResponseEntity.noContent().build();
     }
 

@@ -1,14 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { changePassword } from '../../../api/user';
 
 export default function PasswordCard() {
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [saving, setSaving] = useState(false);
+  const [serverError, setServerError] = useState('');
 
-  const error = useMemo(() => {
+  const validationError = useMemo(() => {
     if (!newPassword && !newPasswordConfirm) return '';
     if (newPassword.length > 0 && newPassword.length < 8) return '새 비밀번호는 8자 이상이어야 합니다.';
     if (newPasswordConfirm && newPassword !== newPasswordConfirm) return '새 비밀번호가 일치하지 않습니다.';
@@ -21,21 +23,24 @@ export default function PasswordCard() {
       !!currentPassword &&
       !!newPassword &&
       !!newPasswordConfirm &&
-      !error
+      !validationError
     );
-  }, [saving, currentPassword, newPassword, newPasswordConfirm, error]);
+  }, [saving, currentPassword, newPassword, newPasswordConfirm, validationError]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!canSave) return;
 
+    setServerError('');
     setSaving(true);
     try {
-      // TODO: 비밀번호 변경 API 연결
-      alert('비밀번호 변경 (TODO: 서버 연동 예정)');
+      await changePassword(currentPassword, newPassword, newPasswordConfirm);
+      alert('비밀번호가 변경되었습니다.');
       setCurrentPassword('');
       setNewPassword('');
       setNewPasswordConfirm('');
+    } catch (err) {
+      setServerError(err?.message ?? '비밀번호 변경에 실패했습니다.');
     } finally {
       setSaving(false);
     }
@@ -102,10 +107,11 @@ export default function PasswordCard() {
 
         <div className="text-xs text-gray-500 flex items-start gap-2 pt-1">
           <span aria-hidden>🔒</span>
-          <span>비밀번호 변경 시 이메일 인증이 필요합니다 (TODO)</span>
+          <span>현재 비밀번호 확인 후 새 비밀번호로 변경됩니다.</span>
         </div>
 
-        {error ? <div className="text-sm text-red-600">{error}</div> : null}
+        {validationError ? <div className="text-sm text-red-600">{validationError}</div> : null}
+        {serverError ? <div className="text-sm text-red-600">{serverError}</div> : null}
 
         <button
           type="submit"
