@@ -44,6 +44,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/me/favorite/**").authenticated()
 
                         // 매물등록
+                        // 지하철역 부분 검색
+                        .requestMatchers("/api/subway/stations/**").permitAll()
+
+                        // 학교 지역 검색·반경 내 아파트
+                        .requestMatchers("/api/schools/**").permitAll()
+                        .requestMatchers("/api/v1/recommendations").permitAll()
+
+                        // 매매
                         .requestMatchers(HttpMethod.GET, "/api/listings/me/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.POST, "/api/listings/create/**").hasRole("SELLER")
                         .requestMatchers(HttpMethod.GET, "/api/listings/**").permitAll()
