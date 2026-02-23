@@ -313,8 +313,6 @@ export default function Map({
 
     // 새 마커 추가(클러스터에 넣거나 직접 map에 올림)
     (markers || []).forEach((markerData, index) => {
-    // 새 마커 추가
-    markers.forEach((markerData, index) => {
       const aptId = markerData.apartmentId ?? markerData.apartmentData?.aptId ?? markerData.apartmentData?.apartmentId;
       const isSelected = selectedMarkerId != null && String(aptId) === String(selectedMarkerId);
       const position = new window.kakao.maps.LatLng(markerData.lat, markerData.lng);
