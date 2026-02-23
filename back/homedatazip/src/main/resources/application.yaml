@@ -123,8 +123,8 @@ payment:
   toss:
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
-    billing-success-url: http://${EC2_HOST:localhost}:3000/billing/success
-    billing-fail-url: http://${EC2_HOST:localhost}:3000/billing/fail
+    billing-success-url: ${EC2_HOST:http://localhost}:3000/billing/success
+    billing-fail-url: ${EC2_HOST:http://llocalhost}:3000/billing/fail
 
 api:
   data-go-kr:
