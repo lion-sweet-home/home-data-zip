@@ -2,6 +2,7 @@ import UserInfoTest from './components/UserInfoTest';
 import MonthlyTop3Section from './components/monthly_top3_section';
 import ApartmentSearch from './components/apartment_search';
 import RecommendedApartmentsSection from './components/recommended_apartments_section';
+import AiChatSection from './components/ai_chat_section';
 
 export default function Home() {
   return (
@@ -12,6 +13,7 @@ export default function Home() {
         </div>
       </div>
       <RecommendedApartmentsSection />
+      <AiChatSection />
       <MonthlyTop3Section />
       <UserInfoTest />
     </div>
