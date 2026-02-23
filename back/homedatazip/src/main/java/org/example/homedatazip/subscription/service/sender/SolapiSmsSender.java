@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Primary
 @Component
-@Profile({"local"}) // prod에서만 실제 발송
 public class SolapiSmsSender implements SmsSender {
 
     @Value("${sms.solapi.api-key}")
