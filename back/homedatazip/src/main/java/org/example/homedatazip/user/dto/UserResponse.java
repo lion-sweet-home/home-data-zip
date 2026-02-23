@@ -12,12 +12,13 @@ public record UserResponse(
         String nickname,
         String email,
         LocalDateTime createdAt,
-        List<Role> roles
+        List<String> roles
 ) {
 
     public static UserResponse from(User user) {
-        List<Role> roles = user.getRoles().stream()
+        List<String> roles = user.getRoles().stream()
                 .map(UserRole::getRole)
+                .map(r -> r.getRoleType().name())
                 .toList();
 
         return new UserResponse(
