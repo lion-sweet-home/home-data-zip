@@ -76,8 +76,8 @@ public class TradeRentBackfillJobConfig {
         var zone = java.time.ZoneId.of("Asia/Seoul");
         var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMM");
 
-        YearMonth defaultTo = java.time.YearMonth.now(zone).minusMonths(1);
-        YearMonth defaultFrom = defaultTo.minusMonths(5);
+        YearMonth defaultTo = java.time.YearMonth.now(zone).minusMonths(5);
+        YearMonth defaultFrom = defaultTo.minusMonths(48);
 
         String from = (fromYmd == null || fromYmd.isBlank())
                 ? defaultFrom.format(fmt)
