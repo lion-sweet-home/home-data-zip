@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { getBackendUrl } from '../../api/api';
 import { getChatRoomDetail, exitChatRoom } from '../../api/chat';
 import { formatChatTime } from '../../utils/chatUtils';
 import { Client } from '@stomp/stompjs';
@@ -21,7 +20,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   const [savedScrollHeight, setSavedScrollHeight] = useState(0);
   const [savedScrollTop, setSavedScrollTop] = useState(0);
   const [exiting, setExiting] = useState(false);
-
+  
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const stompClientRef = useRef(null);
@@ -146,10 +145,11 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   useEffect(() => {
     if (!roomId) return;
 
+    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     const accessToken = localStorage.getItem('accessToken');
 
     // SockJS와 STOMP 클라이언트 생성
-    const socket = new SockJS(`${getBackendUrl()}/ws-stomp`);
+    const socket = new SockJS(`${API_BASE_URL}/ws-stomp`);
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {
@@ -270,18 +270,18 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   const handleExitRoom = async () => {
     // 한 명이 이미 나간 상태인지 확인
     const isSomeoneExited = roomDetail?.buyerExited || roomDetail?.sellerExited;
-
+    
     const confirmMessage = isSomeoneExited
       ? '나가면 채팅방이 삭제됩니다. 그래도 나가시겠습니까?'
       : '정말 채팅방을 나가시겠습니까?';
-
+    
     if (!confirm(confirmMessage)) {
         return;
       }
 
     try {
       setExiting(true);
-
+      
       // 채팅방 퇴장 메시지 전송
       if (stompClientRef.current && stompClientRef.current.connected) {
         try {
@@ -295,27 +295,27 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
             body: JSON.stringify(leaveMessage),
       });
           console.log('채팅방 퇴장 메시지 전송 완료');
-
+          
           // 메시지 전송 후 약간의 지연을 주어 메시지가 전송되도록 함
           await new Promise(resolve => setTimeout(resolve, 200));
         } catch (error) {
           console.error('퇴장 메시지 전송 실패:', error);
         }
       }
-
+      
       // 채팅방 나가기 API 호출
       await exitChatRoom(roomId);
-
+      
       // WebSocket 연결 해제
       if (stompClientRef.current) {
         stompClientRef.current.deactivate();
       }
-
+      
       // 채팅방 목록 갱신
       if (onRoomListUpdate) {
         onRoomListUpdate();
       }
-
+      
       // 채팅 목록 페이지로 이동
       router.push('/chat');
     } catch (error) {
@@ -464,7 +464,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
           .map((message, index) => {
           const isMine = isMyMessage(message);
           const isSystemMessage = message.type === 'ENTER' || message.type === 'LEAVE';
-
+          
           // 고유한 key 생성: messageId가 있으면 사용, 없으면 index와 createdAt 조합
           const uniqueKey = message.messageId 
             ? `msg-${message.messageId}` 
@@ -495,7 +495,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
               </div>
             );
           }
-
+          
           // 일반 메시지
           return (
             <div
@@ -532,7 +532,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
       </div>
 
       {/* 입력 영역 */}
-      <MessageInput
+      <MessageInput 
         roomId={roomId}
         stompClientRef={stompClientRef}
         onMessageSent={handleMessageSent}
