@@ -19,7 +19,7 @@ export default function Map({
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
   const [kakaoLoaded, setKakaoLoaded] = useState(() => {
-    // eslint(rule react-hooks/set-state-in-effect): 이미 로드된 케이스는 초기값으로 처리
+    if (typeof window === 'undefined') return false;
     return Boolean(window?.kakao?.maps);
   });
   const markersRef = useRef([]);
@@ -321,15 +321,13 @@ export default function Map({
       const marker = new window.kakao.maps.Marker({
         position,
         ...(markerImage ? { image: markerImage } : {}),
-        map: map,
-        zIndex: isSelected ? 20 : 10,
         ...(useCluster ? {} : { map }),
-        zIndex: 10,
+        zIndex: isSelected ? 20 : 10,
       });
 
-      // 아파트명 상시 표시 (마커 위에 라벨)
+      // 아파트명 상시 표시 (마커 위에 라벨) — 클러스터 모드에서는 숫자만 보이도록 라벨 생략
       const labelText = markerData.title || '(아파트)';
-      if (labelText) {
+      if (labelText && !useCluster) {
         const labelOverlay = new window.kakao.maps.CustomOverlay({
           position,
           content: `
