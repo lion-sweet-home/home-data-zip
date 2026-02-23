@@ -9,7 +9,7 @@ server:
 
 spring:
   application:
-    name : homedatazip
+    name: homedatazip
 
   security:
     oauth2:
@@ -39,7 +39,7 @@ spring:
 
   mvc:
     contentnegotiation:
-      default-content-type: application/json  # 모든 응답의 기본은 JSON
+      default-content-type: application/json # 모든 응답의 기본은 JSON
       favor-parameter: false
 
   datasource:
@@ -59,10 +59,10 @@ spring:
   batch:
     trade-rent:
       enabled: true
-      days-of-month: [ 25, 26, 27 ]
+      days-of-month: [25, 26, 27]
       window-months: 2
     job:
-      enabled: false 
+      enabled: false
     jdbc:
       initialize-schema: always
 
@@ -85,10 +85,10 @@ spring:
 
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY}  # OpenAI에서 발급받은 키 (환경변수 권장)
+      api-key: ${OPENAI_API_KEY} # OpenAI에서 발급받은 키 (환경변수 권장)
       chat:
         options:
-          model: gpt-4o-mini      # 가성비 좋은 모델 추천 (또는 gpt-4o)
+          model: gpt-4o-mini # 가성비 좋은 모델 추천 (또는 gpt-4o)
           temperature: 0.7
 #  ai:
 #    ollama:
@@ -136,7 +136,7 @@ api:
 rent-api:
   base-url: "http://apis.data.go.kr/1613000/RTMSDataSvcAptRent"
   path: "/getRTMSDataSvcAptRent"
-  service-key: api-service-key
+  service-key: ${RENT_API_SERVICE_KEY}
   num-of-rows: 1000
   timeout-seconds: 15
 
@@ -174,15 +174,15 @@ subway:
 quartz:
   batch:
     apartment-trade:
-      cron: ${QUARTZ_APARTMENT_TRADE_CRON:0 0 2 * * ?}  # 매일 2시
+      cron: ${QUARTZ_APARTMENT_TRADE_CRON:0 0 2 * * ?} # 매일 2시
     region:
-      cron: ${QUARTZ_REGION_CRON:0 0 1 ? * SUN}  # 매주 일요일 1시
+      cron: ${QUARTZ_REGION_CRON:0 0 1 ? * SUN} # 매주 일요일 1시
     bus-station:
-      cron: ${QUARTZ_BUS_STATION_CRON:0 0 1 * * ?}  # 매일 1시
+      cron: ${QUARTZ_BUS_STATION_CRON:0 0 1 * * ?} # 매일 1시
     trade-rent:
-      cron: ${QUARTZ_TRADE_RENT_CRON:0 0 5 * * ?}  # 매일 5시
+      cron: ${QUARTZ_TRADE_RENT_CRON:0 0 5 * * ?} # 매일 5시
     hospital:
-      cron: ${QUARTZ_HOSPITAL_CRON:0 30 5 * * ?}  # 매일 5시 30분
+      cron: ${QUARTZ_HOSPITAL_CRON:0 30 5 * * ?} # 매일 5시 30분
 
 # 아파트 - 지하철&학교 거리 (Quartz - 매일 3시, 4시)
 apartment:

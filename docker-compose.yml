@@ -73,6 +73,8 @@ services:
       DATASOURCE_URL: jdbc:mysql://mysql:3306/${MYSQL_DATABASE}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
       DATASOURCE_USERNAME: ${MYSQL_USER}
       DATASOURCE_PASSWORD: ${MYSQL_PASSWORD}
+      TZ: Asia/Seoul
+      JAVA_TOOL_OPTIONS: "-Duser.timezone=Asia/Seoul"
 
       # Mail
       MAIL_HOST: ${MAIL_HOST}
