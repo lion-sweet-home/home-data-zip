@@ -82,7 +82,7 @@ jobs:
             QUARTZ_HOSPITAL_CRON=${{ secrets.QUARTZ_HOSPITAL_CRON }}
 
             # Frontend
-            NEXT_PUBLIC_BACKEND_URL=http://${{ secrets.EC2_HOST }}:8080
+            NEXT_PUBLIC_BACKEND_URL=http://${{ secrets.EC2_HOST_ }}:8080
             NEXT_PUBLIC_KAKAO_MAP_API_KEY=${{ secrets.NEXT_PUBLIC_KAKAO_MAP_API_KEY }}
             NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
             NEXT_PUBLIC_OAUTH_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_OAUTH_REDIRECT_URI }}
@@ -104,6 +104,10 @@ jobs:
 
             # OpenAI (AI 챗봇 - GPT)
             OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+
+            #OAuth2
+            EC2_HOST_HTTPS=${{ secrets.EC2_HOST_HTTPS }}
+
             EOF
       # 3. EC2에 배포
       - name: Deploy to EC2

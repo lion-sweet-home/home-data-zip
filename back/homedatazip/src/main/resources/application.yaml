@@ -60,7 +60,7 @@ spring:
     trade-rent:
       enabled: true
       days-of-month: [25, 26, 27]
-      window-months: 2
+      window-months: 48
     job:
       enabled: false
     jdbc:
@@ -103,8 +103,9 @@ app:
 
 cors:
   allowed-origins:
-    - ${EC2_HOST:http://localhost}:5173
-    - ${EC2_HOST:http://localhost}:3000
+    - http://${EC2_HOST:localhost}:5173
+    - ${EC2_HOST_HTTPS:http://localhost}:3000
+    - http://${EC2_HOST:localhost}:3000
   allowed-methods:
     - GET
     - POST
@@ -123,8 +124,8 @@ payment:
   toss:
     secret-key: ${PAYMENT_TOSS_SECRET_KEY}
     client-key: ${PAYMENT_TOSS_CLIENT_KEY}
-    billing-success-url: ${EC2_HOST:http://localhost}:3000/billing/success
-    billing-fail-url: ${EC2_HOST:http://localhost}:3000/billing/fail
+    billing-success-url: ${EC2_HOST_HTTPS:http://localhost}:3000/billing/success
+    billing-fail-url: ${EC2_HOST_HTTPS:http://localhost}:3000/billing/fail
 
 api:
   data-go-kr:
