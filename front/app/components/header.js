@@ -81,7 +81,7 @@ export default function Header() {
         setUser(userInfo);
         setIsLoggedIn(true);
       } else {
-        setIsLoggedIn(false);
+        setIsLoggedIn(false); 
         setUser(null);
       }
     } catch (error) {
@@ -260,7 +260,7 @@ export default function Header() {
   //   if (!isLoggedIn) return;
   //   const handleReconnected = () => refreshNotifUnreadCount();
   //   onNotificationReconnected(handleReconnected);
-  //   return () => offNotificationReconnected(handleReconnected);
+  //   return () => 4(handleReconnected);
   // }, [isLoggedIn, refreshNotifUnreadCount]);
 
   // 팝오버 열릴 때 미읽음 목록 로드
