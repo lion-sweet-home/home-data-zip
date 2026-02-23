@@ -145,6 +145,13 @@ services:
     build:
       context: ./front
       dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_BACKEND_URL=${NEXT_PUBLIC_BACKEND_URL}
+        - NEXT_PUBLIC_KAKAO_MAP_API_KEY=${NEXT_PUBLIC_KAKAO_MAP_API_KEY}
+        - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+        - NEXT_PUBLIC_OAUTH_REDIRECT_URI=${NEXT_PUBLIC_OAUTH_REDIRECT_URI}
+        - NEXT_PUBLIC_TOSS_SECRET_KEY=${NEXT_PUBLIC_TOSS_SECRET_KEY}
+        - NEXT_PUBLIC_TOSS_CLIENT_KEY=${NEXT_PUBLIC_TOSS_CLIENT_KEY}
     container_name: home-fe
     restart: always
     depends_on:
