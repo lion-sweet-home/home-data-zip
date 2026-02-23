@@ -305,7 +305,7 @@ export default function Map({
         averageCenter: true,
         // level이 클수록(더 축소) 클러스터링이 필요해짐
         // 요구사항: level >= 6부터 클러스터 사용
-        minLevel: 6,
+        minLevel: 5,
       });
     }
 
