@@ -176,7 +176,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
     const accessToken = localStorage.getItem("accessToken");
 
     // SockJS와 STOMP 클라이언트 생성
-    const socket = new SockJS(`${getBackendUrl}/ws-stomp`);
+    const socket = new SockJS(`${getBackendUrl()}/ws-stomp`);
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {
