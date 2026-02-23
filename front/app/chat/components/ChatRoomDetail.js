@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
+import { getBackendUrl } from '../../api/api';
 import { getChatRoomDetail } from '../../api/chat';
 import { formatChatTime } from '../../utils/chatUtils';
 import { Client } from '@stomp/stompjs';
@@ -112,11 +113,10 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
   useEffect(() => {
     if (!roomId) return;
 
-    const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080';
     const accessToken = localStorage.getItem('accessToken');
 
     // SockJS와 STOMP 클라이언트 생성
-    const socket = new SockJS(`${API_BASE_URL}/ws-stomp`);
+    const socket = new SockJS(`${getBackendUrl()}/ws-stomp`);
     const client = new Client({
       webSocketFactory: () => socket,
       connectHeaders: {

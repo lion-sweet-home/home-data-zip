@@ -3,7 +3,7 @@
  * 알림 조회, 읽음 처리, 삭제 기능을 제공합니다.
  */
 
-import { get, put, del } from './api';
+import { get, put, del, getApiBaseUrl } from './api';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 
 /**
@@ -20,20 +20,16 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
  * };
  */
 export function subscribeNotifications() {
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
-  
-  // localStorage에서 accessToken 가져오기
-  const accessToken = typeof window !== 'undefined' 
-    ? localStorage.getItem('accessToken') 
+  const accessToken = typeof window !== 'undefined'
+    ? localStorage.getItem('accessToken')
     : null;
 
   if (!accessToken) {
     throw new Error('Access token이 없습니다. 로그인이 필요합니다.');
   }
 
-  // EventSourcePolyfill을 사용하여 Authorization 헤더 설정
   return new EventSourcePolyfill(
-    `${API_BASE_URL}/sse/notifications`,
+    `${getApiBaseUrl()}/sse/notifications`,
     {
       headers: {
         Authorization: `Bearer ${accessToken}`,

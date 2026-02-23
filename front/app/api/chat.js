@@ -3,7 +3,7 @@
  * 채팅방 목록 조회, 채팅방 생성/입장, 메시지 조회 등의 기능을 제공합니다.
  */
 
-import { get, post, patch } from './api';
+import { get, post, patch, getApiBaseUrl } from './api';
 import { EventSourcePolyfill } from 'event-source-polyfill';
 
 /**
@@ -14,13 +14,12 @@ import { EventSourcePolyfill } from 'event-source-polyfill';
  * @returns {EventSourcePolyfill}
  */
 export function subscribeChatEvents() {
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
   const accessToken = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
   if (!accessToken) {
     throw new Error('Access token이 없습니다. 로그인이 필요합니다.');
   }
 
-  return new EventSourcePolyfill(`${API_BASE_URL}/sse/chat`, {
+  return new EventSourcePolyfill(`${getApiBaseUrl()}/sse/chat`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
