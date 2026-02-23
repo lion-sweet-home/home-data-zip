@@ -8,15 +8,23 @@ export default function Map({
   level = 3, // 지도 확대 레벨 (1-14)
   onMarkerClick, // 마커 클릭 핸들러
   onMapClick, // 지도 클릭 핸들러
+  onMapReady, // map 객체 생성 시 콜백
+  onIdle, // 지도 idle 시 bounds/level 전달 콜백
+  useCluster = true, // MarkerClusterer 사용 여부
+  autoFitBounds = false, // markers 변경 시 지도 bounds 자동 맞춤(기본 off: bounds 기반 마커 갱신 시 루프 방지)
   schoolMarkers = [], // 학교 마커
   showSchoolMarkers = false, // 학교 마커 표시 여부
   selectedMarkerId = null, // 선택된 아파트 마커 ID (apartmentId 등) – 선택 시 강조 표시
 }) {
   const mapRef = useRef(null);
   const [map, setMap] = useState(null);
-  const [kakaoLoaded, setKakaoLoaded] = useState(false);
+  const [kakaoLoaded, setKakaoLoaded] = useState(() => {
+    // eslint(rule react-hooks/set-state-in-effect): 이미 로드된 케이스는 초기값으로 처리
+    return Boolean(window?.kakao?.maps);
+  });
   const markersRef = useRef([]);
   const apartmentLabelOverlaysRef = useRef([]); // 아파트명 상시 표시용 CustomOverlay[]
+  const clustererRef = useRef(null);
   // NOTE: 컴포넌트명이 Map이라 전역 Map 생성자와 이름이 충돌할 수 있어 globalThis.Map을 사용한다.
   const numberedMarkerImageCacheRef = useRef(new globalThis.Map()); // key: "num" | "num-selected" -> kakao.maps.MarkerImage
   const schoolMarkerImageCacheRef = useRef(null); // kakao.maps.MarkerImage
@@ -154,16 +162,14 @@ export default function Map({
 
   // Kakao Maps SDK 로드
   useEffect(() => {
-    // 이미 로드되어 있는지 확인
-    if (window.kakao && window.kakao.maps) {
-      setKakaoLoaded(true);
-      return;
-    }
+    // 이미 로드되어 있으면 effect에서는 아무것도 하지 않는다.
+    if (kakaoLoaded) return;
 
     // 스크립트 동적 로드
     const script = document.createElement('script');
     const apiKey = process.env.NEXT_PUBLIC_KAKAO_MAP_API_KEY || '430da516c7ace85abd6ad3bcdc00b4de';
-    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false`;
+    // clusterer 사용을 위해 libraries=clusterer 추가
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${apiKey}&autoload=false&libraries=clusterer`;
     script.async = true;
     
     script.onload = () => {
@@ -180,11 +186,12 @@ export default function Map({
         document.head.removeChild(script);
       }
     };
-  }, []);
+  }, [kakaoLoaded]);
 
   // 지도 초기화
   useEffect(() => {
     if (!kakaoLoaded || !mapRef.current) return;
+    if (map) return; // 이미 생성됨
 
     const container = mapRef.current;
     const options = {
@@ -194,23 +201,91 @@ export default function Map({
 
     const kakaoMap = new window.kakao.maps.Map(container, options);
     setMap(kakaoMap);
+    onMapReady?.(kakaoMap);
 
-    // 지도 클릭 이벤트
-    if (onMapClick) {
-      window.kakao.maps.event.addListener(kakaoMap, 'click', (mouseEvent) => {
-        const latlng = mouseEvent.latLng;
-        onMapClick({
-          lat: latlng.getLat(),
-          lng: latlng.getLng(),
-        });
+  }, [kakaoLoaded, map, center.lat, center.lng, level, onMapReady]);
+
+  // center/level 변경 시 map에 반영 (map 재생성 금지)
+  useEffect(() => {
+    if (!map) return;
+    const nextCenter = new window.kakao.maps.LatLng(center.lat, center.lng);
+    map.setCenter(nextCenter);
+  }, [map, center.lat, center.lng]);
+
+  useEffect(() => {
+    if (!map) return;
+    if (typeof level !== 'number') return;
+    if (map.getLevel?.() === level) return;
+    map.setLevel(level);
+  }, [map, level]);
+
+  // 지도 클릭 이벤트
+  useEffect(() => {
+    if (!map || !kakaoLoaded || !onMapClick) return;
+
+    const handler = (mouseEvent) => {
+      const latlng = mouseEvent.latLng;
+      onMapClick({
+        lat: latlng.getLat(),
+        lng: latlng.getLng(),
       });
-    }
-  }, [kakaoLoaded, center.lat, center.lng, level, onMapClick]);
+    };
+
+    window.kakao.maps.event.addListener(map, 'click', handler);
+    return () => {
+      window.kakao.maps.event.removeListener(map, 'click', handler);
+    };
+  }, [map, kakaoLoaded, onMapClick]);
+
+  // idle 이벤트: bounds + level을 부모로 전달
+  useEffect(() => {
+    if (!map || !kakaoLoaded || !onIdle) return;
+
+    const emit = () => {
+      try {
+        const b = map.getBounds();
+        const sw = b.getSouthWest();
+        const ne = b.getNorthEast();
+        const c = map.getCenter();
+
+        onIdle({
+          bounds: {
+            south: sw.getLat(),
+            west: sw.getLng(),
+            north: ne.getLat(),
+            east: ne.getLng(),
+          },
+          level: map.getLevel?.(),
+          center: { lat: c.getLat(), lng: c.getLng() },
+        });
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    window.kakao.maps.event.addListener(map, 'idle', emit);
+    // 최초 1회도 호출(초기 마커 로딩 트리거용)
+    emit();
+
+    return () => {
+      window.kakao.maps.event.removeListener(map, 'idle', emit);
+    };
+  }, [map, kakaoLoaded, onIdle]);
 
   // 마커 표시
   useEffect(() => {
     if (!map || !kakaoLoaded) return;
 
+    // 기존 마커/클러스터 제거
+    try {
+      if (clustererRef.current?.clear) {
+        clustererRef.current.clear();
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    markersRef.current.forEach((marker) => marker.setMap(null));
     // 기존 아파트명 라벨 제거
     apartmentLabelOverlaysRef.current.forEach((overlay) => {
       overlay.setMap(null);
@@ -223,6 +298,21 @@ export default function Map({
     });
     markersRef.current = [];
 
+    // clusterer 생성/유지
+    if (useCluster && window.kakao?.maps?.MarkerClusterer && !clustererRef.current) {
+      clustererRef.current = new window.kakao.maps.MarkerClusterer({
+        map,
+        averageCenter: true,
+        // level이 클수록(더 축소) 클러스터링이 필요해짐
+        // 요구사항: level >= 6부터 클러스터 사용
+        minLevel: 6,
+      });
+    }
+
+    const newMarkers = [];
+
+    // 새 마커 추가(클러스터에 넣거나 직접 map에 올림)
+    (markers || []).forEach((markerData, index) => {
     // 새 마커 추가
     markers.forEach((markerData, index) => {
       const aptId = markerData.apartmentId ?? markerData.apartmentData?.aptId ?? markerData.apartmentData?.apartmentId;
@@ -231,10 +321,12 @@ export default function Map({
       const markerImage = getNumberedMarkerImage(index + 1, isSelected);
 
       const marker = new window.kakao.maps.Marker({
-        position: position,
+        position,
         ...(markerImage ? { image: markerImage } : {}),
         map: map,
         zIndex: isSelected ? 20 : 10,
+        ...(useCluster ? {} : { map }),
+        zIndex: 10,
       });
 
       // 아파트명 상시 표시 (마커 위에 라벨)
@@ -274,18 +366,23 @@ export default function Map({
         });
       }
 
+      newMarkers.push(marker);
       markersRef.current.push(marker);
     });
 
-    // 마커가 있으면 지도 중심 조정
-    if (markers.length > 0) {
-      const bounds = new window.kakao.maps.LatLngBounds();
-      markers.forEach((marker) => {
-        bounds.extend(new window.kakao.maps.LatLng(marker.lat, marker.lng));
-      });
-      map.setBounds(bounds);
+    if (useCluster && clustererRef.current?.addMarkers) {
+      clustererRef.current.addMarkers(newMarkers);
     }
-  }, [map, markers, kakaoLoaded, onMarkerClick, selectedMarkerId]);
+
+    // 필요 시 1회만 bounds 맞춤(기본 off)
+    if (autoFitBounds && markers.length > 0) {
+      const b = new window.kakao.maps.LatLngBounds();
+      (markers || []).forEach((m) => {
+        b.extend(new window.kakao.maps.LatLng(m.lat, m.lng));
+      });
+      map.setBounds(b);
+    }
+  }, [map, markers, kakaoLoaded, onMarkerClick, useCluster, autoFitBounds, selectedMarkerId]);
 
   // 학교 마커 표시
   useEffect(() => {

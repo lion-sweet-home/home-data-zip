@@ -9,5 +9,11 @@ public record RentGetMarkerRequest (
         Integer minMonthlyRent,
         Integer maxMonthlyRent,
         Double minExclusive,
-        Double maxExclusive
+        Double maxExclusive,
+        Integer level,
+        Integer limit,
+        Double east,
+        Double west,
+        Double north,
+        Double south
 ){}

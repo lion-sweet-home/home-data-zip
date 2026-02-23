@@ -51,13 +51,18 @@ public class SecurityConfig {
                         // 지역, 매매/전월세
                         .requestMatchers("/api/regions/**", "/api/apartment/trade-sale/**", "/api/rent/**").permitAll()
 
-                        //S3 테스트 진행 후 셀로로 교체
-                        .requestMatchers(HttpMethod.POST, "/api/s3/**").permitAll()
+                        //S3 테스트 진행 후 셀러 교체
+                        .requestMatchers(HttpMethod.POST, "/api/s3/**").hasRole("SELLER")
+                        .requestMatchers("/api/s3/**").permitAll()
 
                         .requestMatchers(
                                 "/api/subscriptions/billing/success",
                                 "/api/subscriptions/billing/fail"
-                        ).hasRole("USER")
+                        ).permitAll()
+
+                        // 구독 관련 나머지는 인증 필수
+                        .requestMatchers("/api/subscriptions/phone-auth/**").permitAll()
+                        .requestMatchers("/api/subscriptions/**").authenticated()
 
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
 

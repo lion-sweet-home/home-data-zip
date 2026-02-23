@@ -29,7 +29,6 @@ import java.util.UUID;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class SubscriptionService {
 
     private static final String PLAN_NAME = "기본 요금제";
@@ -64,87 +63,117 @@ public class SubscriptionService {
 
         User user = getUser(userId);
 
-        log.info("userId: {}", user.getId());
-
         Subscription sub = subscriptionRepository.findBySubscriber_Id(user.getId())
                 .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
-
-        log.info("sub: {}", sub.getId());
 
         var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
 
         sub.registerBillingKey(res.billingKey());
+        subscriptionRepository.flush();
+
+        log.info("[BILLING] saved billingKey userId={}, subId={}, billingKeyIssuedAt={}",
+                user.getId(), sub.getId(), sub.getBillingKeyIssuedAt());
     }
 
+    @Transactional
+    public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
+        registerBillingKey(userId, getUser(userId).getCustomerKey(), request.authKey());
+    }
+
+    @Transactional(readOnly = true)
     public BillingKeyIssueResponse issueBillingKey(Long userId, BillingKeyIssueRequest req) {
         User user = getUser(userId);
+
+        String orderName = (req != null && req.orderName() != null && !req.orderName().isBlank())
+                ? req.orderName()
+                : PLAN_NAME;
+
+        Long amount = (req != null && req.amount() != null && req.amount() > 0)
+                ? req.amount()
+                : PRICE;
+
+        log.info("[BILLING] issueBillingKey userId={}, customerKey={}, orderName={}, amount={}, successUrl={}, failUrl={}",
+                userId, user.getCustomerKey(), orderName, amount, successUrl, failUrl);
+
         return new BillingKeyIssueResponse(
                 user.getCustomerKey(),
-                PLAN_NAME,
-                0L,
+                orderName,
+                amount,
                 successUrl,
                 failUrl
         );
     }
 
     @Transactional
-    public void successBillingAuth(Long userId, BillingAuthSuccessRequest request) {
+    public void revokeBillingKey(Long userId) {
+        Subscription sub = getSubscription(userId);
+
+        if (!sub.hasBillingKey()) return;
+
+        sub.clearBillingKey();
+        subscriptionRepository.flush();
+    }
+
+    /**
+     * start 시도 순간 subscription row 생성 보장
+     * 그리고 결제 성공 후 SELLER 부여하는 과정에서
+     * user.roles 안에 role=null 같은 쓰레기 UserRole이 섞여 있으면
+     * flush 때 같이 insert 되면서 role_id null 터진다.
+     * -> flush 전에 roles 정리하고, userRepository.save(user) 호출하지 말고, managed 상태로 dirty checking에 맡긴다.
+     */
+    @Transactional
+    public void startSubscription(Long userId) {
         User user = getUser(userId);
-
-        String authKey = request.authKey();
-        if (authKey == null || authKey.isBlank()) {
-            throw new BusinessException(SubscriptionErrorCode.BILLING_AUTH_KEY_REQUIRED);
-        }
-
-        var res = tossPaymentClient.issueBillingKey(authKey, user.getCustomerKey());
 
         Subscription sub = subscriptionRepository.findBySubscriber_Id(userId)
                 .orElseGet(() -> subscriptionRepository.save(Subscription.createInitial(user)));
 
-        sub.registerBillingKey(res.billingKey());
-    }
+        // row 생성/조회 결과 확정
+        subscriptionRepository.flush();
 
-    @Transactional
-    public void startSubscription(Long userId) {
-        Subscription sub = getSubscription(userId);
+        log.info("[SUB_START] start called userId={}, subId={}, status={}, hasBillingKey={}, phoneVerified={}",
+                userId, sub.getId(), sub.getStatus(), sub.hasBillingKey(), user.isPhoneVerified());
 
-        // 카드 등록(billingKey) 체크 (기존)
-        if (!sub.hasBillingKey()) {
-            throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
-        }
-
-        // 전화번호 인증 체크 (추가)
-        User user = getUser(userId);
         if (!user.isPhoneVerified()) {
             throw new BusinessException(SubscriptionErrorCode.PHONE_NOT_VERIFIED);
         }
 
+        if (!sub.hasBillingKey()) {
+            throw new BusinessException(SubscriptionErrorCode.BILLING_KEY_NOT_REGISTERED);
+        }
+
         LocalDate today = LocalDate.now();
 
-        // 이미 ACTIVE면 멱등
         if (sub.getStatus() == SubscriptionStatus.ACTIVE) {
             return;
         }
 
-        // CANCELED인데 endDate 남아있으면 즉시 결제 없이 ACTIVE만 복구
         if (sub.getStatus() == SubscriptionStatus.CANCELED) {
             LocalDate endDate = sub.getEndDate();
             if (endDate != null && !endDate.isBefore(today)) {
-                sub.activateAutoPay(); // status ACTIVE
-                grantSeller(sub.getSubscriber());
+                sub.activateAutoPay();
+
+                // ✅ flush 전에 roles 쓰레기 정리
+                normalizeUserRoles(user);
+
+                grantSeller(user);
+
+                // ✅ userRepository.save(user) 하지 마
+                // managed entity라 dirty checking으로 충분함
+                subscriptionRepository.flush();
                 return;
             }
         }
 
         String orderId = "SUB_START_" + UUID.randomUUID();
 
-        PaymentLog log = paymentLogRepository.save(
+        PaymentLog logEntity = paymentLogRepository.save(
                 PaymentLog.createProcessing(sub, orderId, PLAN_NAME, PRICE)
         );
 
         TossBillingPaymentResponse res = tossPaymentClient.payWithBillingKey(
                 sub.getBillingKey(),
-                sub.getSubscriber().getCustomerKey(),
+                user.getCustomerKey(),
                 orderId,
                 PLAN_NAME,
                 PRICE
@@ -154,21 +183,28 @@ public class SubscriptionService {
             throw new BusinessException(PaymentErrorCode.INVALID_AMOUNT);
         }
 
-        log.markApproved(
+        logEntity.markApproved(
                 res.paymentKey(),
                 res.orderId(),
                 PRICE,
                 LocalDateTime.now()
         );
 
-        sub.start(today, PRICE);          // status ACTIVE + 기간 세팅
-        grantSeller(sub.getSubscriber()); // SELLER 부여
-    }
+        sub.start(today, PRICE);
 
+        // ✅ flush 전에 roles 쓰레기 정리
+        normalizeUserRoles(user);
+
+        grantSeller(user);
+
+        // ✅ userRepository.save(user) 하지 마
+        subscriptionRepository.flush();
+    }
 
     @Transactional
     public void cancelAutoPay(Long userId) {
-        getSubscription(userId).cancelAutoPay(); // status CANCELED, 권한(endDate까지) 유지
+        getSubscription(userId).cancelAutoPay();
+        subscriptionRepository.flush();
     }
 
     @Transactional
@@ -180,20 +216,52 @@ public class SubscriptionService {
         }
 
         if (sub.getStatus() == SubscriptionStatus.EXPIRED) {
-            // 결제 없이 ACTIVE 복구 금지
             throw new BusinessException(SubscriptionErrorCode.CANNOT_REACTIVATE_EXPIRED);
         }
 
-        // 여기서 가능한 케이스는 사실상 CANCELED
-        sub.activateAutoPay();            // status ACTIVE
-        grantSeller(sub.getSubscriber()); // SELLER 부여
+        sub.activateAutoPay();
+
+        User user = getUser(userId);
+
+        normalizeUserRoles(user);
+        grantSeller(user);
+
+        subscriptionRepository.flush();
     }
 
+    @Transactional(readOnly = true)
     public SubscriptionMeResponse getMySubscription(Long userId) {
-        return SubscriptionMeResponse.from(getSubscription(userId));
+        return subscriptionRepository.findBySubscriber_Id(userId)
+                .map(SubscriptionMeResponse::from)
+                .orElseGet(SubscriptionMeResponse::none);
     }
 
     // ===== private =====
+
+    /**
+     * ✅ 핵심: roles 컬렉션에 role=null / role.id=null / user=null 같은 쓰레기 UserRole 있으면
+     * flush 때 같이 persist 되면서 role_id null로 터진다.
+     * 그래서 flush 직전에 싹 청소.
+     */
+    private void normalizeUserRoles(User user) {
+        if (user.getRoles() == null) return;
+
+        int before = user.getRoles().size();
+
+        user.getRoles().removeIf(ur ->
+                ur == null ||
+                        ur.getUser() == null ||
+                        ur.getRole() == null ||
+                        ur.getRole().getId() == null
+        );
+
+        int after = user.getRoles().size();
+
+        if (before != after) {
+            log.warn("[normalizeUserRoles] cleaned invalid roles. userId={}, before={}, after={}",
+                    user.getId(), before, after);
+        }
+    }
 
     private Subscription getSubscription(Long userId) {
         return subscriptionRepository.findBySubscriber_Id(userId)
@@ -205,6 +273,8 @@ public class SubscriptionService {
 
         Role seller = roleRepository.findByRoleType(RoleType.SELLER)
                 .orElseThrow(() -> new BusinessException(SubscriptionErrorCode.ROLE_NOT_FOUND));
+
+        log.info("[grantSeller] seller.id={}, seller.type={}", seller.getId(), seller.getRoleType());
 
         user.addRole(seller);
     }

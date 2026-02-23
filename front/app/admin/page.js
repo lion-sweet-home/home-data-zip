@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import DashboardCards from './components/card';
 import YearlyIncome from './components/yearly_income';
 import ManageUsers from './components/manage';
@@ -30,11 +30,8 @@ function decodeRolesFromAccessToken() {
 }
 
 export default function AdminPage() {
-  const [roles, setRoles] = useState([]);
-
-  useEffect(() => {
-    setRoles(decodeRolesFromAccessToken());
-  }, []);
+  // eslint(rule): effect body에서 동기 setState를 금지 → 초기값 계산으로 대체
+  const [roles] = useState(() => decodeRolesFromAccessToken());
 
   const isAdmin = useMemo(() => roles.includes('ADMIN'), [roles]);
 

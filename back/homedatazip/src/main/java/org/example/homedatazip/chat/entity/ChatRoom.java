@@ -30,11 +30,19 @@ public class ChatRoom extends BaseTimeEntity {
     @JoinColumn(name = "listing_id", nullable = false)
     private Listing listing;
 
+    // 구매자, 판매자 퇴장 여부
     @Builder.Default
     private boolean buyerExited = false;
 
     @Builder.Default
     private boolean sellerExited = false;
+
+    // 구매자, 판매자 입장 여부
+    @Builder.Default
+    private boolean buyerEntered = false;
+
+    @Builder.Default
+    private boolean sellerEntered = false;
 
     @Column()
     private String lastMessage; // 마지막 메시지 내용
@@ -56,13 +64,37 @@ public class ChatRoom extends BaseTimeEntity {
 
     public void exitBuyer() {
         this.buyerExited = true;
+        this.buyerEntered = false;
     }
 
     public void exitSeller() {
         this.sellerExited = true;
+        this.sellerEntered = false;
+    }
+
+    public void enterBuyer() {
+        this.buyerEntered = true;
+        this.buyerExited = false;
+    }
+
+    public void enterSeller() {
+        this.sellerEntered = true;
+        this.sellerExited = false;
     }
 
     public boolean isBuyer(Long userId) {
         return buyer.getId().equals(userId);
+    }
+
+    public boolean isSeller(Long userId) {
+        return listing.getUser().getId().equals(userId);
+    }
+
+    public boolean isBuyerAndNotEntered(Long userId) {
+        return isBuyer(userId) && !this.buyerEntered;
+    }
+
+    public boolean isSellerAndNotEntered(Long userId) {
+        return isSeller(userId) && !this.sellerEntered;
     }
 }

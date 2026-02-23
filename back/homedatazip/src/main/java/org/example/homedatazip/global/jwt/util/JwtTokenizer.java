@@ -21,17 +21,21 @@ import java.util.List;
 public class JwtTokenizer {
     private final JwtProperties jwtProperties;
 
-    public String createRefreshToken(String email, List<String> roles){
+    public String createRefreshToken(String email, List<String> roles, Long userId, String nickname) {
         return createToken(jwtProperties.getRefreshTokenExpiration(),
-                            email,
-                            roles,
-                            jwtProperties.getRefreshSecretKey());
+                email,
+                roles,
+                userId,
+                nickname,
+                jwtProperties.getRefreshSecretKey());
     }
 
-    public String createAccessToken(String email, List<String> roles){
+    public String createAccessToken(String email, List<String> roles, Long userId, String nickname) {
         return createToken(jwtProperties.getAccessTokenExpiration(),
                 email,
                 roles,
+                userId,
+                nickname,
                 jwtProperties.getAccessSecretKey());
     }
 
@@ -48,6 +52,18 @@ public class JwtTokenizer {
     }
     public String getEmailFromAccessToken(String token) {
         return parseAccessToken(token).get("email", String.class);
+    }
+
+    public Long getUserIdFromAccessToken(String token) {
+        Object userId = parseAccessToken(token).get("userId");
+        if (userId == null) return null;
+        if (userId instanceof Integer) return ((Integer) userId).longValue();
+        if (userId instanceof Long) return (Long) userId;
+        return null;
+    }
+
+    public String getNicknameFromAccessToken(String token) {
+        return parseAccessToken(token).get("nickname", String.class);
     }
 
     public boolean validateAccessToken(String token) {
@@ -69,17 +85,22 @@ public class JwtTokenizer {
     }
 
 
-    private String createToken(Long expiration, String email, List<String> roles, byte[] secretKey){
+    private String createToken(Long expiration, String email, List<String> roles, Long userId, String nickname, byte[] secretKey) {
         Date now = new Date();
         Date expirationDate = new Date(now.getTime() + expiration);
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .claim("email", email)
                 .claim("roles", roles)
                 .issuedAt(now)
-                .expiration(expirationDate)
-                .signWith(getKey(secretKey))
-                .compact();
+                .expiration(expirationDate);
+        if (userId != null) {
+            builder.claim("userId", userId);
+        }
+        if (nickname != null && !nickname.isBlank()) {
+            builder.claim("nickname", nickname);
+        }
+        return builder.signWith(getKey(secretKey)).compact();
     }
     private SecretKey getKey(byte[] secretKey){return Keys.hmacShaKeyFor(secretKey);}
 

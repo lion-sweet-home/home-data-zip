@@ -46,9 +46,8 @@ public class AuthService {
 
         List<String> roles = stringFromUserRole(user);
 
-        String accessToken = jwtTokenizer.createAccessToken(loginRequest.email(),  roles);
-        String refreshToken = jwtTokenizer.createRefreshToken(loginRequest.email(),  roles);
-
+        String accessToken = jwtTokenizer.createAccessToken(loginRequest.email(), roles, user.getId(), user.getNickname());
+        String refreshToken = jwtTokenizer.createRefreshToken(loginRequest.email(), roles, user.getId(), user.getNickname());
 
         Duration ttl = getRefreshTokenTtl();
         refreshTokenRedisRepository.save(user.getId(), refreshToken, ttl);
@@ -84,8 +83,8 @@ public class AuthService {
 
         List<String> roles = stringFromUserRole(user);
 
-        String newAccess = jwtTokenizer.createAccessToken(email, roles);
-        String newRefresh = jwtTokenizer.createRefreshToken(email, roles);
+        String newAccess = jwtTokenizer.createAccessToken(email, roles, user.getId(), user.getNickname());
+        String newRefresh = jwtTokenizer.createRefreshToken(email, roles, user.getId(), user.getNickname());
 
         Duration ttl = getRefreshTokenTtl();
         refreshTokenRedisRepository.save(user.getId(), newRefresh, ttl);
@@ -106,8 +105,8 @@ public class AuthService {
     @Transactional(readOnly = true)
     public String issueTokenForOAuthUser(User user, HttpServletResponse response) {
         List<String> roles = stringFromUserRole(user);
-        String accessToken = jwtTokenizer.createAccessToken(user.getEmail(), roles);
-        String refreshToken = jwtTokenizer.createRefreshToken(user.getEmail(), roles);
+        String accessToken = jwtTokenizer.createAccessToken(user.getEmail(), roles, user.getId(), user.getNickname());
+        String refreshToken = jwtTokenizer.createRefreshToken(user.getEmail(), roles, user.getId(), user.getNickname());
         Duration ttl = getRefreshTokenTtl();
         refreshTokenRedisRepository.save(user.getId(), refreshToken, ttl);
         addCookieAndSetHeader(response, refreshToken, accessToken);

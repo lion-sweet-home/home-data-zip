@@ -33,6 +33,8 @@ const roomListUpdateCallbacks = new Set();
 const chatReconnectedCallbacks = new Set();
 // Notification SSE 재연결 시 호출할 콜백 (상태 동기화용)
 const notificationReconnectedCallbacks = new Set();
+// 채팅방 상세 갱신 콜백 함수들
+const roomDetailUpdateCallbacks = new Set();
 
 /**
  * 알림 수신 콜백 등록
@@ -118,6 +120,24 @@ export function onNotificationReconnected(callback) {
  */
 export function offNotificationReconnected(callback) {
   notificationReconnectedCallbacks.delete(callback);
+}
+
+/**
+ * 채팅방 상세 갱신 콜백 등록
+ * @param {Function} callback - 채팅방 상세 갱신 신호 수신 시 호출될 콜백 함수
+ */
+export function onRoomDetailUpdate(callback) {
+  if (typeof callback === 'function') {
+    roomDetailUpdateCallbacks.add(callback);
+  }
+}
+
+/**
+ * 채팅방 상세 갱신 콜백 제거
+ * @param {Function} callback - 제거할 콜백 함수
+ */
+export function offRoomDetailUpdate(callback) {
+  roomDetailUpdateCallbacks.delete(callback);
 }
 
 /**
@@ -220,6 +240,22 @@ export function connectChatSSE() {
       });
     });
 
+    chatEventSource.addEventListener('roomDetailUpdate', () => {
+      roomDetailUpdateCallbacks.forEach((callback) => {
+        try {
+          callback();
+        } catch (error) {
+          console.error('RoomDetailUpdate callback error:', error);
+        }
+      });
+    });
+
+    chatEventSource.onerror = (error) => {
+      // 연결이 끊어진 경우 재연결 시도
+      if (chatEventSource && chatEventSource.readyState === EventSourcePolyfill.CLOSED) {
+        if (!chatReconnectTimer) attemptChatReconnect();
+      }
+      console.error('Chat SSE 연결 오류:', error);
     chatEventSource.onerror = () => {
       if (chatEventSource) {
         try {
@@ -348,6 +384,7 @@ export function disconnectAllSSE() {
   roomListUpdateCallbacks.clear();
   chatReconnectedCallbacks.clear();
   notificationReconnectedCallbacks.clear();
+  roomDetailUpdateCallbacks.clear();
 }
 
 /**
@@ -413,6 +450,8 @@ export default {
   offChatReconnected,
   onNotificationReconnected,
   offNotificationReconnected,
+  onRoomDetailUpdate,
+  offRoomDetailUpdate,
   isChatSSEConnected,
   isNotificationSSEConnected,
   getChatSSEState,

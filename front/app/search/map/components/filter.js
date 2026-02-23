@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { getSidoList, getGugunList, getDongList } from '../../../api/region';
 import { searchSubwayStations } from '../../../api/subway';
 import { searchSchoolsByName, searchSchoolsByRegion } from '../../../api/school';
+import PriceFilter from './price_filter';
+import AreaFilter from './area_filter';
 
-export default function Filter({ onSearch, initialParams }) {
+export default function Filter({ onSearch, onAutoApply, initialParams }) {
   // 매매/전월세 선택
   const [tradeType, setTradeType] = useState('매매');
 
@@ -43,6 +45,9 @@ export default function Filter({ onSearch, initialParams }) {
   // 가격 범위
   const [priceMin, setPriceMin] = useState('');
   const [priceMax, setPriceMax] = useState('');
+  // 매매용 면적 범위 (m²)
+  const [minArea, setMinArea] = useState('');
+  const [maxArea, setMaxArea] = useState('');
   // 전/월세용 보증금 범위
   const [depositMin, setDepositMin] = useState('');
   const [depositMax, setDepositMax] = useState('');
@@ -63,6 +68,7 @@ export default function Filter({ onSearch, initialParams }) {
 
   // URL/부모에서 넘어온 초기값을 안전하게 주입하기 위한 ref
   const pendingRegionInitRef = useRef(null); // {sido, gugun, dong}
+  const autoApplyTimerRef = useRef(null);
 
   // 시도 목록 로드
   useEffect(() => {
@@ -110,6 +116,8 @@ export default function Filter({ onSearch, initialParams }) {
     // 가격 범위
     if (initialParams.priceMin != null) setPriceMin(String(initialParams.priceMin));
     if (initialParams.priceMax != null) setPriceMax(String(initialParams.priceMax));
+    if (initialParams.minArea != null) setMinArea(String(initialParams.minArea));
+    if (initialParams.maxArea != null) setMaxArea(String(initialParams.maxArea));
     if (initialParams.depositMin != null) setDepositMin(String(initialParams.depositMin));
     if (initialParams.depositMax != null) setDepositMax(String(initialParams.depositMax));
     if (initialParams.monthlyRentMin != null) setMonthlyRentMin(String(initialParams.monthlyRentMin));
@@ -387,7 +395,7 @@ export default function Filter({ onSearch, initialParams }) {
             gugun: selectedGugun,
             dong: selectedDong || undefined,
             ...(tradeType === '매매'
-              ? { priceMin, priceMax }
+              ? { priceMin, priceMax, minArea, maxArea }
               : { depositMin, depositMax, monthlyRentMin, monthlyRentMax, minExclusive: finalMinExclusive, maxExclusive: finalMaxExclusive }),
             schoolTypes: Object.entries(schoolTypes)
               .filter(([_, selected]) => selected)
@@ -410,6 +418,55 @@ export default function Filter({ onSearch, initialParams }) {
       onSearch(searchParams);
     }
   };
+
+  // 요구사항 변경: 구/군까지만 선택해도 매매 필터(가격/면적)가 보여야 함
+  const isRegionSelected = Boolean(selectedSido && selectedGugun);
+
+  // 매매(region)에서만: 필터 변경 시 자동 적용(디바운스 300ms)
+  useEffect(() => {
+    if (!onAutoApply) return;
+    if (tradeType !== '매매') return;
+    if (searchConditionType !== 'region') return;
+    if (!isRegionSelected) return;
+
+    if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
+    autoApplyTimerRef.current = setTimeout(() => {
+      const autoParams = {
+        tradeType,
+        searchConditionType,
+        period,
+        sido: selectedSido,
+        gugun: selectedGugun,
+        dong: selectedDong || undefined,
+        priceMin,
+        priceMax,
+        minArea,
+        maxArea,
+        schoolTypes: Object.entries(schoolTypes)
+          .filter(([_, selected]) => selected)
+          .map(([type]) => type),
+      };
+      onAutoApply(autoParams);
+    }, 300);
+
+    return () => {
+      if (autoApplyTimerRef.current) clearTimeout(autoApplyTimerRef.current);
+    };
+  }, [
+    onAutoApply,
+    tradeType,
+    searchConditionType,
+    period,
+    selectedSido,
+    selectedGugun,
+    selectedDong,
+    priceMin,
+    priceMax,
+    minArea,
+    maxArea,
+    schoolTypes,
+    isRegionSelected,
+  ]);
 
   return (
     <>
@@ -609,24 +666,27 @@ export default function Filter({ onSearch, initialParams }) {
           {searchConditionType === 'region' && (
           <>
             {tradeType === '매매' ? (
-              <>
-                <input
-                  type="number"
-                  value={priceMin}
-                  onChange={(e) => setPriceMin(e.target.value)}
-                  placeholder="최소"
-                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
-                />
-                <span className="text-gray-500 text-xs">~</span>
-                <input
-                  type="number"
-                  value={priceMax}
-                  onChange={(e) => setPriceMax(e.target.value)}
-                  placeholder="최대"
-                  className="px-2 py-1 border border-gray-300 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none text-gray-900 w-20 flex-shrink-0"
-                />
-                <span className="text-xs text-gray-500 flex-shrink-0">만원</span>
-              </>
+              // 요구사항 변경: 구/군까지만 선택하면 가격/면적 필터 표시
+              isRegionSelected ? (
+                <>
+                  <PriceFilter
+                    valueMin={priceMin}
+                    valueMax={priceMax}
+                    onChangeMin={setPriceMin}
+                    onChangeMax={setPriceMax}
+                    unitLabel="만원"
+                  />
+                  <AreaFilter
+                    valueMin={minArea}
+                    valueMax={maxArea}
+                    onChangeMin={setMinArea}
+                    onChangeMax={setMaxArea}
+                    unitLabel="m²"
+                    minPlaceholder="면적 최소"
+                    maxPlaceholder="면적 최대"
+                  />
+                </>
+              ) : null
             ) : (
               <>
                 <input

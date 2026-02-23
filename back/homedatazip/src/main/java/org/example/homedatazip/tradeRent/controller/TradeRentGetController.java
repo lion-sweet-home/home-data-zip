@@ -3,17 +3,15 @@ package org.example.homedatazip.tradeRent.controller;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.homedatazip.apartment.dto.MarkResponse;
+import org.example.homedatazip.apartment.dto.MarkerClusterResponse;
 import org.example.homedatazip.tradeRent.dto.DotResponse;
 import org.example.homedatazip.tradeRent.dto.RentFromAptResponse;
 import org.example.homedatazip.tradeRent.dto.RentGetMarkerRequest;
-import org.example.homedatazip.tradeRent.dto.RentGetMarkerResponse;
 import org.example.homedatazip.tradeRent.dto.detailList.RentDetailList5Response;
 import org.example.homedatazip.tradeRent.service.TradeRentGetService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 
 
@@ -30,6 +28,17 @@ public class TradeRentGetController {
             @ModelAttribute @Valid RentGetMarkerRequest request
     ) {
         return ResponseEntity.ok(tradeRentGetService.getListRentsByAptId(request));
+    }
+
+    /**
+     * bounds + level + (기존 필터) 기반 클러스터 조회
+     * - 응답: [{ latitude, longitude, count }]
+     */
+    @GetMapping("/clusters")
+    public ResponseEntity<List<MarkerClusterResponse>> markerRentClusters(
+            @ModelAttribute @Valid RentGetMarkerRequest request
+    ) {
+        return ResponseEntity.ok(tradeRentGetService.getRentMarkerClusters(request));
     }
 
     //그래프에 점 데이터

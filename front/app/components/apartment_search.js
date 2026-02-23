@@ -31,6 +31,7 @@ export default function ApartmentSearch() {
   const [aptSearching, setAptSearching] = useState(false);
   const [aptSearchResults, setAptSearchResults] = useState([]);
   const [aptHasSearched, setAptHasSearched] = useState(false);
+  const [displayCount, setDisplayCount] = useState(20);
   const aptSearchSeqRef = useRef(0);
 
   const [sidoList, setSidoList] = useState([]);
@@ -86,6 +87,7 @@ export default function ApartmentSearch() {
     setAptHasSearched(true);
     setAptSearching(true);
     setAptSearchResults([]);
+    setDisplayCount(20);
     try {
       const res = await searchApartmentsByName(keyword, selectedSido, selectedGugun, selectedDong);
       const list = Array.isArray(res) ? res : [];
@@ -192,44 +194,57 @@ export default function ApartmentSearch() {
           {aptSearchResults.length === 0 ? (
             <div className="px-4 py-4 text-sm text-gray-500">검색 결과가 없습니다.</div>
           ) : (
-            <div className="max-h-60 overflow-y-auto divide-y">
-              {aptSearchResults.slice(0, 20).map((item, idx) => {
-                const avg = item?.avgDealAmount ?? item?.AvgDealAmount;
-                const rate = formatRate(item?.priceChangeRate);
-                const count = item?.tradeCount ?? 0;
-                return (
+            <>
+              <div className="max-h-60 overflow-y-auto divide-y">
+                {aptSearchResults.slice(0, displayCount).map((item, idx) => {
+                  const avg = item?.avgDealAmount ?? item?.AvgDealAmount;
+                  const rate = formatRate(item?.priceChangeRate);
+                  const count = item?.tradeCount ?? 0;
+                  return (
+                    <button
+                      key={`${item?.aptId ?? "noid"}-${item?.areaTypeId ?? "na"}-${idx}`}
+                      type="button"
+                      onClick={() => handleAptResultClick(item)}
+                      className="w-full text-left px-4 py-3 hover:bg-gray-50"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 truncate">
+                            {item?.aptName || "아파트"}
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1 truncate">
+                            {item?.gu ? ` ${item.gu}` : ""}
+                            {item?.dong ? ` ${item.dong}` : ""}
+                            {item?.areaTypeId != null ? ` · ${Number(item.areaTypeId).toFixed(1)}㎡` : ""}
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <div className="text-xs text-gray-600">
+                            평균 {formatManwon(avg)}원 · {count}건
+                          </div>
+                          <div
+                            className={`text-xs font-semibold ${rate.className}`}
+                          >
+                            전월 대비 {rate.text}
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+              {aptSearchResults.length > displayCount && (
+                <div className="px-4 py-3 border-t border-gray-200 bg-gray-50">
                   <button
-                    key={`${item?.aptId ?? "noid"}-${item?.areaTypeId ?? "na"}-${idx}`}
                     type="button"
-                    onClick={() => handleAptResultClick(item)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50"
+                    onClick={() => setDisplayCount((prev) => prev + 20)}
+                    className="w-full py-2.5 rounded-lg text-sm font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="font-medium text-gray-900 truncate">
-                          {item?.aptName || "아파트"}
-                        </div>
-                        <div className="text-xs text-gray-600 mt-1 truncate">
-                          {item?.gu ? ` ${item.gu}` : ""}
-                          {item?.dong ? ` ${item.dong}` : ""}
-                          {item?.areaTypeId != null ? ` · ${Number(item.areaTypeId).toFixed(1)}㎡` : ""}
-                        </div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-xs text-gray-600">
-                          평균 {formatManwon(avg)}원 · {count}건
-                        </div>
-                        <div
-                          className={`text-xs font-semibold ${rate.className}`}
-                        >
-                          전월 대비 {rate.text}
-                        </div>
-                      </div>
-                    </div>
+                    더보기 ({aptSearchResults.length - displayCount}건 남음)
                   </button>
-                );
-              })}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       )}

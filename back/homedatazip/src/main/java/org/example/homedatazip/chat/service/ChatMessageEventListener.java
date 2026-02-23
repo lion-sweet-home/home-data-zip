@@ -3,6 +3,7 @@ package org.example.homedatazip.chat.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.chat.dto.ChatMessageEvent;
+import org.example.homedatazip.chat.dto.ChatRoomExitEvent;
 import org.example.homedatazip.notification.service.SseEmitterService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
@@ -27,5 +28,11 @@ public class ChatMessageEventListener {
         // 본인 채팅방 목록에도 최근 메시지가 갱신 되어야한다.
         sseEmitterService.sendRoomListUpdate(event.senderId());
         sseEmitterService.sendRoomListUpdate(event.opponentId());
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void handleChatRoomExitEvent(ChatRoomExitEvent event) {
+        // 상대방에게 나갔다고 신호를 준다.
+        sseEmitterService.sendRoomDetailUpdate(event.opponentId());
     }
 }

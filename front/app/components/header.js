@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { logout } from '../api/auth';
 import { getNotificationSetting } from '../api/user';
+import { getMySubscription } from '../api/subscription';
 import {
   deleteNotification,
   getUnreadCount as getNotificationUnreadCount,
@@ -30,6 +31,7 @@ export default function Header() {
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [subscription, setSubscription] = useState(null);
   const router = useRouter();
 
   // 알림(공지) 팝오버
@@ -208,6 +210,7 @@ export default function Header() {
       setNotifItems([]);
       setNotifError('');
       setIsNotifOpen(false);
+      setSubscription(null);
       return;
     }
 
@@ -219,6 +222,24 @@ export default function Header() {
         setNotifUnreadCount(Number(res?.count ?? 0));
       } catch {
         // ignore
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await getMySubscription();
+        if (!cancelled) setSubscription(res?.data ?? res ?? null);
+      } catch {
+        if (!cancelled) setSubscription(null);
       }
     })();
 
@@ -358,6 +379,8 @@ export default function Header() {
   };
 
   const roles = getUserRoles();
+  const isSubscribed =
+    subscription?.status === 'ACTIVE' || subscription?.isActive === true;
 
   // 역할에 따른 버튼 텍스트 및 동작
   // 우선순위: ADMIN > SELLER > USER만
@@ -374,23 +397,26 @@ export default function Header() {
       );
     }
 
-    // SELLER가 있으면 구독중 버튼
+    // SELLER가 있으면 구독중 버튼 (구독 페이지로 이동은 유지)
     if (roles.includes('SELLER')) {
       return (
-        <button className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 cursor-default" disabled>
+        <Link
+          href="/subscription"
+          className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+        >
           구독중
-        </button>
+        </Link>
       );
     }
 
-    // USER만 있으면 구독하기 버튼
+    // USER만 있으면 구독하기/구독중 버튼
     if (roles.length === 1 && roles[0] === 'USER') {
       return (
         <Link
           href="/subscription"
           className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
         >
-          구독하기
+          {isSubscribed ? '구독중' : '구독하기'}
         </Link>
       );
     }
