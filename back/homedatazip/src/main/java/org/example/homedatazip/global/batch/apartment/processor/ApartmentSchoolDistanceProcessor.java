@@ -25,7 +25,7 @@ import java.util.List;
 public class ApartmentSchoolDistanceProcessor implements ItemProcessor<Apartment, List<ApartmentSchoolDistance>> {
 
     private static final double MAX_RADIUS_KM = 10.0;
-    private static final long PROGRESS_LOG_EVERY_APT = 200;
+    private static final long PROGRESS_LOG_EVERY_APT = 100;
 
     private final SchoolRepository schoolRepository;
 
