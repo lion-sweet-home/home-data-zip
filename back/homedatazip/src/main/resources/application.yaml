@@ -84,10 +84,17 @@ spring:
       port: ${REDIS_PORT:6379}
 
   ai:
-    ollama:
-      base-url: http://localhost:11434  # Ollama 기본 주소
+    openai:
+      api-key: ${OPENAI_API_KEY}  # OpenAI에서 발급받은 키 (환경변수 권장)
       chat:
-        model: llama3
+        options:
+          model: gpt-4o-mini      # 가성비 좋은 모델 추천 (또는 gpt-4o)
+          temperature: 0.7
+#  ai:
+#    ollama:
+#      base-url: http://localhost:11434  # Ollama 기본 주소
+#      chat:
+#        model: llama3
 
 app:
   oauth:

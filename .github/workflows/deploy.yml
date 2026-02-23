@@ -101,6 +101,9 @@ jobs:
             SOLAPI_API_KEY=${{ secrets.SOLAPI_API_KEY }}
             SOLAPI_API_SECRET=${{ secrets.SOLAPI_API_SECRET }}
             SOLAPI_FROM_NUMBER=${{ secrets.SOLAPI_FROM_NUMBER }}
+
+            # OpenAI (AI 챗봇 - GPT)
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
             EOF
       # 3. EC2에 배포
       - name: Deploy to EC2
