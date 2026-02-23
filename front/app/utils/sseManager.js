@@ -250,12 +250,6 @@ export function connectChatSSE() {
       });
     });
 
-    chatEventSource.onerror = (error) => {
-      // 연결이 끊어진 경우 재연결 시도
-      if (chatEventSource && chatEventSource.readyState === EventSourcePolyfill.CLOSED) {
-        if (!chatReconnectTimer) attemptChatReconnect();
-      }
-      console.error('Chat SSE 연결 오류:', error);
     chatEventSource.onerror = () => {
       if (chatEventSource) {
         try {
