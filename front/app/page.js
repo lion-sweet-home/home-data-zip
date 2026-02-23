@@ -1,6 +1,7 @@
 import UserInfoTest from './components/UserInfoTest';
 import MonthlyTop3Section from './components/monthly_top3_section';
 import ApartmentSearch from './components/apartment_search';
+import RecommendedApartmentsSection from './components/recommended_apartments_section';
 
 export default function Home() {
   return (
@@ -10,6 +11,7 @@ export default function Home() {
           <ApartmentSearch />
         </div>
       </div>
+      <RecommendedApartmentsSection />
       <MonthlyTop3Section />
       <UserInfoTest />
     </div>

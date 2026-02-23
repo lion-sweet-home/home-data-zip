@@ -11,6 +11,7 @@ import {
 } from '../api/apartment';
 import { getAptSaleChart, getAptSaleDetail } from '../api/apartment_sale';
 import { getRecentRentTrades, getRentDetailByArea, getRentDots } from '../api/apartment_rent';
+import { logPyeongClick } from '../api/log';
 import SchoolForm from './components/schoolform';
 import ApartmentTopBar from './components/top_bar';
 import ApartmentSummaryCard from './components/summary_card';
@@ -1573,6 +1574,69 @@ function ApartmentPageContent() {
     return target ? `${target.label}㎡` : '-';
   }, [tradeType, saleAreaOptions, selectedSaleAreaKey, rentAreaOptions, selectedRentAreaKey]);
 
+  const handleSelectSaleAreaKey = useCallback(
+    (key) => {
+      const opt = saleAreaOptions.find((o) => String(o.value) === String(key));
+      if (aptId && opt) {
+        const area = Number(opt.label);
+        const rawRows = getValueByNumericKey(saleDetail?.chartData || {}, key) || [];
+        const chartRows = normalizeSaleChartRows(rawRows);
+        let price = 0;
+        if (chartRows.length > 0) {
+          const latestMeaningful = [...chartRows]
+            .reverse()
+            .map((row) => toNumber(row?.avgAmount))
+            .find((v) => v > 0);
+          if (latestMeaningful) price = latestMeaningful;
+        }
+        if (price === 0 && saleDetail?.pyeongTrades) {
+          const rows = getValueByNumericKey(saleDetail.pyeongTrades, key) || [];
+          if (rows.length > 0) {
+            price = Math.round(
+              rows.reduce((acc, row) => acc + toNumber(row?.dealAmount), 0) / rows.length
+            );
+          }
+        }
+        if (price === 0) price = toNumber(saleDetail?.avgAmount) || 0;
+        logPyeongClick({
+          aptId,
+          area,
+          price: price || null,
+          monthlyRent: null,
+          isRent: false,
+        }).catch(() => {});
+      }
+      setSelectedSaleAreaKey(String(key));
+    },
+    [aptId, saleDetail, saleAreaOptions]
+  );
+
+  const handleSelectRentAreaKey = useCallback(
+    (key) => {
+      const opt = rentAreaOptions.find((o) => Number(o.value) === Number(key));
+      if (aptId && opt) {
+        const area = Number(opt.label);
+        // 전세/월세 구분: 현재 보고 있는 그래프 뷰(rentGraphView) 기준으로 로그
+        // - 전세(jeonse): monthlyRent = 0 → 백엔드 TradeType.RENT
+        // - 월세(wolse): monthlyRent = 월세료(wolseRentAvg) → 백엔드 TradeType.WOLSE
+        // (jeonseAvg는 보증금이므로 monthlyRent에 넣지 않음)
+        const monthlyRent =
+          rentGraphView === 'wolse' && rentAreaSummary != null
+            ? Number(rentAreaSummary.wolseRentAvg) || 0
+            : 0;
+        logPyeongClick({
+          aptId,
+          area,
+          price: null,
+          monthlyRent: monthlyRent > 0 ? monthlyRent : null,
+          isRent: true,
+        }).catch(() => {});
+      }
+      setSelectedRentAreaKey(Number(key));
+    },
+    [aptId, rentAreaOptions, rentAreaSummary, rentGraphView]
+  );
+
   useEffect(() => {
     // 내부 state 동기화로 발생한 URL 변경은 다시 state에 반영하지 않는다.
     if (isInternalUrlSyncRef.current) {
@@ -2001,10 +2065,10 @@ function ApartmentPageContent() {
           tradeType={tradeType}
           saleAreaOptions={saleAreaOptions}
           selectedSaleAreaKey={selectedSaleAreaKey}
-          onSelectSaleAreaKey={setSelectedSaleAreaKey}
+          onSelectSaleAreaKey={handleSelectSaleAreaKey}
           rentAreaOptions={rentAreaOptions}
           selectedRentAreaKey={selectedRentAreaKey}
-          onSelectRentAreaKey={setSelectedRentAreaKey}
+          onSelectRentAreaKey={handleSelectRentAreaKey}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
