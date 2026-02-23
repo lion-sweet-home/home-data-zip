@@ -20,8 +20,8 @@ import {
   disconnectNotificationSSE,
   onNotification,
   offNotification,
-  onNotificationReconnected,
-  offNotificationReconnected,
+  // onNotificationReconnected,
+  // offNotificationReconnected,
   onUnreadCount,
   offUnreadCount,
 } from '../utils/sseManager';
