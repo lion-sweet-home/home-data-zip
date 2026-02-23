@@ -68,9 +68,9 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 
     // ai
-    // implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
     // Ollama 스타터 추가
-    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
+//    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
 
     implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
 
