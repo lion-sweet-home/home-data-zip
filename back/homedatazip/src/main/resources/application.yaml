@@ -1,11 +1,51 @@
+server:
+  servlet:
+    session:
+      cookie:
+        # Google 리다이렉트 시 세션 쿠키 전송 (authorization_request_not_found 방지)
+        # 로컬 http: lax + secure false. 운영(https)에선 same-site: none, secure: true 권장
+        same-site: lax
+        secure: ${SERVER_SESSION_COOKIE_SECURE:false}
+
 spring:
   application:
-    name : homedatazip
+    name: homedatazip
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:}
+            client-secret: ${GOOGLE_CLIENT_SECRET:}
+            scope: openid, profile, email
+
+  cloud:
+    aws:
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID}
+        secret-key: ${AWS_SECRET_ACCESS_KEY}
+      region:
+        static: ${AWS_REGION:ap-northeast-2}
+      s3:
+        bucket: ${AWS_S3_BUCKET}
+
+      stack:
+        auto: false
+
+  app:
+    s3:
+      base-url: ${AWS_S3_BASE_URL:https://s3.ap-northeast-2.amazonaws.com}
+
+  mvc:
+    contentnegotiation:
+      default-content-type: application/json # 모든 응답의 기본은 JSON
+      favor-parameter: false
 
   datasource:
-    url: jdbc:mysql://localhost:3306/home_db
-    username: root
-    password: root1234
+    url: ${DATASOURCE_URL:jdbc:mysql://localhost:3306/home_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul}
+    username: ${MYSQL_USER:root}
+    password: ${MYSQL_PASSWORD:root1234}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -14,9 +54,147 @@ spring:
     properties:
       hibernate:
         format_sql: true
+    open-in-view: false
 
   batch:
+    trade-rent:
+      enabled: true
+      days-of-month: [25, 26, 27]
+      window-months: 2
     job:
-      enabled: false 
+      enabled: false
     jdbc:
       initialize-schema: always
+
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY} # OpenAI에서 발급받은 키 (환경변수 권장)
+      chat:
+        options:
+          model: gpt-4o-mini # 가성비 좋은 모델 추천 (또는 gpt-4o)
+          temperature: 0.7
+#  ai:
+#    ollama:
+#      base-url: http://localhost:11434  # Ollama 기본 주소
+#      chat:
+#        model: llama3
+
+app:
+  oauth:
+    frontend-redirect-uri: ${APP_OAUTH_FRONTEND_REDIRECT_URI:http://localhost:3000/auth/oauth/callback}
+    frontend-failure-redirect-uri: ${APP_OAUTH_FRONTEND_FAILURE_REDIRECT_URI:http://localhost:3000/auth/login}
+
+cors:
+  allowed-origins:
+    - http://${EC2_HOST:localhost}:5173
+    - http://${EC2_HOST:localhost}:3000
+  allowed-methods:
+    - GET
+    - POST
+    - PUT
+    - DELETE
+    - PATCH
+  max-age: 3600
+
+jwt:
+  access-secret-key: ${JWT_ACCESS_SECRET}
+  refresh-secret-key: ${JWT_REFRESH_SECRET}
+  access-token-expiration: ${JWT_ACCESS_EXP_SEC}
+  refresh-token-expiration: ${JWT_REFRESH_EXP_SEC}
+
+payment:
+  toss:
+    secret-key: ${PAYMENT_TOSS_SECRET_KEY}
+    client-key: ${PAYMENT_TOSS_CLIENT_KEY}
+    billing-success-url: http://${EC2_HOST:localhost}:3000/billing/success
+    billing-fail-url: http://${EC2_HOST:localhost}:3000/billing/fail
+
+api:
+  data-go-kr:
+    service-key: ${DATA_GO_KR_SERVICE_KEY}
+  data:
+    hospital:
+      key: ${HOSPITAL_SERVICE_KEY}
+
+rent-api:
+  base-url: "http://apis.data.go.kr/1613000/RTMSDataSvcAptRent"
+  path: "/getRTMSDataSvcAptRent"
+  service-key: ${RENT_API_SERVICE_KEY}
+  num-of-rows: 1000
+  timeout-seconds: 15
+
+kakao:
+  api:
+    key: ${KAKAO_API_KEY}
+    url: https://dapi.kakao.com
+
+batch:
+  backoff:
+    external-api: 2000
+
+seoul:
+  openapi:
+    base-url: http://openapi.seoul.go.kr:8088
+    key: ${SEOUL_OPENAPI_KEY}
+    type: json
+    service: ${SEOUL_OPENAPI_SERVICE}
+
+# OpenAPI 학교 목록 (Quartz - 매일 2시 10분)
+school:
+  openapi:
+    key: ${SCHOOL_OPENAPI_KEY:}
+    sync:
+      cron: ${SCHOOL_OPENAPI_SYNC_CRON:0 30 4 * * ?}
+
+# OpenAPI 지하철 역 목록 URL (Quartz - 매일 2시)
+subway:
+  openapi:
+    url: ${SUBWAY_OPENAPI_URL:}
+    sync:
+      cron: ${SUBWAY_OPENAPI_SYNC_CRON:0 0 2 * * ?}
+
+# Quartz 통합 Batch 스케줄 (한 곳에서 모든 Batch 실행 시간 관리)
+quartz:
+  batch:
+    apartment-trade:
+      cron: ${QUARTZ_APARTMENT_TRADE_CRON:0 0 2 * * ?} # 매일 2시
+    region:
+      cron: ${QUARTZ_REGION_CRON:0 0 1 ? * SUN} # 매주 일요일 1시
+    bus-station:
+      cron: ${QUARTZ_BUS_STATION_CRON:0 0 1 * * ?} # 매일 1시
+    trade-rent:
+      cron: ${QUARTZ_TRADE_RENT_CRON:0 0 5 * * ?} # 매일 5시
+    hospital:
+      cron: ${QUARTZ_HOSPITAL_CRON:0 30 5 * * ?} # 매일 5시 30분
+
+# 아파트 - 지하철&학교 거리 (Quartz - 매일 3시, 4시)
+apartment:
+  subway-distance:
+    sync:
+      cron: ${APARTMENT_SUBWAY_DISTANCE_SYNC_CRON:0 0 3 * * ?}
+  school-distance:
+    sync:
+      cron: ${APARTMENT_SCHOOL_DISTANCE_SYNC_CRON:0 0 4 * * ?}
+
+sms:
+  solapi:
+    api-key: ${SOLAPI_API_KEY}
+    api-secret: ${SOLAPI_API_SECRET}
+    from: ${SOLAPI_FROM_NUMBER}

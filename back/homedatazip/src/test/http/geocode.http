@@ -1,0 +1,35 @@
+@baseUrl = http://localhost:8080
+### 1. GeoCode Test
+POST http://localhost:8080/api/geo-test
+Content-Type: application/json
+
+{
+  "dong":"평창동",
+  "jibun":"596"
+}
+
+
+
+### 2. Reverse GeoCode Test
+POST http://localhost:8080/api1/reverse-geo-test
+Content-Type: application/json
+
+{
+  "latitude":"37.6107847060306",
+  "longitude":"126.978142953802"
+}
+
+### 지하철 역 검색 - 역명만 (예: 강남)
+GET {{baseUrl}}/api/subway/stations?stationName=강남
+
+### 지하철 역 검색 - 호선만 (예: 2호선)
+GET {{baseUrl}}/api/subway/stations?lineName=2호선
+
+### 지하철 역 검색 - 역명 + 호선
+GET {{baseUrl}}/api/subway/stations?stationName=강남&lineName=2호선
+
+### 지하철 역 검색 - 파라미터 없음 (빈 목록 반환)
+GET {{baseUrl}}/api/subway/stations
+
+### 지하철 역 반경 내 아파트 검색 (stationId=1 - 신당, 2km)
+GET {{baseUrl}}/api/subway/stations/1/apartments?distanceKm=0.5

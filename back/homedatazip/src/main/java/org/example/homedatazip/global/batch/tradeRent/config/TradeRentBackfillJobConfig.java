@@ -1,0 +1,118 @@
+package org.example.homedatazip.global.batch.tradeRent.config;
+
+import lombok.RequiredArgsConstructor;
+import org.example.homedatazip.global.exception.BatchRetryException;
+import org.example.homedatazip.global.exception.BatchSkipException;
+import org.springframework.beans.factory.annotation.Value;
+import org.example.homedatazip.data.repository.RegionRepository;
+import org.example.homedatazip.global.batch.tradeRent.processor.TradeProcessor;
+import org.example.homedatazip.global.batch.tradeRent.reader.TradeRentReader;
+import org.example.homedatazip.global.batch.tradeRent.writer.TradeRentWriter;
+import org.example.homedatazip.tradeRent.api.RentApiClient;
+import org.example.homedatazip.tradeRent.dto.RentApiItem;
+import org.example.homedatazip.tradeRent.dto.TradeRentWriteRequest;
+import org.springframework.batch.core.Job;
+import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.job.builder.JobBuilder;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
+
+@Configuration
+@RequiredArgsConstructor
+public class TradeRentBackfillJobConfig {
+
+    private static final DateTimeFormatter YYYYMM = DateTimeFormatter.ofPattern("yyyyMM");
+    private final TradeProcessor tradeProcessor;
+    private final FixedBackOffPolicy fixedBackOffPolicy;
+
+    @Bean
+    public Job tradeRentBackfillJob(JobRepository jobRepository, Step tradeRentBackfillStep ) {
+        return new JobBuilder("tradeRentBackfillJob", jobRepository)
+                .start(tradeRentBackfillStep)
+                .build();
+    }
+
+    @Bean
+    public Step tradeRentBackfillStep(JobRepository jobRepository,
+                                    PlatformTransactionManager tx,
+                                    ItemReader<RentApiItem> tradeRentBackfillReader,
+                                    ItemProcessor<RentApiItem, TradeRentWriteRequest> tradeRentBackfillProcessor,
+                                    ItemWriter<TradeRentWriteRequest> tradeRentBackfillWriter){
+        return new StepBuilder("tradeRentBackfillStep", jobRepository)
+                .<RentApiItem, TradeRentWriteRequest>chunk(100,tx)
+                .reader(tradeRentBackfillReader)
+                .processor(tradeRentBackfillProcessor)
+                .writer(tradeRentBackfillWriter)
+                .faultTolerant() // 내결함성 기능 활성화
+                .skip(BatchSkipException.class)
+                .retry(BatchRetryException.class)
+                .retryLimit(3) // 3번까지 다시 시도
+                .backOffPolicy(fixedBackOffPolicy) // BackOff 설정 : 재시도 사이의 대기시간
+                .build();
+    }
+
+    @Bean
+    @StepScope
+    public ItemReader<RentApiItem> tradeRentBackfillReader(
+            RentApiClient client,
+            RegionRepository regionRepository,
+            @Value("#{jobParameters['fromYmd']}") String fromYmd,
+            @Value("#{jobParameters['toYmd']}") String toYmd
+    ) {
+
+        var zone = java.time.ZoneId.of("Asia/Seoul");
+        var fmt = java.time.format.DateTimeFormatter.ofPattern("yyyyMM");
+
+        YearMonth defaultTo = java.time.YearMonth.now(zone).minusMonths(5);
+        YearMonth defaultFrom = defaultTo.minusMonths(48);
+
+        String from = (fromYmd == null || fromYmd.isBlank())
+                ? defaultFrom.format(fmt)
+                : fromYmd;
+
+        String to = (toYmd == null || toYmd.isBlank())
+                ? defaultTo.format(fmt)
+                : toYmd;
+
+
+        List<String> sggCds = regionRepository.findDistinctSggCode();
+        List<String> dealYmds = buildDealYmds(from, to);
+
+        return new TradeRentReader(client, sggCds, dealYmds);
+    }
+
+    @Bean
+    public ItemProcessor<RentApiItem, TradeRentWriteRequest> tradeRentBackfillProcessor() {
+        return  tradeProcessor;
+    }
+    @Bean
+    public ItemWriter<TradeRentWriteRequest> tradeRentBackfillWriter(TradeRentWriter writer){
+        return writer;
+    }
+
+    private static List<String> buildDealYmds(String fromYmd, String toYmd) {
+        YearMonth start = YearMonth.parse(fromYmd, YYYYMM);
+        YearMonth end = YearMonth.parse(toYmd, YYYYMM);
+
+        List<String> out = new ArrayList<>();
+        YearMonth cur = start;
+        while (!cur.isAfter(end)) {
+            out.add(cur.format(YYYYMM));
+            cur = cur.plusMonths(1);
+        }
+        return out;
+    }
+}

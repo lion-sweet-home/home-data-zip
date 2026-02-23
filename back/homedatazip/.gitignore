@@ -36,3 +36,23 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### .env ###
+.env
+.env.dev
+.env.local
+.env.*.local
+
+### application-dev.yml
+**/application-dev.yml
+
+# resources 설정 파일
+src/main/resources/application.yaml
+src/main/resources/application-*.yaml
+src/main/resources/data.sql
+
+###Test폴더
+../test/
+
+### test용 html
+src/main/resources/static/*.html

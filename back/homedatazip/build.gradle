@@ -22,6 +22,17 @@ configurations {
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+}
+ext {
+    set('springAiVersion', "1.0.0-M5")//밑에서 사용할 버전 변수
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+        mavenBom "io.awspring.cloud:spring-cloud-aws-dependencies:3.1.1"
+    }
 }
 
 dependencies {
@@ -31,6 +42,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'com.mysql:mysql-connector-j'
@@ -39,6 +51,48 @@ dependencies {
     testImplementation 'org.springframework.batch:spring-batch-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+
+    //jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.6'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.6'
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-mail'
+
+    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+    //Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+
+    // ai
+     implementation 'org.springframework.ai:spring-ai-openai-spring-boot-starter'
+    // Ollama 스타터 추가
+//    implementation 'org.springframework.ai:spring-ai-ollama-spring-boot-starter'
+
+    implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml'
+
+    //jacson XmlMapper
+    // Xml -> json 파싱
+    implementation 'org.springframework.boot:spring-boot-starter-quartz'
+
+    // 1. Querydsl 의존성 추가
+    implementation 'com.querydsl:querydsl-jpa:5.0.0:jakarta'
+
+    // 2. QClass를 생성해주는 Annotation Processor
+    annotationProcessor "com.querydsl:querydsl-apt:5.0.0:jakarta"
+    annotationProcessor "jakarta.annotation:jakarta.annotation-api"
+    annotationProcessor "jakarta.persistence:jakarta.persistence-api"
+
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    //S3
+    implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3'
+
+    //솔라피 SMS
+    implementation "net.nurigo:sdk:4.3.0"
 }
 
 tasks.named('test') {

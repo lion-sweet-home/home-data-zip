@@ -1,0 +1,135 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main # main 브랜치에 push 시 배포지만 현재 테스트 용으로 dev로 설정
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Github에서 제공하는 가상 머신 환경 사용
+
+    steps:
+      # 1. Github 저장소의 코드를 가상 머신으로 가져옴
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. EC2에 .env 파일 생성
+      - name: Create .env file on EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 배포 디렉토리로 이동
+            mkdir -p ~/home-data-zip
+            cd ~/home-data-zip
+            # .env 파일 생성
+            cat > .env << EOF
+            # EC2
+            EC2_HOST=${{ secrets.EC2_HOST }}
+            # RDBMS
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_PORT=${{ secrets.MYSQL_PORT }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+
+            # Mail
+            MAIL_HOST=${{ secrets.MAIL_HOST }}
+            MAIL_PORT=${{ secrets.MAIL_PORT }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+
+            # Redis
+            REDIS_HOST=${{ secrets.REDIS_HOST }}
+            REDIS_PORT=${{ secrets.REDIS_PORT }}
+
+            # JWT
+            JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}
+            JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}
+            JWT_ACCESS_EXP_SEC=${{ secrets.JWT_ACCESS_EXP_SEC }}
+            JWT_REFRESH_EXP_SEC=${{ secrets.JWT_REFRESH_EXP_SEC }}
+
+            # TOSS
+            PAYMENT_TOSS_SECRET_KEY=${{ secrets.PAYMENT_TOSS_SECRET_KEY }}
+            PAYMENT_TOSS_CLIENT_KEY=${{ secrets.PAYMENT_TOSS_CLIENT_KEY }}
+
+            # OAuth
+            GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+            GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+            # 공공데이터 API 및 크론 설정
+            DATA_GO_KR_SERVICE_KEY=${{ secrets.DATA_GO_KR_SERVICE_KEY }}
+            HOSPITAL_SERVICE_KEY=${{ secrets.HOSPITAL_SERVICE_KEY }}
+            RENT_API_SERVICE_KEY=${{ secrets.RENT_API_SERVICE_KEY }}
+            KAKAO_API_KEY=${{ secrets.KAKAO_API_KEY }}
+            SEOUL_OPENAPI_KEY=${{ secrets.SEOUL_OPENAPI_KEY }}
+            SEOUL_OPENAPI_SERVICE=${{ secrets.SEOUL_OPENAPI_SERVICE }}
+            SCHOOL_OPENAPI_KEY=${{ secrets.SCHOOL_OPENAPI_KEY }}
+            SCHOOL_OPENAPI_SYNC_CRON=${{ secrets.SCHOOL_OPENAPI_SYNC_CRON }}
+            SUBWAY_OPENAPI_URL=${{ secrets.SUBWAY_OPENAPI_URL }}
+            SUBWAY_OPENAPI_SYNC_CRON=${{ secrets.SUBWAY_OPENAPI_SYNC_CRON }}
+            APARTMENT_SUBWAY_DISTANCE_SYNC_CRON=${{ secrets.APARTMENT_SUBWAY_DISTANCE_SYNC_CRON }}
+            APARTMENT_SCHOOL_DISTANCE_SYNC_CRON=${{ secrets.APARTMENT_SCHOOL_DISTANCE_SYNC_CRON }}
+            
+            # Quartz Batch Cron 설정 추가
+            QUARTZ_APARTMENT_TRADE_CRON=${{ secrets.QUARTZ_APARTMENT_TRADE_CRON }}
+            QUARTZ_REGION_CRON=${{ secrets.QUARTZ_REGION_CRON }}
+            QUARTZ_BUS_STATION_CRON=${{ secrets.QUARTZ_BUS_STATION_CRON }}
+            QUARTZ_TRADE_RENT_CRON=${{ secrets.QUARTZ_TRADE_RENT_CRON }}
+            QUARTZ_HOSPITAL_CRON=${{ secrets.QUARTZ_HOSPITAL_CRON }}
+
+            # Frontend
+            NEXT_PUBLIC_BACKEND_URL=http://${{ secrets.EC2_HOST }}:8080
+            NEXT_PUBLIC_KAKAO_MAP_API_KEY=${{ secrets.NEXT_PUBLIC_KAKAO_MAP_API_KEY }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_OAUTH_REDIRECT_URI=${{ secrets.NEXT_PUBLIC_OAUTH_REDIRECT_URI }}
+            NEXT_PUBLIC_TOSS_SECRET_KEY=${{ secrets.NEXT_PUBLIC_TOSS_SECRET_KEY }}
+            NEXT_PUBLIC_TOSS_CLIENT_KEY=${{ secrets.NEXT_PUBLIC_TOSS_CLIENT_KEY }}
+            
+
+            # AWS S3
+            AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            AWS_REGION=${{ secrets.AWS_REGION }}
+            AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+            AWS_S3_BASE_URL=${{ secrets.AWS_S3_BASE_URL }}
+
+            # SOLAPI SMS
+            SOLAPI_API_KEY=${{ secrets.SOLAPI_API_KEY }}
+            SOLAPI_API_SECRET=${{ secrets.SOLAPI_API_SECRET }}
+            SOLAPI_FROM_NUMBER=${{ secrets.SOLAPI_FROM_NUMBER }}
+
+            # OpenAI (AI 챗봇 - GPT)
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            EOF
+      # 3. EC2에 배포
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # 1. 배포 디렉토리로 이동
+            cd ~/home-data-zip
+
+            # 2. 기존 컨테이너 중지 및 제거 (실패해도 다음단계로 넘어감)
+            docker compose down || true
+
+            # 3. Git 저장소 확인 및 업데이트
+            if [ -d ".git" ]; then
+              git pull origin main
+            else
+              git init
+              git remote add origin ${{ secrets.GIT_REPO_URL }}
+              git pull origin main
+            fi
+
+            # 4. 컨테이너 빌드 및 실행
+            DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build -d
+
+            # 5. 불필요한 이미지 삭제
+            docker image prune -f
