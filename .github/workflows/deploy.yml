@@ -3,7 +3,7 @@ name: Deploy to EC2
 on:
   push:
     branches:
-      - dev # main 브랜치에 push 시 배포지만 현재 테스트 용으로 dev로 설정
+      - main # main 브랜치에 push 시 배포지만 현재 테스트 용으로 dev로 설정
 
 jobs:
   deploy:
@@ -121,11 +121,11 @@ jobs:
 
             # 3. Git 저장소 확인 및 업데이트
             if [ -d ".git" ]; then
-              git pull origin dev
+              git pull origin main
             else
               git init
               git remote add origin ${{ secrets.GIT_REPO_URL }}
-              git pull origin dev
+              git pull origin main
             fi
 
             # 4. 컨테이너 빌드 및 실행
