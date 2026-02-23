@@ -28,7 +28,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ApartmentSchoolDistanceJobConfig {
 
-    private static final int CHUNK_SIZE = 2000;
+    private static final int CHUNK_SIZE = 1000;
 
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;

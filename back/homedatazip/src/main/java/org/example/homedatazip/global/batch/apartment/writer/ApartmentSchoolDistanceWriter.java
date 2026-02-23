@@ -16,7 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ApartmentSchoolDistanceWriter implements ItemWriter<List<ApartmentSchoolDistance>> {
 
-    private static final int SAVE_BATCH_SIZE = 5000;
+    private static final int SAVE_BATCH_SIZE = 1000;
     private static final int PROGRESS_LOG_EVERY_BATCH = 10;
     private long savedTotal = 0;
 

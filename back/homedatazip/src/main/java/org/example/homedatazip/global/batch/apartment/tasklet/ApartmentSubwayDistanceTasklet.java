@@ -28,8 +28,8 @@ import java.util.List;
 public class ApartmentSubwayDistanceTasklet implements Tasklet {
 
     private static final double MAX_RADIUS_KM = 10.0;
-    private static final int SAVE_CHUNK_SIZE = 500;
-    private static final int PROGRESS_LOG_EVERY_APT = 200;
+    private static final int SAVE_CHUNK_SIZE = 200;
+    private static final int PROGRESS_LOG_EVERY_APT = 100;
 
     private final ApartmentRepository apartmentRepository;
     private final SubwayStationRepository subwayStationRepository;

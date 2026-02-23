@@ -12,7 +12,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ApartmentSchoolDistanceReader {
 
-    private static final int PAGE_SIZE = 2000;
+    private static final int PAGE_SIZE = 500;
 
     @Bean
     @StepScope
