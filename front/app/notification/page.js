@@ -71,11 +71,15 @@ export default function NotificationPage() {
   const handleMarkRead = async (userNotificationId) => {
     try {
       await markAsRead(userNotificationId);
-      setItems((prev) =>
-        prev.map((it) =>
+      setItems((prev) => {
+        if (activeTab === 'unread') {
+          // 미읽음 탭에서는 읽음 처리한 항목을 목록에서 바로 제거
+          return prev.filter((it) => it?.id !== userNotificationId);
+        }
+        return prev.map((it) =>
           it?.id === userNotificationId ? { ...it, readAt: new Date().toISOString() } : it
-        )
-      );
+        );
+      });
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(userNotificationId);
@@ -101,6 +105,30 @@ export default function NotificationPage() {
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('notification:updated'));
     } catch (e) {
       alert(e?.message ?? '삭제에 실패했습니다.');
+    }
+  };
+
+  const handleMarkSelectedRead = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setActionLoading(true);
+    try {
+      await Promise.all(ids.map((id) => markAsRead(id)));
+      setItems((prev) => {
+        if (activeTab === 'unread') {
+          return prev.filter((it) => !selectedIds.has(it?.id));
+        }
+        const now = new Date().toISOString();
+        return prev.map((it) =>
+          selectedIds.has(it?.id) ? { ...it, readAt: now } : it
+        );
+      });
+      setSelectedIds(new Set());
+      if (typeof window !== 'undefined') window.dispatchEvent(new Event('notification:updated'));
+    } catch (e) {
+      alert(e?.message ?? '선택 읽음 처리에 실패했습니다.');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -180,8 +208,10 @@ export default function NotificationPage() {
           </div>
           <NotificationToolbar
             selectedCount={selectedIds.size}
-            onMarkAllRead={handleMarkAllRead}
+            selectedUnreadCount={items.filter((it) => selectedIds.has(it?.id) && !it?.readAt).length}
+            onMarkSelectedRead={handleMarkSelectedRead}
             onDeleteSelected={handleDeleteSelected}
+            onMarkAllRead={handleMarkAllRead}
             onDeleteAllRead={handleDeleteAllRead}
             loading={actionLoading}
           />

@@ -29,6 +29,10 @@ const notificationCallbacks = new Set();
 const unreadCountCallbacks = new Set();
 // 채팅방 목록 갱신 콜백 함수들
 const roomListUpdateCallbacks = new Set();
+// Chat SSE 재연결 시 호출할 콜백 (상태 동기화용)
+const chatReconnectedCallbacks = new Set();
+// Notification SSE 재연결 시 호출할 콜백 (상태 동기화용)
+const notificationReconnectedCallbacks = new Set();
 // 채팅방 상세 갱신 콜백 함수들
 const roomDetailUpdateCallbacks = new Set();
 
@@ -87,6 +91,38 @@ export function offRoomListUpdate(callback) {
 }
 
 /**
+ * Chat SSE 재연결 시 콜백 등록 (연결/재연결 성공 시 1회 호출, 상태 동기화용)
+ */
+export function onChatReconnected(callback) {
+  if (typeof callback === 'function') {
+    chatReconnectedCallbacks.add(callback);
+  }
+}
+
+/**
+ * Chat SSE 재연결 콜백 제거
+ */
+export function offChatReconnected(callback) {
+  chatReconnectedCallbacks.delete(callback);
+}
+
+/**
+ * Notification SSE 재연결 시 콜백 등록 (연결/재연결 성공 시 1회 호출, 상태 동기화용)
+ */
+export function onNotificationReconnected(callback) {
+  if (typeof callback === 'function') {
+    notificationReconnectedCallbacks.add(callback);
+  }
+}
+
+/**
+ * Notification SSE 재연결 콜백 제거
+ */
+export function offNotificationReconnected(callback) {
+  notificationReconnectedCallbacks.delete(callback);
+}
+
+/**
  * 채팅방 상세 갱신 콜백 등록
  * @param {Function} callback - 채팅방 상세 갱신 신호 수신 시 호출될 콜백 함수
  */
@@ -122,14 +158,9 @@ function notifyCallbacks(notification) {
  * SSE 연결 재시도 (chat)
  */
 function attemptChatReconnect() {
-  if (chatReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error('Chat SSE 재연결 시도 횟수 초과');
-    return;
-  }
+  if (chatReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
 
   chatReconnectAttempts++;
-  console.log(`Chat SSE 재연결 시도 ${chatReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
-
   chatReconnectTimer = setTimeout(() => {
     connectChatSSE();
   }, RECONNECT_DELAY);
@@ -139,16 +170,9 @@ function attemptChatReconnect() {
  * SSE 연결 재시도 (notification)
  */
 function attemptNotificationReconnect() {
-  if (notificationReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.error('Notification SSE 재연결 시도 횟수 초과');
-    return;
-  }
+  if (notificationReconnectAttempts >= MAX_RECONNECT_ATTEMPTS) return;
 
   notificationReconnectAttempts++;
-  console.log(
-    `Notification SSE 재연결 시도 ${notificationReconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`
-  );
-
   notificationReconnectTimer = setTimeout(() => {
     connectNotificationSSE();
   }, RECONNECT_DELAY);
@@ -182,6 +206,13 @@ export function connectChatSSE() {
 
     chatEventSource.onopen = () => {
       chatReconnectAttempts = 0;
+      chatReconnectedCallbacks.forEach((cb) => {
+        try {
+          cb();
+        } catch (e) {
+          // no-op
+        }
+      });
     };
 
     chatEventSource.addEventListener('unreadCount', (event) => {
@@ -219,15 +250,16 @@ export function connectChatSSE() {
       });
     });
 
-    chatEventSource.onerror = (error) => {
-      // 연결이 끊어진 경우 재연결 시도
-      if (chatEventSource && chatEventSource.readyState === EventSourcePolyfill.CLOSED) {
-        if (!chatReconnectTimer) attemptChatReconnect();
+    chatEventSource.onerror = () => {
+      if (chatEventSource) {
+        try {
+          chatEventSource.close();
+        } catch (_) {}
+        chatEventSource = null;
       }
-      console.error('Chat SSE 연결 오류:', error);
+      if (!chatReconnectTimer) attemptChatReconnect();
     };
   } catch (error) {
-    console.error('Chat SSE 연결 생성 실패:', error);
     chatEventSource = null;
   }
 }
@@ -260,6 +292,13 @@ export function connectNotificationSSE() {
 
     notificationEventSource.onopen = () => {
       notificationReconnectAttempts = 0;
+      notificationReconnectedCallbacks.forEach((cb) => {
+        try {
+          cb();
+        } catch (e) {
+          // no-op
+        }
+      });
     };
 
     // named event: notification
@@ -282,17 +321,16 @@ export function connectNotificationSSE() {
       }
     };
 
-    notificationEventSource.onerror = (error) => {
-      if (
-        notificationEventSource &&
-        notificationEventSource.readyState === EventSourcePolyfill.CLOSED
-      ) {
-        if (!notificationReconnectTimer) attemptNotificationReconnect();
+    notificationEventSource.onerror = () => {
+      if (notificationEventSource) {
+        try {
+          notificationEventSource.close();
+        } catch (_) {}
+        notificationEventSource = null;
       }
-      console.error('Notification SSE 연결 오류:', error);
+      if (!notificationReconnectTimer) attemptNotificationReconnect();
     };
   } catch (error) {
-    console.error('Notification SSE 연결 생성 실패:', error);
     notificationEventSource = null;
   }
 }
@@ -338,6 +376,8 @@ export function disconnectAllSSE() {
   notificationCallbacks.clear();
   unreadCountCallbacks.clear();
   roomListUpdateCallbacks.clear();
+  chatReconnectedCallbacks.clear();
+  notificationReconnectedCallbacks.clear();
   roomDetailUpdateCallbacks.clear();
 }
 
@@ -400,6 +440,10 @@ export default {
   offUnreadCount,
   onRoomListUpdate,
   offRoomListUpdate,
+  onChatReconnected,
+  offChatReconnected,
+  onNotificationReconnected,
+  offNotificationReconnected,
   onRoomDetailUpdate,
   offRoomDetailUpdate,
   isChatSSEConnected,

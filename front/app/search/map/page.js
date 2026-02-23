@@ -658,6 +658,7 @@ function MapSearchPageContent() {
             center={mapCenter}
             level={mapLevel}
             markers={apartments}
+            selectedMarkerId={selectedApartment?.id ?? null}
             onMarkerClick={handleMarkerClick}
             onMapClick={handleMapClick}
             schoolMarkers={schoolMarkers}

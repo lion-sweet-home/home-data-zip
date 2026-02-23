@@ -3,8 +3,19 @@
  * 모든 API 요청의 기본 설정과 공통 로직을 처리합니다.
  */
 
-// API Base URL 설정 (환경 변수 또는 기본값)
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api';
+// 백엔드 기준 URL (환경 변수: NEXT_PUBLIC_BACKEND_URL, 예: http://localhost:8080)
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+const API_BASE_URL = `${BACKEND_URL}/api`;
+
+/** REST/SSE용 API 기준 URL (get, post 등 및 SSE 연결에서 사용) */
+export function getApiBaseUrl() {
+  return API_BASE_URL;
+}
+
+/** WebSocket 등 백엔드 루트 기준 URL */
+export function getBackendUrl() {
+  return BACKEND_URL;
+}
 
 /**
  * 기본 요청 옵션

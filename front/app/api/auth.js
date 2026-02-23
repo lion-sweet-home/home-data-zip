@@ -207,6 +207,42 @@ export async function reissue() {
   return response;
 }
 
+/**
+ * OAuth API: Google 인가 코드로 백엔드에 토큰 교환 요청 후 JWT 저장.
+ * @param {string} code - Google이 콜백 URL에 붙여 준 인가 코드
+ * @param {string} redirectUri - 콜백 URL (Google에 등록된 값과 동일해야 함)
+ */
+export async function oauthWithCode(code, redirectUri) {
+  const response = await post('/auth/oauth', { code, redirectUri });
+  const token = response.AccessToken ?? response.accessToken;
+  if (token && typeof window !== 'undefined') {
+    localStorage.setItem('accessToken', token);
+    window.dispatchEvent(new Event('auth:changed'));
+  }
+  return response;
+}
+
+/**
+ * OAuth 콜백 URL. .env.local 의 NEXT_PUBLIC_OAUTH_REDIRECT_URI 와 동일해야 함.
+ */
+export function getOAuthRedirectUri() {
+  return process.env.NEXT_PUBLIC_OAUTH_REDIRECT_URI ?? '';
+}
+
+/**
+ * Google OAuth 로그인 URL. .env.local 에 NEXT_PUBLIC_GOOGLE_CLIENT_ID, NEXT_PUBLIC_OAUTH_REDIRECT_URI 필요.
+ * redirect_uri_mismatch 시: 브라우저 콘솔에 찍힌 redirect_uri를 Google Console '승인된 리디렉션 URI'에 그대로 추가.
+ */
+export function getGoogleLoginUrl() {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
+  const redirectUri = getOAuthRedirectUri();
+  if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development' && redirectUri) {
+    console.log('[OAuth] redirect_uri (Google Console에 이 값 그대로 등록):', redirectUri);
+  }
+  const scope = encodeURIComponent('openid email profile');
+  const redirectUriEnc = encodeURIComponent(redirectUri);
+  return `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUriEnc}&response_type=code&scope=${scope}`;
+}
 
 // 기본 export
 export default {
@@ -219,4 +255,7 @@ export default {
   register,
   refreshToken,
   reissue,
+  oauthWithCode,
+  getOAuthRedirectUri,
+  getGoogleLoginUrl,
 };

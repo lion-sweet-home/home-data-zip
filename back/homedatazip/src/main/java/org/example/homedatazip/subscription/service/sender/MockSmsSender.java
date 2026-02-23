@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component
-@Profile({"dev","test"})
+@Profile({"!local"})
 public class MockSmsSender implements SmsSender {
     @Override
     public void send(String phoneNumber, String message) {

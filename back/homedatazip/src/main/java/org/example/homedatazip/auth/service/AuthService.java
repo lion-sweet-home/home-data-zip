@@ -62,7 +62,7 @@ public class AuthService {
                                  HttpServletResponse response){
 
         if(refreshToken == null || refreshToken.isBlank()){
-            throw new BusinessException(AuthErrorCode.INVALID_CREDENTIAL);
+            throw new BusinessException(AuthErrorCode.INVALID_TOKEN_EXCEPTION);
         }
 
         if(!jwtTokenizer.validateRefreshToken(refreshToken)){

@@ -26,6 +26,9 @@ public class UserNotificationController {
     @GetMapping
     public ResponseEntity<List<UserNotificationResponse>> getAllNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         List<UserNotificationResponse> responses = userNotificationService.getAllNotifications(userDetails.getUserId());
 
         return ResponseEntity.ok(responses);
@@ -35,6 +38,9 @@ public class UserNotificationController {
     @GetMapping("/read")
     public ResponseEntity<List<UserNotificationResponse>> getReadNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         List<UserNotificationResponse> responses = userNotificationService.getReadNotifications(userDetails.getUserId());
 
         return ResponseEntity.ok(responses);
@@ -44,6 +50,9 @@ public class UserNotificationController {
     @GetMapping("/unread")
     public ResponseEntity<List<UserNotificationResponse>> getUnreadNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         List<UserNotificationResponse> responses = userNotificationService.getUnreadNotifications(userDetails.getUserId());
 
         return ResponseEntity.ok(responses);
@@ -53,6 +62,9 @@ public class UserNotificationController {
     @GetMapping("/unread-count")
     public ResponseEntity<UnreadCountResponse> getUnreadCount(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         UnreadCountResponse response = userNotificationService.getUnreadCount(userDetails.getUserId());
         return ResponseEntity.ok(response);
     }
@@ -62,6 +74,9 @@ public class UserNotificationController {
     public ResponseEntity<Void> markAsRead(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("user_notification_id") Long userNotificationId) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         userNotificationService.markAsRead(userDetails.getUserId(), userNotificationId);
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -71,6 +86,9 @@ public class UserNotificationController {
     @PutMapping("/read-all")
     public ResponseEntity<Void> markAllAsRead(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         userNotificationService.markAllAsRead(userDetails.getUserId());
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -81,6 +99,9 @@ public class UserNotificationController {
     public ResponseEntity<Void> deleteUserNotification(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable("user_notification_id") Long userNotificationId) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         userNotificationService.deleteUserNotification(userDetails.getUserId(), userNotificationId);
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
@@ -90,6 +111,9 @@ public class UserNotificationController {
     @DeleteMapping("/read-all")
     public ResponseEntity<Void> deleteAllReadNotifications(
             @AuthenticationPrincipal CustomUserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         userNotificationService.deleteAllReadNotifications(userDetails.getUserId());
 
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();

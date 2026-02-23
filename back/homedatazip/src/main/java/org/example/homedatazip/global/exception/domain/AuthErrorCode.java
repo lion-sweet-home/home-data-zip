@@ -17,7 +17,10 @@ public enum AuthErrorCode implements ErrorCode {
 
     //리프레쉬토큰 만료
     REFRESH_TOKEN_MISSING(HttpStatus.UNAUTHORIZED, "REFRESH_401_1", "리프레쉬 토큰이 없습니다."),
-    INVALID_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "REFRESH_401_2", "리프레쉬 토큰 만료되었습니다.");
+    INVALID_TOKEN_EXCEPTION(HttpStatus.UNAUTHORIZED, "REFRESH_401_2", "리프레쉬 토큰 만료되었습니다."),
+
+    // OAuth API (code 교환 실패 등)
+    OAUTH_INVALID_CODE(HttpStatus.BAD_REQUEST, "OAUTH_400_1", "유효하지 않은 인가 코드이거나 만료되었습니다.");
 
 
 
