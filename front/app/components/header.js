@@ -256,12 +256,12 @@ export default function Header() {
   }, [refreshNotifUnreadCount]);
 
   // Notification SSE 재연결 시 미읽음 개수 API로 동기화
-  useEffect(() => {
-    if (!isLoggedIn) return;
-    const handleReconnected = () => refreshNotifUnreadCount();
-    onNotificationReconnected(handleReconnected);
-    return () => offNotificationReconnected(handleReconnected);
-  }, [isLoggedIn, refreshNotifUnreadCount]);
+  // useEffect(() => {
+  //   if (!isLoggedIn) return;
+  //   const handleReconnected = () => refreshNotifUnreadCount();
+  //   onNotificationReconnected(handleReconnected);
+  //   return () => offNotificationReconnected(handleReconnected);
+  // }, [isLoggedIn, refreshNotifUnreadCount]);
 
   // 팝오버 열릴 때 미읽음 목록 로드
   const loadUnreadNotifications = useCallback(async () => {
