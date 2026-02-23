@@ -34,7 +34,7 @@ public class UserSearchLog {
 
     private Double finalArea;
     private Long finalPrice;  // 매매가 / 전세보증금 / 월세보증금
-    private Long monthlyRent; // 추가: 월세액 (매매/전세인 경우 0)
+    private Long monthlyRent;
 
     @Enumerated(EnumType.STRING)
     private TradeType tradeType;
