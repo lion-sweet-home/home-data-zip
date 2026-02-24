@@ -213,23 +213,10 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
           try {
             const data = JSON.parse(message.body);
 
-            // READ_ALL 이벤트 처리: 상대방이 방에 들어왔을 때 내가 보낸 메시지들을 읽음 처리
+            // READ_ALL 이벤트 처리: 상대방이 방에 들어왔을 때 메시지 재요청으로 읽음 상태 반영
             if (data.type === "READ_ALL") {
               console.log("상대방이 방에 들어옴:", data.readerNickname);
-              setMessages((prev) => {
-                const currentRoomDetail = roomDetailRef.current;
-                if (!currentRoomDetail) return prev;
-
-                return prev.map((msg) => {
-                  // 내가 보낸 메시지이고 아직 읽지 않은 경우 읽음 처리
-                  const isMyMsg =
-                    msg.senderNickname !== currentRoomDetail.opponentNickname;
-                  if (isMyMsg && msg.isRead === false) {
-                    return { ...msg, isRead: true };
-                  }
-                  return msg;
-                });
-              });
+              loadRoomDetail(0);
               return;
             }
 
@@ -288,7 +275,7 @@ export default function ChatRoomDetail({ roomId, onClose, onRoomListUpdate }) {
         client.deactivate();
       }
     };
-  }, [roomId]);
+  }, [roomId, loadRoomDetail]);
 
   // 메시지 전송 후 스크롤 처리
   const handleMessageSent = () => {
