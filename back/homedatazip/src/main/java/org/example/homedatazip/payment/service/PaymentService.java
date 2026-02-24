@@ -4,7 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.example.homedatazip.global.exception.BusinessException;
 import org.example.homedatazip.global.exception.domain.PaymentErrorCode;
+import org.example.homedatazip.global.exception.domain.SubscriptionErrorCode;
+import org.example.homedatazip.global.exception.domain.UserErrorCode;
 import org.example.homedatazip.payment.client.TossPaymentClient;
+import org.example.homedatazip.payment.client.dto.TossBillingKeyIssueResponse;
 import org.example.homedatazip.payment.dto.*;
 import org.example.homedatazip.payment.entity.PaymentLog;
 import org.example.homedatazip.payment.repository.PaymentLogRepository;
@@ -106,4 +109,30 @@ public class PaymentService {
         if (res.totalAmount() != null) return res.totalAmount();
         throw new BusinessException(PaymentErrorCode.TOSS_INVALID_RESPONSE);
     }
+
+    @Transactional
+    public BillingKeyConfirmResponse confirmBillingKey(Long userId, BillingKeyConfirmRequest request) {
+
+        // 1) Toss에 authKey -> billingKey 교환 요청
+        TossBillingKeyIssueResponse tossRes =
+                tossPaymentClient.issueBillingKey(request.authKey(), request.customerKey());
+
+        String billingKey = tossRes.billingKey();
+
+        // 2) 구독 row 찾아서 billingKey 저장 (없으면 생성)
+        Subscription sub = subscriptionRepository.findBySubscriber_Id(userId)
+                .orElseGet(() -> {
+                    User user = userRepository.findById(userId)
+                            .orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+
+                    Subscription newSub = Subscription.createInitial(user);
+                    return subscriptionRepository.save(newSub);
+                });
+
+        sub.updateBillingKey(billingKey);
+        // sub.setBillingKey(billingKey);
+
+        return new BillingKeyConfirmResponse(billingKey);
+    }
+
 }
