@@ -1,47 +1,62 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
 function BillingSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const calledRef = useRef(false);
 
   useEffect(() => {
+    // ✅ dev StrictMode에서 useEffect 2번 도는 거 방지
+    if (calledRef.current) return;
+    calledRef.current = true;
+
     const authKey = searchParams.get("authKey");
     const customerKey = searchParams.get("customerKey");
 
-    // 파라미터 없으면 바로 튕겨 (잘못 들어온 케이스)
     if (!authKey || !customerKey) {
       alert("잘못된 접근입니다. (authKey/customerKey 없음)");
       router.replace("/subscription");
       return;
     }
 
-    fetch(
-      `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/payments/billing-key/confirm`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ authKey, customerKey }),
-        credentials: "include",
-      }
-    )
+    // ✅ accessToken 저장 위치가 localStorage 기준 (너네 프로젝트가 다르면 여기만 바꿔)
+    const accessToken =
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("ACCESS_TOKEN") ||
+      "";
+
+    if (!accessToken) {
+      alert("로그인이 필요합니다. (accessToken 없음)");
+      router.replace("/subscription");
+      return;
+    }
+
+    fetch("http://localhost:8080/api/payments/billing-key/confirm", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ authKey, customerKey }),
+      credentials: "include",
+    })
       .then(async (res) => {
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`billing confirm failed: ${res.status} ${text}`);
-        }
+        const text = await res.text().catch(() => "");
+        if (!res.ok) throw new Error(`${res.status} ${text}`);
         alert("카드 등록 완료");
-        router.replace("/subscription"); 
+        router.replace("/subscription");
       })
       .catch((err) => {
         console.error(err);
         alert("카드 등록 처리 실패");
         router.replace("/subscription");
       });
-  }, [searchParams, router]);
+  }, [router, searchParams]);
 
-  return <div>카드 등록 처리 중...</div>;
+  return <div style={{ padding: 40 }}>카드 등록 처리 중...</div>;
 }
 
 export default function BillingSuccessPage() {

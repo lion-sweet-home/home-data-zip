@@ -151,4 +151,8 @@ public class Subscription {
     public boolean hasBillingKey() {
         return this.billingKey != null && !this.billingKey.isBlank();
     }
+
+    public void updateBillingKey(String billingKey) {
+        this.billingKey = billingKey;
+    }
 }

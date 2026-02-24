@@ -16,22 +16,14 @@ function BillingFailContent() {
       <p>code: {code}</p>
       <p>message: {message}</p>
 
-      <button onClick={() => router.replace("/subscription")}>
-        다시 시도
-      </button>
+      <button onClick={() => router.replace("/subscription")}>다시 시도</button>
     </div>
   );
 }
 
 export default function BillingFailPage() {
   return (
-    <Suspense
-      fallback={
-        <div style={{ padding: 40 }}>
-          <p>로딩 중...</p>
-        </div>
-      }
-    >
+    <Suspense fallback={<div style={{ padding: 40 }}>로딩 중...</div>}>
       <BillingFailContent />
     </Suspense>
   );
