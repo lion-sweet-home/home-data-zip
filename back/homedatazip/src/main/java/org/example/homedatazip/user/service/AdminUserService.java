@@ -41,11 +41,16 @@ public class AdminUserService {
     }
 
     public void deleteUser(Long userId) {
+        log.info("{}",userId);
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("회원을 찾을 수 없습니다. userId={}", userId);
                     return new BusinessException(UserErrorCode.USER_NOT_FOUND);
                 });
+
+        log.info("{}",user.getEmail());
+
 
         // 유저가 참여 중인 모든 채팅방에서 퇴장 처리
         for (ChatRoom chatRoom : chatRoomRepository.findAllByUserId(userId)) {

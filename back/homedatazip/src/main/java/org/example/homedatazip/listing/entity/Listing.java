@@ -10,6 +10,8 @@ import org.example.homedatazip.data.Region;
 import org.example.homedatazip.listing.type.ListingStatus;
 import org.example.homedatazip.listing.type.TradeType;
 import org.example.homedatazip.user.entity.User;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +35,7 @@ public class Listing extends BaseTimeEntity {
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

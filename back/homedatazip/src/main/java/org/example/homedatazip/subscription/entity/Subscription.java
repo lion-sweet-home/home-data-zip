@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.example.homedatazip.subscription.type.SubscriptionStatus;
 import org.example.homedatazip.user.entity.User;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -21,6 +23,7 @@ public class Subscription {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "subscriber_id", nullable = false, unique = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private User subscriber;
 
     @Builder.Default
