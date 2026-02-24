@@ -9,7 +9,6 @@ function BillingSuccessContent() {
   const calledRef = useRef(false);
 
   useEffect(() => {
-    // ✅ dev StrictMode에서 useEffect 2번 도는 거 방지
     if (calledRef.current) return;
     calledRef.current = true;
 
@@ -22,7 +21,6 @@ function BillingSuccessContent() {
       return;
     }
 
-    // ✅ accessToken 저장 위치가 localStorage 기준 (너네 프로젝트가 다르면 여기만 바꿔)
     const accessToken =
       localStorage.getItem("accessToken") ||
       localStorage.getItem("ACCESS_TOKEN") ||
@@ -34,7 +32,11 @@ function BillingSuccessContent() {
       return;
     }
 
-    fetch("http://localhost:8080/api/payments/billing-key/confirm", {
+    // ✅ 배포/로컬 모두 대응: env 있으면 env 쓰고, 없으면 기본값(EC2) 사용
+    const API_BASE =
+      process.env.NEXT_PUBLIC_API_BASE_URL || "http://homedatazip.duckdns.org:8080";
+
+    fetch(`${API_BASE}/api/payments/billing-key/confirm`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
