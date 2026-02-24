@@ -40,7 +40,7 @@ public class User extends BaseTimeEntity {
     @Column(unique = true, nullable = false)
     private String nickname;
 
-    @Column
+    @Column(nullable = false)
     private String password;
 
     @Setter

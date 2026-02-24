@@ -42,6 +42,16 @@ function MapSearchPageContent() {
   const [schoolMarkers, setSchoolMarkers] = useState([]);
   const [showSchoolMarkers, setShowSchoolMarkers] = useState(false);
 
+  // 지하철 마커 관련 (인근 3개 역)
+  const [subwayMarkers, setSubwayMarkers] = useState([]);
+  const [showSubwayMarkers, setShowSubwayMarkers] = useState(false);
+
+  // 지하철 검색 시 선택한 역 1개 마커 (검색 조건이 지하철일 때만 표시)
+  const [searchSubwayStation, setSearchSubwayStation] = useState(null);
+
+  // 학교 검색 시 선택한 학교 1개 마커 (검색 조건이 학교일 때만 표시)
+  const [searchSchool, setSearchSchool] = useState(null);
+
   // 현재 검색 파라미터 저장 (마커 클릭 시 사용)
   const [currentSearchParams, setCurrentSearchParams] = useState(null);
 
@@ -397,6 +407,10 @@ function MapSearchPageContent() {
     setShowSidePanner(false);
     setSchoolMarkers([]);
     setShowSchoolMarkers(false);
+    setSubwayMarkers([]);
+    setShowSubwayMarkers(false);
+    setSearchSubwayStation(null);
+    setSearchSchool(null);
 
     try {
       const tradeType = searchParams.tradeType || '매매';
@@ -429,11 +443,15 @@ function MapSearchPageContent() {
         // 실제 마커 조회는 handleMapIdle → fetchMarkersByIdlePayload에서 수행
         markers = [];
       } else if (searchParams.searchConditionType === 'subway') {
-        // 지하철역 검색: 선택한 역 + 반경 내 아파트 마커 표시
+        // 지하철역 검색: 선택한 역 좌표 조회(해당 역 마커용) + 반경 내 아파트 마커
+        const stationId = searchParams.subwayStationId;
+        const stationName = searchParams.subwayStationName;
         const distanceKm = Number(searchParams.subwayRadius || 1.0);
-        const subwayResponse = await get(
-          `/subway/stations/${searchParams.subwayStationId}/apartments?distanceKm=${distanceKm}`
-        );
+
+        const [subwayResponse, stationList] = await Promise.all([
+          get(`/subway/stations/${stationId}/apartments?distanceKm=${distanceKm}`),
+          stationName ? get(`/subway/stations?stationName=${encodeURIComponent(stationName)}`) : Promise.resolve([]),
+        ]);
 
         markers = (subwayResponse || []).map((apt) => ({
           lat: apt.latitude,
@@ -443,12 +461,34 @@ function MapSearchPageContent() {
           apartmentId: apt.apartmentId,
           apartmentData: apt,
         }));
-      } else if (searchParams.searchConditionType === 'school') {
-        // 학교 검색: 선택한 학교 + 반경 내 아파트 마커 표시
+
+        // 선택한 역 좌표로 검색역 마커용 상태 설정
+        let stationPoint = null;
+        const arr = Array.isArray(stationList) ? stationList : [];
+        const station = arr.find((s) => String(s.stationId) === String(stationId)) || arr[0];
+        if (station && station.latitude != null && station.longitude != null) {
+          stationPoint = {
+            lat: Number(station.latitude),
+            lng: Number(station.longitude),
+            stationName: station.stationName || stationName,
+            lineNames: station.lineNames ?? [],
+          };
+        }
+        setSearchSubwayStation(stationPoint);
+      } else {
+        setSearchSubwayStation(null);
+      }
+
+      if (searchParams.searchConditionType === 'school') {
+        // 학교 검색: 선택한 학교 좌표 조회(해당 학교 마커용) + 반경 내 아파트 마커
+        const schoolId = searchParams.schoolId;
+        const schoolName = searchParams.schoolName;
         const distanceKm = Number(searchParams.schoolRadius || 1.0);
-        const schoolResponse = await get(
-          `/schools/${searchParams.schoolId}/apartments?distanceKm=${distanceKm}`
-        );
+
+        const [schoolResponse, schoolSearchList] = await Promise.all([
+          get(`/schools/${schoolId}/apartments?distanceKm=${distanceKm}`),
+          schoolName ? get(`/schools/search?keyword=${encodeURIComponent(schoolName)}&limit=20`) : Promise.resolve([]),
+        ]);
 
         markers = (schoolResponse || []).map((apt) => ({
           lat: apt.latitude,
@@ -458,6 +498,22 @@ function MapSearchPageContent() {
           apartmentId: apt.apartmentId,
           apartmentData: apt,
         }));
+
+        // 선택한 학교 좌표로 검색학교 마커용 상태 설정
+        let schoolPoint = null;
+        const arr = Array.isArray(schoolSearchList) ? schoolSearchList : [];
+        const schoolItem = arr.find((s) => String(s.id) === String(schoolId)) || arr[0];
+        if (schoolItem && schoolItem.latitude != null && schoolItem.longitude != null) {
+          schoolPoint = {
+            lat: Number(schoolItem.latitude),
+            lng: Number(schoolItem.longitude),
+            schoolName: schoolItem.name || schoolName,
+            schoolLevel: schoolItem.schoolLevel,
+          };
+        }
+        setSearchSchool(schoolPoint);
+      } else {
+        setSearchSchool(null);
       }
 
       // region은 idle에서 setApartments 하므로, subway/school만 여기서 반영
@@ -580,6 +636,62 @@ function MapSearchPageContent() {
     setShowSchoolMarkers(visible);
   }, []);
 
+  // 지하철 마커 토글 (인근 3개 역). 좌표가 없으면 역명으로 검색해 채움
+  const handleToggleSubwayMarker = useCallback(async (subways, visible) => {
+    if (!visible) {
+      setSubwayMarkers([]);
+      setShowSubwayMarkers(false);
+      return;
+    }
+    if (!subways || subways.length === 0) {
+      setSubwayMarkers([]);
+      setShowSubwayMarkers(true);
+      return;
+    }
+    const list = subways.slice(0, 3);
+    const enriched = await Promise.all(
+      list.map(async (s) => {
+        const lat = s.latitude ?? s.lat;
+        const lng = s.longitude ?? s.lng;
+        const hasCoords = lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+        if (hasCoords) {
+          return {
+            latitude: Number(lat),
+            longitude: Number(lng),
+            stationName: s.stationName,
+            lineNames: s.lineNames ?? [],
+            distanceKm: s.distanceKm,
+          };
+        }
+        const name = (s.stationName || s.station_name || '').trim();
+        if (!name) {
+          return { latitude: null, longitude: null, stationName: s.stationName, lineNames: s.lineNames ?? [], distanceKm: s.distanceKm };
+        }
+        try {
+          const res = await get(`/subway/stations?stationName=${encodeURIComponent(name)}`);
+          const arr = Array.isArray(res) ? res : [];
+          const first = arr[0];
+          const fetchedLat = first?.latitude;
+          const fetchedLng = first?.longitude;
+          if (fetchedLat != null && fetchedLng != null && Number.isFinite(Number(fetchedLat)) && Number.isFinite(Number(fetchedLng))) {
+            return {
+              latitude: Number(fetchedLat),
+              longitude: Number(fetchedLng),
+              stationName: s.stationName,
+              lineNames: s.lineNames ?? [],
+              distanceKm: s.distanceKm,
+            };
+          }
+        } catch (e) {
+          // ignore
+        }
+        return { latitude: null, longitude: null, stationName: s.stationName, lineNames: s.lineNames ?? [], distanceKm: s.distanceKm };
+      })
+    );
+    setSubwayMarkers(enriched);
+    setShowSubwayMarkers(true);
+  }, []);
+
   // 매물 상세정보보기
   const handleShowDetail = (apartmentId) => {
     if (!apartmentId) return;
@@ -637,6 +749,7 @@ function MapSearchPageContent() {
                 }}
                 onToggleBusMarker={handleToggleBusMarker}
                 onToggleSchoolMarker={handleToggleSchoolMarker}
+                onToggleSubwayMarker={handleToggleSubwayMarker}
               />
             ) : (
               <ApartmentList
@@ -663,6 +776,10 @@ function MapSearchPageContent() {
             onMapClick={handleMapClick}
             schoolMarkers={schoolMarkers}
             showSchoolMarkers={showSchoolMarkers}
+            subwayMarkers={subwayMarkers}
+            showSubwayMarkers={showSubwayMarkers}
+            searchSubwayStation={searchSubwayStation}
+            searchSchool={searchSchool}
             onMapReady={handleMapReady}
             onIdle={handleMapIdle}
             useCluster={true}

@@ -124,7 +124,9 @@ public class SubwayStationService {
         return new NearbySubwayResponse(
                 station.getStationName(),
                 lineNames,
-                distanceKm
+                distanceKm,
+                station.getLatitude(),
+                station.getLongitude()
         );
     }
 

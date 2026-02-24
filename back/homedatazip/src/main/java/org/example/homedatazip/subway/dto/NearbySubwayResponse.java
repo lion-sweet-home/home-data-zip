@@ -6,5 +6,7 @@ import java.util.List;
 public record NearbySubwayResponse(
         String stationName,
         List<String> lineNames,
-        double distanceKm
+        double distanceKm,
+        Double latitude,
+        Double longitude
 ) {}
