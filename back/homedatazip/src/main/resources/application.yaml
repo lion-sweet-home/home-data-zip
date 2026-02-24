@@ -4,8 +4,8 @@ server:
       cookie:
         # Google 리다이렉트 시 세션 쿠키 전송 (authorization_request_not_found 방지)
         # 로컬 http: lax + secure false. 운영(https)에선 same-site: none, secure: true 권장
-        same-site: lax
-        secure: ${SERVER_SESSION_COOKIE_SECURE:false}
+        same-site: none
+        secure: ${SERVER_SESSION_COOKIE_SECURE:true}
 
 spring:
   application:
