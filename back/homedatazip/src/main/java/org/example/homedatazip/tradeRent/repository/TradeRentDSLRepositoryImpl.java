@@ -55,6 +55,7 @@ public class TradeRentDSLRepositoryImpl implements TradeRentDSLRepository {
                 .select(Projections.constructor(
                         DotResponse.class,
                         tradeRent.deposit,
+                        tradeRent.exclusiveArea,
                         tradeRent.monthlyRent,
                         yyyymm,
                         tradeRent.floor

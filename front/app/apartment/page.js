@@ -195,6 +195,20 @@ function normalizeRentDots(rows) {
   return rows
     .map((row) => ({
       yyyymm: normalizeYyyymmKey(row?.yyyymm ?? row?.month ?? ''),
+      // 면적(㎡) — DotResponse.exclusive 기반
+      // - 배포/로컬/과거 응답 키 차이를 흡수
+      exclusive: (() => {
+        const raw =
+          row?.exclusive ??
+          row?.exclusiveArea ??
+          row?.exclusive_area ??
+          row?.areaExclusive ??
+          row?.area ??
+          null;
+        if (raw == null || raw === '') return null;
+        const n = Number(raw);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      })(),
       // 그래프 스케일 통일: 만원 단위로 변환
       deposit: toManwon(row?.deposit),
       monthlyRent: toManwon(row?.monthlyRent ?? row?.mothlyRent),
@@ -288,6 +302,15 @@ function filterRecentTradesByArea(trades, selectedAreaKey) {
   const selectedExclusive = Number(selectedAreaKey) / 100;
   return trades.filter((trade) => {
     const ex = Number(trade?.exclusiveArea);
+    return Number.isFinite(ex) && Math.abs(ex - selectedExclusive) < 0.11;
+  });
+}
+
+function filterRentDotsByArea(dots, selectedAreaKey) {
+  if (!Array.isArray(dots) || !selectedAreaKey) return [];
+  const selectedExclusive = Number(selectedAreaKey) / 100;
+  return dots.filter((dot) => {
+    const ex = Number(dot?.exclusive);
     return Number.isFinite(ex) && Math.abs(ex - selectedExclusive) < 0.11;
   });
 }
@@ -1856,7 +1879,10 @@ function ApartmentPageContent() {
             getRentDots(aptId, graphPeriod),
           ]);
 
-          const normalizedDots = normalizeRentDots(dotsRes.status === 'fulfilled' ? dotsRes.value : []);
+          // dots는 "아파트 전체" 데이터이므로, 현재 선택한 면적(areaKey)에 맞춰 필터링해야
+          // 면적별 그래프가 섞이지 않는다.
+          const allDots = normalizeRentDots(dotsRes.status === 'fulfilled' ? dotsRes.value : []);
+          const normalizedDots = filterRentDotsByArea(allDots, selectedRentAreaKey);
           setRentDotGraphData(normalizedDots);
 
           if (avgRes.status === 'fulfilled') {
