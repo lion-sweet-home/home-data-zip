@@ -19,6 +19,26 @@ public class PaymentController {
     private final PaymentService paymentService;
     private final PaymentQueryService paymentQueryService;
 
+    @PostMapping("/billing-key/confirm")
+    public ResponseEntity<BillingKeyConfirmResponse> confirmBillingKey(
+            @RequestBody BillingKeyConfirmRequest request
+    ) {
+        String customerKey = request.customerKey(); // 예: CUSTOMER_1
+
+        Long userId;
+        try {
+            userId = Long.parseLong(customerKey.replace("CUSTOMER_", ""));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Invalid customerKey: " + customerKey);
+        }
+
+        log.info("[BILLING] confirmBillingKey userId={}, customerKey={}", userId, customerKey);
+
+        return ResponseEntity.ok(
+                paymentService.confirmBillingKey(userId, request)
+        );
+    }
+
     @PostMapping("/prepare")
     public ResponseEntity<PaymentPrepareResponse> prepare(
             @AuthenticationPrincipal CustomUserDetails principal,

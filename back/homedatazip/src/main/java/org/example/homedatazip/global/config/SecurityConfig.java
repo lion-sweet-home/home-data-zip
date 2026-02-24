@@ -63,10 +63,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/s3/**").hasRole("SELLER")
                         .requestMatchers("/api/s3/**").permitAll()
 
+                        .requestMatchers(HttpMethod.POST, "/api/payments/billing-key/confirm").permitAll()
+
                         .requestMatchers(
                                 "/api/subscriptions/billing/success",
                                 "/api/subscriptions/billing/fail"
                         ).permitAll()
+
+                        .requestMatchers(HttpMethod.POST, "/api/payments/billing-key/confirm").permitAll()
 
                         // 구독 관련 나머지는 인증 필수
                         .requestMatchers("/api/subscriptions/phone-auth/**").permitAll()
