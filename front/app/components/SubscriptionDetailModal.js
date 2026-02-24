@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  DEFAULT_SUBSCRIPTION_PLAN_NAME,
+  DEFAULT_SUBSCRIPTION_PRICE,
+  getSubscriptionMeta,
+} from "../utils/subscription";
+
 function formatDate(value) {
   if (!value) return "-";
   try {
@@ -36,12 +42,19 @@ export default function SubscriptionDetailModal({
 }) {
   if (!open) return null;
 
-  const status = data?.status;
-  const hasBillingKey =
-    data?.hasBillingKey === true ||
-    Boolean(data?.billingKey || data?.billing_key);
+  const meta = getSubscriptionMeta(data);
+  const status = meta.status;
+  const hasBillingKey = meta.hasBillingKey;
+  const isActive = meta.isActive;
+  const planName = meta.planName || (isActive ? DEFAULT_SUBSCRIPTION_PLAN_NAME : "-");
+  const priceValue =
+    typeof meta.price === "number"
+      ? meta.price
+      : isActive
+      ? DEFAULT_SUBSCRIPTION_PRICE
+      : null;
 
-  const canCancel = !loading && !error && status === "ACTIVE";
+  const canCancel = !loading && !error && (status === "ACTIVE" || isActive);
   const canReactivate =
     !loading && !error && (status === "CANCELED" || status === "EXPIRED");
 
@@ -85,29 +98,29 @@ export default function SubscriptionDetailModal({
                 <div className="rounded-xl border border-gray-200 p-4">
                   <div className="text-xs text-gray-500">상태</div>
                   <div className="mt-1 text-base font-semibold text-gray-900">
-                    {formatSubscriptionStatus(data?.status, data?.isActive)}
+                    {formatSubscriptionStatus(status, isActive)}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-gray-200 p-4">
                   <div className="text-xs text-gray-500">자동결제 활성</div>
                   <div className="mt-1 text-base font-semibold text-gray-900">
-                    {data?.isActive ? "ON" : "OFF"}
+                    {isActive ? "ON" : "OFF"}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-gray-200 p-4">
                   <div className="text-xs text-gray-500">요금제</div>
                   <div className="mt-1 text-base font-semibold text-gray-900">
-                    {data?.planName ?? "-"}
+                    {planName}
                   </div>
                 </div>
 
                 <div className="rounded-xl border border-gray-200 p-4">
                   <div className="text-xs text-gray-500">가격</div>
                   <div className="mt-1 text-base font-semibold text-gray-900">
-                    {typeof data?.price === "number"
-                      ? `${data.price.toLocaleString()}원`
+                    {typeof priceValue === "number"
+                      ? `${priceValue.toLocaleString()}원`
                       : "-"}
                   </div>
                 </div>
