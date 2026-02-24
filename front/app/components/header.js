@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { logout } from '../api/auth';
 import { getNotificationSetting } from '../api/user';
 import { getMySubscription } from '../api/subscription';
+import { getSubscriptionMeta } from '../utils/subscription';
 import {
   deleteNotification,
   getUnreadCount as getNotificationUnreadCount,
@@ -379,8 +380,11 @@ export default function Header() {
   };
 
   const roles = getUserRoles();
-  const isSubscribed =
-    subscription?.status === 'ACTIVE' || subscription?.isActive === true;
+  const subscriptionMeta = useMemo(
+    () => getSubscriptionMeta(subscription),
+    [subscription]
+  );
+  const isSubscribed = subscriptionMeta.isActive;
 
   // 역할에 따른 버튼 텍스트 및 동작
   // 우선순위: ADMIN > SELLER > USER만

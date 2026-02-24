@@ -7,6 +7,7 @@ import {
   startSubscription,
   verifyPhoneAuth,
 } from "../api/subscription";
+import { getSubscriptionMeta } from "../utils/subscription";
 
 const PLAN_PRICE = 9900;
 
@@ -55,13 +56,12 @@ export default function SubscriptionFlowModal({
   const [code, setCode] = useState("");
   const [ttlSeconds, setTtlSeconds] = useState(null);
 
-  const isActive = useMemo(() => {
-    return subscription?.status === "ACTIVE" || subscription?.isActive === true;
-  }, [subscription]);
-
-  const hasBillingKey =
-    subscription?.hasBillingKey === true ||
-    Boolean(subscription?.billingKey || subscription?.billing_key);
+  const subscriptionMeta = useMemo(
+    () => getSubscriptionMeta(subscription),
+    [subscription]
+  );
+  const isActive = subscriptionMeta.isActive;
+  const hasBillingKey = subscriptionMeta.hasBillingKey;
   const isPhoneVerified = !!phoneVerifiedAt;
 
   useEffect(() => {
