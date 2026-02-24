@@ -14,6 +14,10 @@ export default function Map({
   autoFitBounds = false, // markers 변경 시 지도 bounds 자동 맞춤(기본 off: bounds 기반 마커 갱신 시 루프 방지)
   schoolMarkers = [], // 학교 마커
   showSchoolMarkers = false, // 학교 마커 표시 여부
+  subwayMarkers = [], // 지하철 마커 (인근 3개 역)
+  showSubwayMarkers = false, // 지하철 마커 표시 여부
+  searchSubwayStation = null, // 지하철 검색 시 선택한 역 1개 { lat, lng, stationName, lineNames }
+  searchSchool = null, // 학교 검색 시 선택한 학교 1개 { lat, lng, schoolName, schoolLevel }
   selectedMarkerId = null, // 선택된 아파트 마커 ID (apartmentId 등) – 선택 시 강조 표시
 }) {
   const mapRef = useRef(null);
@@ -31,6 +35,16 @@ export default function Map({
   const schoolMarkersRef = useRef([]);
   const schoolLabelOverlaysRef = useRef([]); // kakao.maps.CustomOverlay[]
   const schoolInfoWindowRef = useRef(null); // kakao.maps.InfoWindow
+  const subwayMarkerImageCacheRef = useRef(null);
+  const subwayMarkersRef = useRef([]);
+  const subwayLabelOverlaysRef = useRef([]);
+  const subwayInfoWindowRef = useRef(null);
+  const searchSubwayMarkerRef = useRef(null);
+  const searchSubwayLabelRef = useRef(null);
+  const searchSubwayInfoWindowRef = useRef(null);
+  const searchSchoolMarkerRef = useRef(null);
+  const searchSchoolLabelRef = useRef(null);
+  const searchSchoolInfoWindowRef = useRef(null);
 
   const getNumberedMarkerImage = (num, isSelected) => {
     const key = `${String(num)}-${isSelected ? 'selected' : 'normal'}`;
@@ -130,6 +144,50 @@ export default function Map({
     );
     schoolMarkerImageCacheRef.current = markerImage;
     return markerImage;
+  };
+
+  const getSubwayMarkerImage = () => {
+    if (subwayMarkerImageCacheRef.current) return subwayMarkerImageCacheRef.current;
+    if (!window.kakao?.maps) return null;
+    // 지하철 스타일: 둥근 네모 배지 + 흰색 M(Metro)
+    const size = 32;
+    const main = '#0052A4'; // 서울 지하철 공식 파란색
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 36 36">
+        <defs>
+          <filter id="subway-f" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="rgba(0,0,0,0.4)"/>
+          </filter>
+        </defs>
+        <g filter="url(#subway-f)">
+          <rect x="3" y="3" width="30" height="30" rx="6" ry="6" fill="${main}"/>
+          <rect x="3" y="3" width="30" height="30" rx="6" ry="6" fill="none" stroke="#FFFFFF" stroke-width="2.5"/>
+          <text x="18" y="23" text-anchor="middle" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold">M</text>
+        </g>
+      </svg>
+    `.trim();
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const markerImage = new window.kakao.maps.MarkerImage(
+      dataUrl,
+      new window.kakao.maps.Size(size, size),
+      { offset: new window.kakao.maps.Point(size / 2, size / 2) }
+    );
+    subwayMarkerImageCacheRef.current = markerImage;
+    return markerImage;
+  };
+
+  const buildSubwayInfoHtml = (subway) => {
+    const name = subway?.stationName != null ? String(subway.stationName).trim() : '';
+    const lines = Array.isArray(subway?.lineNames) ? subway.lineNames.join(', ') : '';
+    const dist = subway?.distanceKm != null ? `${Number(subway.distanceKm).toFixed(2)}km` : '';
+    if (!name) return '';
+    return `
+      <div style="padding:8px 10px;font-size:12px;line-height:1.4;max-width:240px;">
+        <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(name)}</div>
+        ${lines ? `<div style="color:#4b5563;">${escapeHtml(lines)}</div>` : ''}
+        ${dist ? `<div style="color:#2563eb;margin-top:4px;">${escapeHtml(dist)}</div>` : ''}
+      </div>
+    `.trim();
   };
 
   const buildSchoolLabelText = (schoolsAtSamePoint) => {
@@ -484,6 +542,251 @@ export default function Map({
       schoolMarkersRef.current.push(marker);
     });
   }, [map, schoolMarkers, showSchoolMarkers, kakaoLoaded]);
+
+  // 지하철 마커 표시 (인근 3개 역)
+  useEffect(() => {
+    if (!map || !kakaoLoaded || !showSubwayMarkers) {
+      subwayMarkersRef.current.forEach((marker) => marker.setMap(null));
+      subwayMarkersRef.current = [];
+      subwayLabelOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+      subwayLabelOverlaysRef.current = [];
+      if (subwayInfoWindowRef.current) subwayInfoWindowRef.current.close();
+      return;
+    }
+
+    subwayMarkersRef.current.forEach((marker) => marker.setMap(null));
+    subwayMarkersRef.current = [];
+    subwayLabelOverlaysRef.current.forEach((overlay) => overlay.setMap(null));
+    subwayLabelOverlaysRef.current = [];
+
+    const list = (subwayMarkers || []).slice(0, 3).filter((s) => {
+      const lat = s?.latitude ?? s?.lat;
+      const lng = s?.longitude ?? s?.lng;
+      return lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+    });
+
+    const subwayMarkerImage = getSubwayMarkerImage();
+    if (!subwayInfoWindowRef.current) {
+      subwayInfoWindowRef.current = new window.kakao.maps.InfoWindow();
+    }
+
+    list.forEach((subway) => {
+      const lat = Number(subway?.latitude ?? subway?.lat);
+      const lng = Number(subway?.longitude ?? subway?.lng);
+      const position = new window.kakao.maps.LatLng(lat, lng);
+
+      const marker = new window.kakao.maps.Marker({
+        position,
+        ...(subwayMarkerImage ? { image: subwayMarkerImage } : {}),
+        map,
+        zIndex: 2,
+      });
+
+      const labelText = subway?.stationName != null ? String(subway.stationName).trim() : '';
+      if (labelText) {
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position,
+          content: `
+            <div style="
+              transform: translate(-50%, -155%);
+              padding: 3px 8px;
+              background: rgba(255,255,255,0.96);
+              border: 1px solid rgba(0,0,0,0.18);
+              border-radius: 999px;
+              box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+              font-size: 12px;
+              color: #111827;
+              white-space: nowrap;
+              max-width: 260px;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              pointer-events: none;
+            ">${escapeHtml(labelText)}</div>
+          `.trim(),
+          xAnchor: 0,
+          yAnchor: 0,
+          zIndex: 3,
+        });
+        overlay.setMap(map);
+        subwayLabelOverlaysRef.current.push(overlay);
+      }
+
+      window.kakao.maps.event.addListener(marker, 'click', () => {
+        const html = buildSubwayInfoHtml(subway);
+        if (!html) return;
+        subwayInfoWindowRef.current.setContent(html);
+        subwayInfoWindowRef.current.open(map, marker);
+      });
+
+      subwayMarkersRef.current.push(marker);
+    });
+  }, [map, subwayMarkers, showSubwayMarkers, kakaoLoaded]);
+
+  // 지하철 검색 시 선택한 역 1개 마커 (검색 조건이 지하철일 때만)
+  useEffect(() => {
+    if (!map || !kakaoLoaded) {
+      if (searchSubwayMarkerRef.current) {
+        searchSubwayMarkerRef.current.setMap(null);
+        searchSubwayMarkerRef.current = null;
+      }
+      if (searchSubwayLabelRef.current) {
+        searchSubwayLabelRef.current.setMap(null);
+        searchSubwayLabelRef.current = null;
+      }
+      if (searchSubwayInfoWindowRef.current) searchSubwayInfoWindowRef.current.close();
+      return;
+    }
+
+    const station = searchSubwayStation;
+    const lat = station?.lat ?? station?.latitude;
+    const lng = station?.lng ?? station?.longitude;
+    const hasCoords = lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+
+    if (searchSubwayMarkerRef.current) {
+      searchSubwayMarkerRef.current.setMap(null);
+      searchSubwayMarkerRef.current = null;
+    }
+    if (searchSubwayLabelRef.current) {
+      searchSubwayLabelRef.current.setMap(null);
+      searchSubwayLabelRef.current = null;
+    }
+    if (searchSubwayInfoWindowRef.current) searchSubwayInfoWindowRef.current.close();
+
+    if (!hasCoords || !station) return;
+
+    const position = new window.kakao.maps.LatLng(Number(lat), Number(lng));
+    const subwayMarkerImage = getSubwayMarkerImage();
+
+    const marker = new window.kakao.maps.Marker({
+      position,
+      ...(subwayMarkerImage ? { image: subwayMarkerImage } : {}),
+      map,
+      zIndex: 3,
+    });
+    searchSubwayMarkerRef.current = marker;
+
+    const labelText = station?.stationName != null ? String(station.stationName).trim() : '';
+    if (labelText) {
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position,
+        content: `
+          <div style="
+            transform: translate(-50%, -155%);
+            padding: 3px 8px;
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(0,0,0,0.18);
+            border-radius: 999px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            font-size: 12px;
+            color: #111827;
+            white-space: nowrap;
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+          ">${escapeHtml(labelText)}</div>
+        `.trim(),
+        xAnchor: 0,
+        yAnchor: 0,
+        zIndex: 4,
+      });
+      overlay.setMap(map);
+      searchSubwayLabelRef.current = overlay;
+    }
+
+    if (!searchSubwayInfoWindowRef.current) {
+      searchSubwayInfoWindowRef.current = new window.kakao.maps.InfoWindow();
+    }
+    window.kakao.maps.event.addListener(marker, 'click', () => {
+      const html = buildSubwayInfoHtml(station);
+      if (!html) return;
+      searchSubwayInfoWindowRef.current.setContent(html);
+      searchSubwayInfoWindowRef.current.open(map, marker);
+    });
+  }, [map, searchSubwayStation, kakaoLoaded]);
+
+  // 학교 검색 시 선택한 학교 1개 마커 (검색 조건이 학교일 때만)
+  useEffect(() => {
+    if (!map || !kakaoLoaded) {
+      if (searchSchoolMarkerRef.current) {
+        searchSchoolMarkerRef.current.setMap(null);
+        searchSchoolMarkerRef.current = null;
+      }
+      if (searchSchoolLabelRef.current) {
+        searchSchoolLabelRef.current.setMap(null);
+        searchSchoolLabelRef.current = null;
+      }
+      if (searchSchoolInfoWindowRef.current) searchSchoolInfoWindowRef.current.close();
+      return;
+    }
+
+    const school = searchSchool;
+    const lat = school?.lat ?? school?.latitude;
+    const lng = school?.lng ?? school?.longitude;
+    const hasCoords = lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
+
+    if (searchSchoolMarkerRef.current) {
+      searchSchoolMarkerRef.current.setMap(null);
+      searchSchoolMarkerRef.current = null;
+    }
+    if (searchSchoolLabelRef.current) {
+      searchSchoolLabelRef.current.setMap(null);
+      searchSchoolLabelRef.current = null;
+    }
+    if (searchSchoolInfoWindowRef.current) searchSchoolInfoWindowRef.current.close();
+
+    if (!hasCoords || !school) return;
+
+    const position = new window.kakao.maps.LatLng(Number(lat), Number(lng));
+    const schoolMarkerImage = getSchoolMarkerImage();
+
+    const marker = new window.kakao.maps.Marker({
+      position,
+      ...(schoolMarkerImage ? { image: schoolMarkerImage } : {}),
+      map,
+      zIndex: 3,
+    });
+    searchSchoolMarkerRef.current = marker;
+
+    const labelText = school?.schoolName != null ? String(school.schoolName).trim() : (school?.name != null ? String(school.name).trim() : '');
+    if (labelText) {
+      const overlay = new window.kakao.maps.CustomOverlay({
+        position,
+        content: `
+          <div style="
+            transform: translate(-50%, -155%);
+            padding: 3px 8px;
+            background: rgba(255,255,255,0.96);
+            border: 1px solid rgba(0,0,0,0.18);
+            border-radius: 999px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+            font-size: 12px;
+            color: #111827;
+            white-space: nowrap;
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+          ">${escapeHtml(labelText)}</div>
+        `.trim(),
+        xAnchor: 0,
+        yAnchor: 0,
+        zIndex: 4,
+      });
+      overlay.setMap(map);
+      searchSchoolLabelRef.current = overlay;
+    }
+
+    if (!searchSchoolInfoWindowRef.current) {
+      searchSchoolInfoWindowRef.current = new window.kakao.maps.InfoWindow();
+    }
+    window.kakao.maps.event.addListener(marker, 'click', () => {
+      const html = buildSchoolInfoHtml([school]);
+      if (!html) return;
+      searchSchoolInfoWindowRef.current.setContent(html);
+      searchSchoolInfoWindowRef.current.open(map, marker);
+    });
+  }, [map, searchSchool, kakaoLoaded]);
 
   return (
     <div className="w-full h-full relative">

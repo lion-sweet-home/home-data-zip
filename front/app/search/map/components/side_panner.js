@@ -314,7 +314,7 @@ function transformMonthlyVolume(rawMonthlyData, tradeType, periodMonths) {
   return { unit, items, maxCount, startKey: monthsRange[0], endKey: monthsRange[monthsRange.length - 1] };
 }
 
-export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onBackToList, onToggleBusMarker, onToggleSchoolMarker }) {
+export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, tradeType = '매매', onShowDetail, onBackToList, onToggleBusMarker, onToggleSchoolMarker, onToggleSubwayMarker }) {
   // 월별 거래량
   const [monthlyData, setMonthlyData] = useState([]);
   const [selectedPeriod, setSelectedPeriod] = useState(6);
@@ -337,6 +337,9 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
   // 인근 학교
   const [nearbySchools, setNearbySchools] = useState([]);
   const [schoolMarkerVisible, setSchoolMarkerVisible] = useState(false);
+
+  // 인근 지하철 마커 표시
+  const [subwayMarkerVisible, setSubwayMarkerVisible] = useState(false);
 
   // 인근 버스
   const [busStations, setBusStations] = useState([]);
@@ -614,6 +617,13 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
     onToggleSchoolMarker(nearbySchools, true);
   }, [nearbySchools, schoolMarkerVisible]); // 부모 콜백은 useCallback으로 고정되어야 무한루프가 안 남
 
+  // 지하철 데이터가 늦게 로딩되어도, 토글이 켜져 있으면 마커를 다시 올려준다
+  useEffect(() => {
+    if (!onToggleSubwayMarker) return;
+    if (!subwayMarkerVisible) return;
+    onToggleSubwayMarker(nearbySubways, true);
+  }, [nearbySubways, subwayMarkerVisible]);
+
   // 그래프 모달 데이터 로드
   useEffect(() => {
     if (showGraphModal && apartmentId) {
@@ -654,6 +664,13 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
     setSchoolMarkerVisible(checked);
     if (onToggleSchoolMarker) {
       onToggleSchoolMarker(nearbySchools, checked);
+    }
+  };
+
+  const handleSubwayMarkerToggle = (checked) => {
+    setSubwayMarkerVisible(checked);
+    if (onToggleSubwayMarker) {
+      onToggleSubwayMarker(nearbySubways, checked);
     }
   };
 
@@ -1085,7 +1102,18 @@ export default function SidePanner({ apartmentId, apartmentInfo, schoolLevels, t
 
       {/* 인근 지하철역 */}
       <div className="border-b pb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">인근 지하철역</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">인근 지하철역</h3>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={subwayMarkerVisible}
+              onChange={(e) => handleSubwayMarkerToggle(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-700">마커 표시</span>
+          </label>
+        </div>
         <div className="space-y-3">
           {nearbySubways.length > 0 ? (
             nearbySubways.slice(0, 3).map((subway, index) => (
