@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 
 function BillingFailContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const code = searchParams.get("code");
   const message = searchParams.get("message");
@@ -15,7 +16,7 @@ function BillingFailContent() {
       <p>code: {code}</p>
       <p>message: {message}</p>
 
-      <button onClick={() => (window.location.href = "/subscribe")}>
+      <button onClick={() => router.replace("/subscription")}>
         다시 시도
       </button>
     </div>
