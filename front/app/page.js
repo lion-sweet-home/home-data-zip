@@ -1,4 +1,3 @@
-import UserInfoTest from './components/UserInfoTest';
 import MonthlyTop3Section from './components/monthly_top3_section';
 import ApartmentSearch from './components/apartment_search';
 import RecommendedApartmentsSection from './components/recommended_apartments_section';
@@ -15,7 +14,6 @@ export default function Home() {
       <RecommendedApartmentsSection />
       <AiChatSection />
       <MonthlyTop3Section />
-      <UserInfoTest />
     </div>
   );
 }
