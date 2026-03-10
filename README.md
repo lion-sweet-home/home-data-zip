@@ -88,7 +88,7 @@ home-data-zip/
 | 김재훈 | Backend & Frontend | 관리자 페이지, 병원 데이터, 매물 검색, UI/UX |
 | 전주현 | Backend & Frontend | 공지, 알림, 지하철 데이터, 아파트와 지하철&학교 거리, 관심매물 등록, UI/UX |
 | 최민혁 | Backend & Frontend | JWT, 마이페이지, 전월세 데이터, UI/UX |
-| 허보미 | Backend | 구독 및 결제, 버스 데이터, 매물 등록 |
+| 허보미 | Backend | 구독 및 결제, 버스 데이터, 매물 CRUD, 휴대폰 인증구현 |
 
 ---
 
